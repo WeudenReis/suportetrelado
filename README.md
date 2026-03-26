@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Suporte Trelado Kanban (Internal SaaS)
 
 Projeto de Kanban técnico, com React + Tailwind + Supabase + Slack OAuth.
@@ -28,3 +29,7 @@ Tabela `tickets` com campos:
 - Card com borda pulsante e badge `Urgent` quando inatividade &gt; 120 min.
 - Dev Mode (toggle): view focada em `Waiting for Devs`.
 - Slack OAuth (botão único) + validação de domínio `@company.com`.
+=======
+# suportetrelado
+Estamos fazendo um trello para uso interno
+>>>>>>> 10883d280e3db6ea1691eea41c927648b28ae60e
