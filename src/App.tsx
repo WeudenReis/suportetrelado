@@ -73,22 +73,19 @@ export default function App() {
   const signInSlack = async () => {
     setSigningIn(true);
     try {
-      // Demo mode: create a mock user locally
-      const mockUser = {
-        id: 'demo-user-' + Date.now(),
-        email: 'demo@trelado.local',
-        user_metadata: {
-          full_name: 'Demo User'
-        },
-        created_at: new Date().toISOString()
-      };
-      
-      // Simulate auth session
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-      setUser(mockUser);
-      setSigningIn(false);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'slack',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
     } catch (err: any) {
-      setError('Erro ao conectar: ' + (err?.message || 'Tente novamente'));
+      console.error('Slack OAuth Error:', err);
+      setError('Erro ao conectar com Slack: ' + (err?.message || 'Verifique a configuração do Slack no Supabase'));
       setSigningIn(false);
     }
   };
@@ -122,7 +119,7 @@ export default function App() {
 
   const validDomain = (email: string) => {
     const e = email.toLowerCase();
-    return e.endsWith('@gmail.com') || e === 'demo@trelado.local';
+    return e.endsWith('@gmail.com') || e.endsWith('@seu-dominio-corporativo.com'); // Change to your corporate domain
   };
 
   if (!user) {
@@ -161,10 +158,10 @@ export default function App() {
 
             {/* CTA Text */}
             <p className="text-center text-slate-200 text-sm mb-6 font-medium">
-              Modo Demo - Clique para acessar o Kanban
+              Conecte com sua conta Slack para acessar
             </p>
 
-            {/* Demo Login Button */}
+            {/* Slack Login Button */}
             <button
               onClick={signInSlack}
               disabled={signingIn}
@@ -188,12 +185,12 @@ export default function App() {
                   <div className="animate-spin">
                     <Zap className="w-5 h-5" />
                   </div>
-                  <span>Entrando...</span>
+                  <span>Conectando...</span>
                 </>
               ) : (
                 <>
-                  <Users className="w-5 h-5" />
-                  <span>Acessar Demo</span>
+                  <Slack className="w-5 h-5" />
+                  <span>Entrar com Slack</span>
                   <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </>
               )}
