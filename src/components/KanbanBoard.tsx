@@ -521,7 +521,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Coluna</label>
                     <select value={newTicket.status} onChange={e => setNewTicket(p => ({ ...p, status: e.target.value as TicketStatus }))} className="instance-modal__input">
-                      {COLUMNS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                      {allColumns.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                     </select>
                   </div>
                 </div>
