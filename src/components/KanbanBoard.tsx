@@ -3,7 +3,7 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image, Search } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image, Search, Share2 } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -241,7 +241,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     : {}
 
   return (
-    <div className={clsx(!wallpaper && 'mesh-bg')} style={{ ...boardBgStyle, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className={clsx('board-wrapper', !wallpaper && 'mesh-bg')} style={{ ...boardBgStyle, minHeight: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}>
       {/* Toast */}
       <AnimatePresence>
         {toast && (
@@ -284,25 +284,30 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
         <div className="flex items-center gap-2">
           {/* Avatar group */}
-          {onlineUsers.length > 0 && (
-            <div className="flex items-center mr-1">
-              <div className="flex -space-x-2">
-                {onlineUsers.slice(0, 5).map((u, i) => (
-                  <div key={u} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2"
-                    style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], zIndex: 10 - i, ringColor: 'var(--bg-primary)' }}
-                    title={u}>
-                    {u.slice(0, 2).toUpperCase()}
-                  </div>
-                ))}
-                {onlineUsers.length > 5 && (
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2"
-                    style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)', ringColor: 'var(--bg-primary)' }}>
-                    +{onlineUsers.length - 5}
-                  </div>
-                )}
-              </div>
+          <div className="flex items-center mr-1">
+            <div className="flex -space-x-2">
+              {(onlineUsers.length > 0 ? onlineUsers : [user]).slice(0, 5).map((u, i) => (
+                <div key={u} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-[#0c0c1d]"
+                  style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], zIndex: 10 - i }}
+                  title={u}>
+                  {u.slice(0, 2).toUpperCase()}
+                </div>
+              ))}
+              {onlineUsers.length > 5 && (
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-[#0c0c1d]"
+                  style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>
+                  +{onlineUsers.length - 5}
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Share button */}
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-white/10"
+            style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+            onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Link copiado!', 'ok') }}>
+            <Share2 size={13} /> Compartilhar
+          </button>
 
           {/* Connection status */}
           <div className={clsx('flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full', isConnected ? 'text-green-400' : 'text-red-400')} style={{ background: isConnected ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' }}>
