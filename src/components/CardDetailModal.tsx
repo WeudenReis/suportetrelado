@@ -75,6 +75,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [showDetails, setShowDetails] = useState(true)
+  const [showActivities, setShowActivities] = useState(true)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
@@ -216,7 +217,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   // --- Merge comments + activities for feed ---
   const feedItems = [
     ...comments.map(c => ({ type: 'comment' as const, id: c.id, user: c.user_name, text: c.content, time: c.created_at })),
-    ...activities.map(a => ({ type: 'activity' as const, id: a.id, user: a.user_name, text: a.action_text, time: a.created_at })),
+    ...(showActivities ? activities.map(a => ({ type: 'activity' as const, id: a.id, user: a.user_name, text: a.action_text, time: a.created_at })) : []),
   ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
 
   return (
@@ -404,15 +405,30 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
           {/* ---- Comentários e atividade (collapsible) ---- */}
           <div>
-            <button
-              onClick={() => setShowDetails(!showDetails)}
-              className="flex items-center gap-2 text-sm font-semibold mb-2 transition-colors hover:text-white"
-              style={{ color: '#9fadbc' }}
-            >
-              <MessageSquare size={16} />
-              Comentários e Atividade
-              <ChevronDown size={14} className={clsx('transition-transform', !showDetails && '-rotate-90')} />
-            </button>
+            <div className="flex items-center justify-between mb-2">
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="flex items-center gap-2 text-sm font-semibold transition-colors hover:text-white"
+                style={{ color: '#9fadbc' }}
+              >
+                <MessageSquare size={16} />
+                Comentários e Atividade
+                <ChevronDown size={14} className={clsx('transition-transform', !showDetails && '-rotate-90')} />
+              </button>
+              {showDetails && (
+                <button
+                  onClick={() => setShowActivities(!showActivities)}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-md transition-colors"
+                  style={{
+                    background: showActivities ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.05)',
+                    color: showActivities ? '#60a5fa' : '#6b7280',
+                    border: `1px solid ${showActivities ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                  }}
+                >
+                  {showActivities ? 'Esconder Atividades' : 'Mostrar Detalhes'}
+                </button>
+              )}
+            </div>
 
             <AnimatePresence>
               {showDetails && (

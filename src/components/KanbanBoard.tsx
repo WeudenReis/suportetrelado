@@ -32,7 +32,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null)
   const [overColumn, setOverColumn] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: 'backlog' as TicketStatus })
+  const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: 'backlog' as TicketStatus, cliente: '', instancia: '' })
   const [isConnected, setIsConnected] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -46,6 +46,9 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [inlineTitle, setInlineTitle] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [showInstanceModal, setShowInstanceModal] = useState(false)
+  const [addingList, setAddingList] = useState(false)
+  const [newListName, setNewListName] = useState('')
+  const [customColumns, setCustomColumns] = useState<{ id: string; label: string; accent: string }[]>([])
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
@@ -127,7 +130,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
-  const getColumnTickets = useCallback((status: TicketStatus) => {
+  const getColumnTickets = useCallback((status: string) => {
     let filtered = tickets.filter(t => t.status === status)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
@@ -135,6 +138,8 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     }
     return filtered
   }, [tickets, searchQuery])
+
+  const allColumns = [...COLUMNS, ...customColumns.map(c => ({ ...c, color: 'rgba(255,255,255,0.05)' }))]
 
   function handleDragStart(event: DragStartEvent) {
     const ticket = tickets.find(t => t.id === event.active.id)
@@ -177,9 +182,11 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         description: newTicket.description || '',
         status: newTicket.status,
         priority: newTicket.priority,
+        cliente: newTicket.cliente || '',
+        instancia: newTicket.instancia || '',
       })
       setTickets(prev => prev.some(t => t.id === created.id) ? prev : [created, ...prev])
-      setNewTicket({ title: '', description: '', priority: 'medium', status: 'backlog' })
+      setNewTicket({ title: '', description: '', priority: 'medium', status: 'backlog', cliente: '', instancia: '' })
       setShowAddModal(false)
       showToast('Ticket criado!', 'ok')
     } catch (err: any) {
@@ -285,14 +292,18 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Avatar group */}
+          {/* Avatar group with presence */}
           <div className="flex items-center mr-1">
             <div className="flex -space-x-2">
               {(onlineUsers.length > 0 ? onlineUsers : [user]).slice(0, 5).map((u, i) => (
-                <div key={u} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-[#0c0c1d]"
-                  style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], zIndex: 10 - i }}
-                  title={u}>
-                  {u.slice(0, 2).toUpperCase()}
+                <div key={u} className="relative"
+                  style={{ zIndex: 10 - i }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-[#0c0c1d]"
+                    style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5] }}
+                    title={u}>
+                    {u.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 ring-2 ring-[#0c0c1d]" />
                 </div>
               ))}
               {onlineUsers.length > 5 && (
@@ -354,11 +365,11 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         ) : (
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
           <div className="board-columns">
-            {COLUMNS.map(col => {
+            {allColumns.map((col, colIdx) => {
               const colTickets = getColumnTickets(col.id)
               return (
                 <motion.div key={col.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, delay: COLUMNS.indexOf(col) * 0.06 }}
+                  transition={{ duration: 0.35, delay: colIdx * 0.06 }}
                   className="trello-col">
                   {/* Column header */}
                   <div className="trello-col__head">
@@ -390,28 +401,67 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                         className="w-full rounded-lg p-2.5 text-sm resize-none outline-none"
                         style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
                         onKeyDown={e => {
-                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInlineAdd(col.id) }
+                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInlineAdd(col.id as TicketStatus) }
                           if (e.key === 'Escape') { setAddingTo(null); setInlineTitle('') }
                         }}
                       />
                       <div className="flex items-center gap-1.5 mt-1.5">
-                        <button onClick={() => handleInlineAdd(col.id)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#25D066' }}>Adicionar</button>
+                        <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#25D066' }}>Adicionar</button>
                         <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
                       </div>
                     </div>
                   ) : (
-                    <button onClick={() => { setAddingTo(col.id); setInlineTitle('') }} className="trello-col__add">
+                    <button onClick={() => { setAddingTo(col.id as TicketStatus); setInlineTitle('') }} className="trello-col__add">
                       <Plus size={16} /> Adicionar um cartão
                     </button>
                   )}
                 </motion.div>
               )
             })}
-            {/* Ghost: Add another list */}
-            <div className="add-list-ghost">
-              <Plus size={16} />
-              <span>Adicionar outra lista</span>
-            </div>
+            {/* Add another list */}
+            {addingList ? (
+              <div className="add-list-form">
+                <input
+                  autoFocus
+                  value={newListName}
+                  onChange={e => setNewListName(e.target.value)}
+                  placeholder="Nome da lista..."
+                  className="instance-modal__input text-sm"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newListName.trim()) {
+                      const id = newListName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+                      const accent = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'][customColumns.length % 5]
+                      setCustomColumns(prev => [...prev, { id: `custom_${id}_${Date.now()}`, label: newListName.trim(), accent }])
+                      setNewListName('')
+                      setAddingList(false)
+                      showToast('Lista adicionada!', 'ok')
+                    }
+                    if (e.key === 'Escape') { setAddingList(false); setNewListName('') }
+                  }}
+                />
+                <div className="flex items-center gap-1.5 mt-2">
+                  <button
+                    onClick={() => {
+                      if (!newListName.trim()) return
+                      const id = newListName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+                      const accent = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'][customColumns.length % 5]
+                      setCustomColumns(prev => [...prev, { id: `custom_${id}_${Date.now()}`, label: newListName.trim(), accent }])
+                      setNewListName('')
+                      setAddingList(false)
+                      showToast('Lista adicionada!', 'ok')
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white"
+                    style={{ background: '#3b82f6' }}
+                  >Adicionar lista</button>
+                  <button onClick={() => { setAddingList(false); setNewListName('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+                </div>
+              </div>
+            ) : (
+              <div className="add-list-ghost" onClick={() => setAddingList(true)}>
+                <Plus size={16} />
+                <span>Adicionar outra lista</span>
+              </div>
+            )}
           </div>
           <DragOverlay dropAnimation={null}>
             {activeTicket && (
@@ -427,26 +477,67 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       {/* Add Modal */}
       <AnimatePresence>
         {showAddModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }} onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 16 }} className="glass-card rounded-2xl p-6 w-full max-w-md">
-              <h2 className="font-bold text-lg text-white mb-4">Novo Ticket</h2>
-              <div className="space-y-3">
-                <input autoFocus placeholder="Título do ticket..." value={newTicket.title} onChange={e => setNewTicket(p => ({ ...p, title: e.target.value }))} className="dark-input w-full rounded-lg px-4 py-3 text-sm" />
-                <textarea placeholder="Descrição (opcional)..." value={newTicket.description} onChange={e => setNewTicket(p => ({ ...p, description: e.target.value }))} rows={3} className="dark-input w-full rounded-lg px-4 py-3 text-sm resize-none" />
-                <div className="flex gap-3">
-                  <select value={newTicket.priority} onChange={e => setNewTicket(p => ({ ...p, priority: e.target.value as Ticket['priority'] }))} className="dark-input flex-1 rounded-lg px-3 py-2.5 text-sm">
-                    <option value="low">Prioridade: Baixa</option>
-                    <option value="medium">Prioridade: Média</option>
-                    <option value="high">Prioridade: Alta</option>
-                  </select>
-                  <select value={newTicket.status} onChange={e => setNewTicket(p => ({ ...p, status: e.target.value as TicketStatus }))} className="dark-input flex-1 rounded-lg px-3 py-2.5 text-sm">
-                    {COLUMNS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                  </select>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className="glass-card rounded-2xl w-full max-w-md overflow-hidden"
+            >
+              {/* Modal header */}
+              <div className="px-6 pt-5 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15,23,42,0.40)' }}>
+                <h2 className="font-bold text-lg text-white">Novo Ticket</h2>
+                <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-slate-400 hover:text-white"><X size={16} /></button>
+              </div>
+
+              {/* Modal body */}
+              <div className="px-6 py-5 space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto modal-scroll">
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Título *</label>
+                  <input autoFocus placeholder="Título do ticket..." value={newTicket.title} onChange={e => setNewTicket(p => ({ ...p, title: e.target.value }))} className="instance-modal__input" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Cliente</label>
+                    <input placeholder="Nome do cliente..." value={newTicket.cliente} onChange={e => setNewTicket(p => ({ ...p, cliente: e.target.value }))} className="instance-modal__input" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Código da Instância</label>
+                    <input placeholder="Ex: inst-001..." value={newTicket.instancia} onChange={e => setNewTicket(p => ({ ...p, instancia: e.target.value }))} className="instance-modal__input" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Prioridade</label>
+                    <select value={newTicket.priority} onChange={e => setNewTicket(p => ({ ...p, priority: e.target.value as Ticket['priority'] }))} className="instance-modal__input">
+                      <option value="low">Baixa</option>
+                      <option value="medium">Média</option>
+                      <option value="high">Alta</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Coluna</label>
+                    <select value={newTicket.status} onChange={e => setNewTicket(p => ({ ...p, status: e.target.value as TicketStatus }))} className="instance-modal__input">
+                      {COLUMNS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Descrição</label>
+                  <textarea placeholder="Descreva o problema em detalhes..." value={newTicket.description} onChange={e => setNewTicket(p => ({ ...p, description: e.target.value }))} rows={3} className="instance-modal__input resize-none" />
                 </div>
               </div>
-              <div className="flex gap-3 mt-5">
-                <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 rounded-lg text-sm text-slate-400 hover:text-white transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancelar</button>
-                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={handleAddTicket} disabled={!newTicket.title.trim()} className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-40" style={{ background: '#25D066' }}>Criar Ticket</motion.button>
+
+              {/* Modal footer */}
+              <div className="px-6 py-4 flex gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15,23,42,0.30)' }}>
+                <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancelar</button>
+                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={handleAddTicket} disabled={!newTicket.title.trim()} className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-40" style={{ background: '#3b82f6' }}>
+                  <Plus size={15} className="inline mr-1" />Criar Ticket
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>
