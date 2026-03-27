@@ -140,7 +140,7 @@ export default function App() {
   }, []);
 
   const signInSlack = async () => {
-    await supabase.auth.signInWithOAuth({ provider: 'slack', options: { redirectTo: window.location.origin } });
+    await supabase.auth.signInWithOAuth({ provider: 'slack_oidc', options: { redirectTo: window.location.origin } });
   };
 
   const signOut = async () => {
