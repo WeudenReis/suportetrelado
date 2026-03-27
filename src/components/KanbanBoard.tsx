@@ -895,31 +895,6 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                 </div>
               </div>
 
-              {/* Custom Colors */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: theme.textMuted }}>Cores personalizadas</label>
-                <div className="space-y-3">
-                  {([
-                    { key: 'bgPrimary' as keyof ThemeConfig, label: 'Fundo principal' },
-                    { key: 'bgSecondary' as keyof ThemeConfig, label: 'Fundo secundário' },
-                    { key: 'bgCard' as keyof ThemeConfig, label: 'Fundo dos cards' },
-                    { key: 'accent' as keyof ThemeConfig, label: 'Cor de destaque' },
-                    { key: 'textPrimary' as keyof ThemeConfig, label: 'Texto principal' },
-                    { key: 'textMuted' as keyof ThemeConfig, label: 'Texto secundário' },
-                  ]).map(item => (
-                    <div key={item.key} className="flex items-center justify-between gap-3">
-                      <span className="text-xs" style={{ color: theme.textSecondary }}>{item.label}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono" style={{ color: theme.textMuted }}>{theme[item.key]}</span>
-                        <input type="color" value={theme[item.key].startsWith('rgba') ? '#888888' : theme[item.key]}
-                          onChange={e => setCustomColor(item.key, e.target.value)}
-                          className="w-7 h-7 rounded cursor-pointer border-0" style={{ background: 'none' }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Reset */}
               <button onClick={() => setPreset('dark')} className="mt-6 w-full py-2.5 rounded-lg text-xs font-semibold transition-colors"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid ' + theme.borderSubtle, color: theme.textMuted }}>
