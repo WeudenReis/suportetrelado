@@ -6,6 +6,7 @@ import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
 import PlannerView from './components/PlannerView'
 import Sidebar from './components/Sidebar'
+import PlannerSidebar from './components/PlannerSidebar'
 import BottomNav from './components/BottomNav'
 import { fetchTickets } from './lib/supabase'
 import type { Ticket } from './lib/supabase'
@@ -14,6 +15,7 @@ export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [plannerCollapsed, setPlannerCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'switch'>('board')
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
 
@@ -57,13 +59,6 @@ export default function App() {
 
   const renderView = () => {
     switch (activeTab) {
-      case 'planner':
-        return (
-          <motion.div key="planner" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}
-            className="flex-1 overflow-y-auto mesh-bg min-h-0">
-            <PlannerView tickets={plannerTickets} />
-          </motion.div>
-        )
       case 'switch':
         return (
           <motion.div key="switch" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}
@@ -77,7 +72,7 @@ export default function App() {
         )
       default:
         return (
-          <motion.div key={activeTab === 'inbox' ? 'board-with-inbox' : 'board'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+          <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
             className="flex-1 flex flex-col min-h-0">
             <KanbanBoard user={user!} onLogout={handleLogout} />
           </motion.div>
@@ -93,6 +88,9 @@ export default function App() {
         <div className="app-layout">
           {activeTab === 'inbox' && (
             <Sidebar user={user} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
+          )}
+          {activeTab === 'planner' && (
+            <PlannerSidebar tickets={plannerTickets} collapsed={plannerCollapsed} onToggle={() => setPlannerCollapsed(p => !p)} />
           )}
           <div className="app-layout__main">
             <AnimatePresence mode="wait">

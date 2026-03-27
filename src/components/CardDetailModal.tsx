@@ -68,10 +68,16 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [showActivities, setShowActivities] = useState(true)
+  const [showLabelPicker, setShowLabelPicker] = useState(false)
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [dueDate, setDueDate] = useState(ticket.due_date || '')
+  const [tags, setTags] = useState<string[]>(ticket.tags || [])
+  const [newTag, setNewTag] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
   const commentsEndRef = useRef<HTMLDivElement>(null)
+  const memberRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setTitle(ticket.title)
@@ -357,12 +363,53 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>+ Adicionar</button>
-                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Etiquetas</button>
-                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Datas</button>
-                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Checklist</button>
-                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Membros</button>
+                <button onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>+ Adicionar</button>
+                <button onClick={() => setShowLabelPicker(p => !p)} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showLabelPicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showLabelPicker ? '#60a5fa' : '#c8cad0' }}>Etiquetas</button>
+                <button onClick={() => setShowDatePicker(p => !p)} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showDatePicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showDatePicker ? '#60a5fa' : '#c8cad0' }}>Datas</button>
+                <button onClick={() => { const item = prompt('Item do checklist:'); if (item?.trim()) { setObservacao(prev => prev ? prev + '\n☐ ' + item.trim() : '☐ ' + item.trim()); save({ observacao: observacao ? observacao + '\n☐ ' + item.trim() : '☐ ' + item.trim() }) } }} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Checklist</button>
+                <button onClick={() => memberRef.current?.focus()} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Membros</button>
               </div>
+
+              {/* Labels picker */}
+              {showLabelPicker && (
+                <div className="rounded-lg p-3 space-y-2" style={{ background: '#1d2125', border: '1px solid rgba(255,255,255,0.10)' }}>
+                  <div className="text-xs font-semibold mb-1" style={{ color: '#9fadbc' }}>Etiquetas</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.map((tag, i) => (
+                      <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-white cursor-pointer hover:opacity-80"
+                        style={{ background: `hsl(${(tag.charCodeAt(0) * 47 + i * 80) % 360}, 55%, 45%)` }}
+                        onClick={() => { const next = tags.filter(t => t !== tag); setTags(next); save({ tags: next }) }}
+                        title="Clique para remover"
+                      >
+                        {tag} ×
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Nova etiqueta..." className="modal-field flex-1 text-xs"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && newTag.trim()) {
+                          const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next })
+                        }
+                      }}
+                    />
+                    <button onClick={() => { if (newTag.trim()) { const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next }) } }}
+                      className="px-3 py-1 rounded-md text-xs font-semibold" style={{ background: 'rgba(37,208,102,0.18)', color: '#2de379' }}>
+                      Adicionar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Date picker */}
+              {showDatePicker && (
+                <div className="rounded-lg p-3 space-y-2" style={{ background: '#1d2125', border: '1px solid rgba(255,255,255,0.10)' }}>
+                  <div className="text-xs font-semibold mb-1" style={{ color: '#9fadbc' }}>Data de entrega</div>
+                  <input type="date" value={dueDate} onChange={e => { setDueDate(e.target.value); save({ due_date: e.target.value || null } as any) }}
+                    className="modal-field text-sm" />
+                  {dueDate && <div className="text-xs" style={{ color: '#9fadbc' }}>Entrega: {new Date(dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>}
+                </div>
+              )}
 
               <section>
               <div className="flex items-center gap-2 mb-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
@@ -427,7 +474,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   </select>
                 </FieldGroup>
                 <FieldGroup label="Membro">
-                  <input value={assignee} onChange={e => setAssignee(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Responsavel" />
+                  <input ref={memberRef} value={assignee} onChange={e => setAssignee(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Responsavel" />
                 </FieldGroup>
                 <div className="sm:col-span-2">
                   <FieldGroup label="Observacao">

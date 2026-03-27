@@ -23,6 +23,7 @@ export interface Ticket {
   link_retaguarda?: string | null
   link_sessao?: string | null
   observacao?: string | null
+  due_date?: string | null
 }
 
 export interface Comment {
