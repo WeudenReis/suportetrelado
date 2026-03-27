@@ -38,6 +38,14 @@ export interface Attachment {
   created_at: string
 }
 
+export interface ActivityLog {
+  id: string
+  card_id: string
+  user_name: string
+  action_text: string
+  created_at: string
+}
+
 export type TicketInsert = Omit<Ticket, 'id' | 'created_at' | 'updated_at'>
 
 export async function fetchTickets(): Promise<Ticket[]> {
@@ -149,6 +157,27 @@ export async function deleteAttachment(id: string, fileUrl: string): Promise<voi
     }
   } catch { /* ignore path extraction errors */ }
   await supabase.from('attachments').delete().eq('id', id)
+}
+
+// --- Activity Log ---
+export async function fetchActivityLog(cardId: string): Promise<ActivityLog[]> {
+  const { data, error } = await supabase
+    .from('activity_log')
+    .select('*')
+    .eq('card_id', cardId)
+    .order('created_at', { ascending: true })
+  if (error) { console.warn('activity_log table may not exist:', error.message); return [] }
+  return (data ?? []) as ActivityLog[]
+}
+
+export async function insertActivityLog(cardId: string, userName: string, actionText: string): Promise<ActivityLog | null> {
+  const { data, error } = await supabase
+    .from('activity_log')
+    .insert({ card_id: cardId, user_name: userName, action_text: actionText })
+    .select()
+    .single()
+  if (error) { console.warn('Failed to insert activity:', error.message); return null }
+  return data as ActivityLog
 }
 
 export async function sendToSlack(ticket: Ticket): Promise<boolean> {

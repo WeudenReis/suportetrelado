@@ -8,7 +8,7 @@ import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal from './CardDetailModal'
-import { supabase, fetchTickets, insertTicket, updateTicket, sendToSlack } from '../lib/supabase'
+import { supabase, fetchTickets, insertTicket, updateTicket, sendToSlack, insertActivityLog } from '../lib/supabase'
 import type { Ticket, TicketStatus } from '../lib/supabase'
 
 interface KanbanBoardProps { user: string; onLogout: () => void }
@@ -142,13 +142,19 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     if (!targetStatus) return
     const ticket = tickets.find(t => t.id === active.id)
     if (!ticket || ticket.status === targetStatus) return
+    const fromLabel = COLUMNS.find(c => c.id === ticket.status)?.label || ticket.status
+    const toLabel = COLUMNS.find(c => c.id === targetStatus)?.label || targetStatus
     // Optimistic update
     setTickets(prev => prev.map(t => t.id === active.id ? { ...t, status: targetStatus as TicketStatus } : t))
     // Persist to Supabase
-    updateTicket(active.id as string, { status: targetStatus as TicketStatus }).catch(() => {
-      showToast('Erro ao mover ticket', 'err')
-      loadTickets() // rollback
-    })
+    updateTicket(active.id as string, { status: targetStatus as TicketStatus })
+      .then(() => {
+        insertActivityLog(active.id as string, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
+      })
+      .catch(() => {
+        showToast('Erro ao mover ticket', 'err')
+        loadTickets() // rollback
+      })
   }
 
   const handleAddTicket = async () => {
