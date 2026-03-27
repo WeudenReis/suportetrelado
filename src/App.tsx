@@ -64,17 +64,6 @@ export default function App() {
             <PlannerView tickets={plannerTickets} />
           </motion.div>
         )
-      case 'inbox':
-        return (
-          <motion.div key="inbox" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}
-            className="flex-1 flex items-center justify-center mesh-bg" style={{ minHeight: '100%' }}>
-            <div className="text-center">
-              <div className="text-4xl mb-3">📥</div>
-              <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Caixa de Entrada</h2>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma notificação pendente</p>
-            </div>
-          </motion.div>
-        )
       case 'switch':
         return (
           <motion.div key="switch" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}
@@ -88,7 +77,7 @@ export default function App() {
         )
       default:
         return (
-          <motion.div key="board" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+          <motion.div key={activeTab === 'inbox' ? 'board-with-inbox' : 'board'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
             className="flex-1 flex flex-col" style={{ minHeight: '100%' }}>
             <KanbanBoard user={user!} onLogout={handleLogout} />
           </motion.div>
@@ -102,7 +91,9 @@ export default function App() {
         <Login onLogin={handleLogin} />
       ) : (
         <div className="app-layout">
-          <Sidebar user={user} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
+          {activeTab === 'inbox' && (
+            <Sidebar user={user} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
+          )}
           <div className="app-layout__main">
             <AnimatePresence mode="wait">
               {renderView()}

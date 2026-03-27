@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyb
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2 } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2 } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -510,56 +510,75 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       </AnimatePresence>
 
       {/* Nav */}
-      <header className="board-header">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#25D066' }}>
-            <LayoutGrid size={16} className="text-white" />
+      <header className="board-header trello-board-header">
+        <div className="trello-board-header__left">
+          <div className="trello-board-header__badge" aria-hidden>
+            <LayoutGrid size={15} className="text-white" />
           </div>
-          <h1 className="text-lg font-bold" style={{ fontFamily: "'Paytone One', sans-serif", color: theme.textPrimary }}>Suporte chatPro</h1>
+
+          <button className="trello-board-chip trello-board-chip--title" type="button">
+            <span className="trello-board-chip__title">Suporte chatPro</span>
+          </button>
+
           {staleCount > 0 && (
-            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
-              style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />{staleCount} sem resposta +2h
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="trello-alert-chip"
+            >
+              <span className="trello-alert-chip__dot" />
+              {staleCount} sem resposta +2h
             </motion.div>
           )}
+
+          <button
+            onClick={() => setShowInstanceModal(true)}
+            className="trello-board-chip"
+            type="button"
+          >
+            <Plug size={13} />
+            Instancia
+          </button>
         </div>
 
-        {/* Center: Search bar */}
-        <div className="header-search">
-          <Search size={15} className="text-slate-500 flex-shrink-0" />
-          <input
-            type="text"
-            placeholder="Pesquisar tickets..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="bg-transparent border-none outline-none text-sm flex-1"
-            style={{ color: 'var(--text-primary)' }}
-          />
+        <div className="trello-board-header__center">
+          <div className="header-search">
+            <Search size={15} className="text-slate-500 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Pesquisar tickets..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="bg-transparent border-none outline-none text-sm flex-1"
+              style={{ color: 'var(--text-primary)' }}
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Avatar group with presence */}
+        <div className="trello-board-header__right">
           <div
-            className="relative flex items-center mr-1"
+            className="relative flex items-center"
             onMouseEnter={() => setShowOnlineUsers(true)}
             onMouseLeave={() => setShowOnlineUsers(false)}
           >
             <div className="flex -space-x-2 cursor-default">
               {visibleUsers.slice(0, 5).map((u, i) => (
-                <div key={u} className="relative"
-                  style={{ zIndex: 10 - i }}>
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-[#0c0c1d]"
-                    style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5] }}
-                    title={u}>
+                <div key={u} className="relative" style={{ zIndex: 10 - i }}>
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white border"
+                    style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], borderColor: 'rgba(12,18,30,0.92)' }}
+                    title={u}
+                  >
                     {u.slice(0, 2).toUpperCase()}
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 ring-2 ring-[#0c0c1d]" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border" style={{ borderColor: 'rgba(12,18,30,0.92)' }} />
                 </div>
               ))}
               {visibleUsers.length > 5 && (
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-[#0c0c1d]"
-                  style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border"
+                  style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)', borderColor: 'rgba(12,18,30,0.92)' }}
+                >
                   +{visibleUsers.length - 5}
                 </div>
               )}
@@ -591,42 +610,39 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             </AnimatePresence>
           </div>
 
-          {/* Share button */}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-white/10"
-            style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
-            onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Link copiado!', 'ok') }}>
-            <Share2 size={13} /> Compartilhar
+          <button
+            className="trello-board-chip"
+            type="button"
+            onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Link copiado!', 'ok') }}
+          >
+            <Share2 size={13} />
+            Compartilhar
           </button>
 
-          {/* Connection status */}
-          <div className={clsx('flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full', isConnected ? 'text-green-400' : 'text-red-400')} style={{ background: isConnected ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' }}>
-            {isConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
+          <div className={clsx('trello-board-status', isConnected ? 'trello-board-status--ok' : 'trello-board-status--off')} title={isConnected ? 'Conectado ao realtime' : 'Sem conexao'}>
+            <span className="trello-board-status__dot" />
           </div>
-          <button onClick={handleRefresh} className="p-2 rounded-lg text-slate-400 hover:text-white transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>
+
+          <button onClick={handleRefresh} className="trello-icon-btn" type="button" title="Atualizar tickets">
             <RefreshCw size={15} className={clsx(refreshing && 'animate-spin')} />
           </button>
 
-          {/* Instance config button */}
-          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowInstanceModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
-            style={{ background: 'rgba(59,130,246,0.10)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)' }}>
-            <Plug size={14} /> Instância
-          </motion.button>
-
-          {/* Blue "Criar" button */}
-          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white"
-            style={{ background: '#3b82f6' }}>
-            <Plus size={15} />Criar
-          </motion.button>
-          <button onClick={() => setShowSettings(true)} className="p-2 rounded-lg transition-colors" style={{ background: 'rgba(255,255,255,0.05)', color: theme.textMuted }}>
+          <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configuracoes">
             <Settings size={15} />
           </button>
-          <div className="flex items-center gap-2 ml-1 pl-2" style={{ borderLeft: '1px solid ' + theme.borderSubtle }}>
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: '#25D066' }}>
+
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
+            <Plus size={15} />
+            Criar
+          </motion.button>
+
+          <div className="trello-user-chip">
+            <div className="trello-user-chip__avatar" style={{ background: '#25D066' }}>
               {user.charAt(0).toUpperCase()}
             </div>
-            <button onClick={onLogout} className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 transition-colors"><LogOut size={14} /></button>
+            <button onClick={onLogout} className="trello-icon-btn trello-icon-btn--danger" type="button" title="Sair">
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
       </header>
