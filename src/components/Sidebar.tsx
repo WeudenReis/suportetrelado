@@ -66,7 +66,7 @@ export default function Sidebar({ user, collapsed, onToggle }: SidebarProps) {
   const currentWidth = collapsed ? MIN_WIDTH : width
 
   return (
-    <div ref={sidebarRef} className="sidebar-root h-full flex-shrink-0 relative z-30 flex" style={{ width: currentWidth }}>
+    <div ref={sidebarRef} className={`sidebar-root h-full flex-shrink-0 relative z-30 flex ${collapsed ? 'sidebar-root--collapsed' : ''}`} style={{ width: currentWidth }}>
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Toggle button */}
         <button

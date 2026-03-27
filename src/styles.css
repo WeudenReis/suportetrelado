@@ -247,8 +247,10 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   position: relative;
   gap: var(--float-gap);
+  overflow: hidden;
 }
 
 /* =========================================
@@ -263,6 +265,10 @@ body {
   box-shadow: var(--float-shadow);
   transition: width 0.15s ease, box-shadow 0.3s ease;
   overflow: hidden;
+  min-width: 52px;
+}
+.sidebar-root--collapsed {
+  border-radius: 12px;
 }
 .sidebar-root:hover {
   box-shadow: var(--float-shadow-hover);
@@ -326,6 +332,8 @@ body {
    ========================================= */
 .board-main {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   padding: 16px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -337,6 +345,8 @@ body {
   box-shadow: var(--float-shadow);
   backdrop-filter: var(--float-blur);
   -webkit-backdrop-filter: var(--float-blur);
+  position: relative;
+  isolation: isolate;
   transition: box-shadow 0.3s ease;
   /* Blue wave abstract bg inside the container */
   background-image: none;
