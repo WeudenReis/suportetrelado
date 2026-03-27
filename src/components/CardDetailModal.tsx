@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
   ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
-  AlignLeft, Users, Tag, CalendarDays, CheckSquare, CreditCard,
-  Paperclip, Link2, Archive, ListTodo, Flag
+  AlignLeft, CreditCard, Paperclip
 } from 'lucide-react'
 import {
   supabase, updateTicket, deleteTicket,
@@ -247,45 +246,68 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 34 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-[920px] my-10 mx-4 rounded-xl overflow-hidden shadow-2xl"
+        className="w-full max-w-[1120px] my-10 mx-4 rounded-xl overflow-hidden shadow-2xl"
         style={{ background: '#22272b', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.08)' }}
       >
-        <div className="px-6 pt-5 pb-4 flex items-start justify-between border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-          <div className="min-w-0 pr-4">
-            <div className="flex items-center gap-2.5">
-              <CreditCard size={18} style={{ color: '#9fadbc' }} />
-              <input
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                onBlur={handleTitleBlur}
-                className="bg-transparent border-none outline-none text-[34px] font-bold leading-tight w-full"
-                style={{ color: '#dfe1e6' }}
-              />
-            </div>
-            <div className="text-sm mt-1.5" style={{ color: '#9fadbc' }}>
-              na lista <span className="font-semibold" style={{ color: '#dfe1e6' }}>{STATUS_MAP[status]}</span>
+        <div className="px-5 pt-4 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <select
+              value={status}
+              onChange={async e => {
+                const next = e.target.value as TicketStatus
+                const oldLabel = STATUS_MAP[status]
+                const newLabel = STATUS_MAP[next]
+                setStatus(next)
+                await save({ status: next })
+                await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`)
+              }}
+              className="rounded-md px-2.5 py-1.5 text-sm font-semibold border"
+              style={{ background: '#3a3f44', color: '#dfe1e6', borderColor: 'rgba(255,255,255,0.12)' }}
+            >
+              {(Object.entries(STATUS_MAP) as [TicketStatus, string][]).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+            <div className="flex items-center gap-1">
+              <button className="p-2 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
+                <ImageIcon size={17} />
+              </button>
+              <button className="p-2 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
+                <MoreHorizontal size={18} />
+              </button>
+              <button onClick={onClose} className="p-2 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
+                <X size={20} />
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button className="p-2 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
-              <MoreHorizontal size={18} />
-            </button>
-            <button onClick={onClose} className="p-2 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
-              <X size={20} />
-            </button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[3fr_1fr]">
-          <div className="px-6 py-5 space-y-5 min-w-0">
-            <div className="flex flex-wrap gap-2">
-              <Badge title="Membros" value={assignee || 'Sem membro'} icon={<Users size={14} />} />
-              <Badge title="Etiquetas" value={priority === 'high' ? 'Alta' : priority === 'medium' ? 'Media' : 'Baixa'} icon={<Tag size={14} />} />
-              <Badge title="Datas" value={new Date(ticket.updated_at).toLocaleDateString('pt-BR')} icon={<CalendarDays size={14} />} />
-              <Badge title="Checklist" value="0/0" icon={<CheckSquare size={14} />} />
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+            <div className="px-6 py-6 space-y-6 min-w-0" style={{ background: '#22272b', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 mb-1.5">
+                  <CreditCard size={18} style={{ color: '#9fadbc' }} />
+                  <input
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    onBlur={handleTitleBlur}
+                    className="bg-transparent border-none outline-none text-[44px] leading-tight font-bold w-full"
+                    style={{ color: '#dfe1e6' }}
+                  />
+                </div>
+                <div className="text-sm" style={{ color: '#9fadbc' }}>
+                  na lista <span className="font-semibold" style={{ color: '#dfe1e6' }}>{STATUS_MAP[status]}</span>
+                </div>
+              </div>
 
-            <section>
+              <div className="flex flex-wrap gap-2">
+                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>+ Adicionar</button>
+                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Etiquetas</button>
+                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Datas</button>
+                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Checklist</button>
+                <button className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Membros</button>
+              </div>
+
+              <section>
               <div className="flex items-center gap-2 mb-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
                 <AlignLeft size={16} style={{ color: '#9fadbc' }} />
                 Descricao
@@ -298,11 +320,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 style={{ background: '#1d2125', color: '#dfe1e6', border: '1px solid rgba(255,255,255,0.12)', minHeight: 110 }}
                 placeholder="Adicione uma descricao mais detalhada..."
               />
-            </section>
+              </section>
 
-            <section>
+              <section>
               <div className="flex items-center gap-2 mb-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
-                <ListTodo size={16} style={{ color: '#9fadbc' }} />
+                <Paperclip size={16} style={{ color: '#9fadbc' }} />
                 Campos personalizados
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -332,10 +354,33 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                     )}
                   </div>
                 </FieldGroup>
+                <FieldGroup label="Prioridade">
+                  <select
+                    value={priority}
+                    onChange={async e => {
+                      const next = e.target.value as Ticket['priority']
+                      setPriority(next)
+                      await save({ priority: next })
+                    }}
+                    className="modal-field"
+                  >
+                    <option value="low">Baixa</option>
+                    <option value="medium">Media</option>
+                    <option value="high">Alta</option>
+                  </select>
+                </FieldGroup>
+                <FieldGroup label="Membro">
+                  <input value={assignee} onChange={e => setAssignee(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Responsavel" />
+                </FieldGroup>
+                <div className="sm:col-span-2">
+                  <FieldGroup label="Observacao">
+                    <textarea value={observacao} onChange={e => setObservacao(e.target.value)} onBlur={saveOnBlur} className="modal-field resize-y" rows={3} placeholder="Notas adicionais" />
+                  </FieldGroup>
+                </div>
               </div>
-            </section>
+              </section>
 
-            <section>
+              <section>
               <div className="flex items-center gap-2 mb-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
                 <Paperclip size={16} style={{ color: '#9fadbc' }} />
                 Anexos
@@ -378,29 +423,47 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 </button>
               </div>
               <input ref={fileInputRef} type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileUpload} />
-            </section>
+              </section>
 
-            <section>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
-                  <MessageSquare size={16} style={{ color: '#9fadbc' }} />
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  onClick={handleSaveAll}
+                  disabled={!hasPendingChanges() || saving}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors disabled:opacity-45"
+                  style={{ background: 'rgba(37,208,102,0.18)', color: '#2de379', border: '1px solid rgba(37,208,102,0.24)' }}
+                >
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+                  style={{ background: 'rgba(239,68,68,0.16)', color: '#f87171', border: '1px solid rgba(239,68,68,0.24)' }}
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+
+            <div className="px-4 py-5" style={{ background: '#1d2125' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-xl font-semibold" style={{ color: '#dfe1e6' }}>
+                  <MessageSquare size={17} style={{ color: '#9fadbc' }} />
                   Comentarios e atividade
                 </div>
                 <button
                   onClick={() => setShowActivities(!showActivities)}
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-md transition-colors"
+                  className="text-sm font-semibold px-3 py-1.5 rounded-md transition-colors"
                   style={{
-                    background: showActivities ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.05)',
-                    color: showActivities ? '#60a5fa' : '#9fadbc',
-                    border: `1px solid ${showActivities ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                    background: showActivities ? 'rgba(255,255,255,0.08)' : 'rgba(59,130,246,0.12)',
+                    color: showActivities ? '#dfe1e6' : '#60a5fa',
                   }}
                 >
-                  {showActivities ? 'Mostrar detalhes' : 'Somente comentarios'}
+                  Mostrar Detalhes
                 </button>
               </div>
 
               <div className="flex gap-2.5 mb-3">
-                <Avatar name={user} size={28} />
+                <Avatar name={user} size={32} />
                 <div className="flex-1">
                   <textarea
                     ref={commentRef}
@@ -410,7 +473,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                     onBlur={() => !newComment.trim() && setCommentFocused(false)}
                     placeholder="Escrever um comentario..."
                     rows={commentFocused ? 3 : 1}
-                    className="modal-field resize-none transition-all text-[13px]"
+                    className="modal-field resize-none transition-all text-[14px]"
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment() } }}
                   />
                   <AnimatePresence>
@@ -431,7 +494,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 </div>
               </div>
 
-              <div className="space-y-3 mb-2 max-h-64 overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
                 {feedItems.map(item => (
                   <div key={item.id} className="flex gap-2.5 group">
                     <Avatar name={item.user} size={28} />
@@ -467,72 +530,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 )}
                 <div ref={commentsEndRef} />
               </div>
-            </section>
+            </div>
           </div>
-
-          <aside className="px-4 py-5 border-l space-y-4" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-            <SidebarGroup title="ADICIONAR AO CARTAO">
-              <ActionButton icon={<Users size={14} />} label="Membros" onClick={() => {}} />
-              <ActionButton icon={<Tag size={14} />} label="Etiquetas" onClick={() => {}} />
-              <ActionButton icon={<CalendarDays size={14} />} label="Datas" onClick={() => {}} />
-              <ActionButton icon={<CheckSquare size={14} />} label="Checklist" onClick={() => {}} />
-              <ActionButton icon={<Paperclip size={14} />} label="Anexar" onClick={() => fileInputRef.current?.click()} />
-            </SidebarGroup>
-
-            <SidebarGroup title="CAMPOS RAPIDOS">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase" style={{ color: '#9fadbc' }}>Prioridade</label>
-                <select
-                  value={priority}
-                  onChange={async e => {
-                    const next = e.target.value as Ticket['priority']
-                    setPriority(next)
-                    await save({ priority: next })
-                  }}
-                  className="modal-field"
-                >
-                  <option value="low">Baixa</option>
-                  <option value="medium">Media</option>
-                  <option value="high">Alta</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase" style={{ color: '#9fadbc' }}>Coluna</label>
-                <select
-                  value={status}
-                  onChange={async e => {
-                    const next = e.target.value as TicketStatus
-                    const oldLabel = STATUS_MAP[status]
-                    const newLabel = STATUS_MAP[next]
-                    setStatus(next)
-                    await save({ status: next })
-                    await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`)
-                  }}
-                  className="modal-field"
-                >
-                  {(Object.entries(STATUS_MAP) as [TicketStatus, string][]).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase" style={{ color: '#9fadbc' }}>Membro</label>
-                <input value={assignee} onChange={e => setAssignee(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Responsavel" />
-              </div>
-            </SidebarGroup>
-
-            <SidebarGroup title="ACOES">
-              <ActionButton icon={<Link2 size={14} />} label="Compartilhar" onClick={handleShare} />
-              <ActionButton icon={<Flag size={14} />} label={hasPendingChanges() ? 'Salvar alteracoes' : 'Sem alteracoes'} onClick={handleSaveAll} disabled={!hasPendingChanges() || saving} />
-              <ActionButton icon={<Archive size={14} />} label="Arquivar / Excluir" onClick={handleDelete} danger />
-            </SidebarGroup>
-
-            <FieldGroup label="Observacao">
-              <textarea value={observacao} onChange={e => setObservacao(e.target.value)} onBlur={saveOnBlur} className="modal-field resize-y" rows={3} placeholder="Notas adicionais" />
-            </FieldGroup>
-          </aside>
         </div>
       </motion.div>
     </motion.div>
@@ -561,45 +560,3 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
   )
 }
 
-function Badge({ title, value, icon }: { title: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="rounded-md px-2.5 py-1.5 min-w-[112px]" style={{ background: '#1d2125', border: '1px solid rgba(255,255,255,0.08)' }}>
-      <div className="flex items-center gap-1 text-[10px] font-bold uppercase" style={{ color: '#9fadbc' }}>
-        {icon}
-        {title}
-      </div>
-      <div className="text-xs mt-1 font-semibold truncate" style={{ color: '#dfe1e6' }}>{value}</div>
-    </div>
-  )
-}
-
-function SidebarGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-[10px] font-bold uppercase mb-2" style={{ color: '#9fadbc' }}>{title}</div>
-      <div className="space-y-1.5">
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function ActionButton({ icon, label, onClick, danger, disabled }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean; disabled?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors disabled:opacity-50"
-      style={{
-        background: 'rgba(255,255,255,0.06)',
-        color: danger ? '#f87171' : '#dfe1e6',
-        border: '1px solid rgba(255,255,255,0.08)',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = danger ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.10)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-    >
-      <span style={{ color: danger ? '#f87171' : '#9fadbc' }}>{icon}</span>
-      <span>{label}</span>
-    </button>
-  )
-}
