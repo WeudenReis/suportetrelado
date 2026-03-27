@@ -3,7 +3,7 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2 } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -376,6 +376,19 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.accent, boxShadow: `0 0 6px ${col.accent}44` }} />
                     <span className="flex-1 truncate">{col.label}</span>
                     <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.accent}15`, color: col.accent }}>{colTickets.length}</span>
+                    {customColumns.some(cc => cc.id === col.id) && (
+                      <button
+                        onClick={() => {
+                          if (!confirm(`Excluir a lista "${col.label}"?`)) return
+                          setCustomColumns(prev => prev.filter(cc => cc.id !== col.id))
+                          showToast('Lista excluída', 'ok')
+                        }}
+                        className="p-1 rounded hover:bg-red-500/20 transition-colors ml-1"
+                        title="Excluir lista"
+                      >
+                        <Trash2 size={12} className="text-red-400" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Cards area */}
