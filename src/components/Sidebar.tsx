@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, Lock, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
+import { Inbox, Lock, ChevronLeft, ChevronRight, SlidersHorizontal, MoreHorizontal } from 'lucide-react'
 
 const INTEGRATIONS = [
   { label: 'Email',  icon: '✉️', border: '#3b82f6', isNew: false },
@@ -84,76 +84,73 @@ export default function Sidebar({ user, collapsed, onToggle }: SidebarProps) {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col h-full px-4 pt-4 pb-3">
+          <div className="flex flex-col h-full px-3 pt-3 pb-3">
             {/* Header */}
-            <div className="flex items-center gap-2.5 mb-6">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.15)' }}>
-                <Inbox size={16} className="text-blue-400" />
+            <div className="flex items-center justify-between mb-3 px-1">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.16)' }}>
+                  <Inbox size={15} className="text-blue-300" />
+                </div>
+                <span className="text-xl font-bold truncate" style={{ color: '#ffffff' }}>Caixa de entrada</span>
               </div>
-              <span className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>Caixa de Entrada</span>
+              <div className="flex items-center gap-1">
+                <button className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: '#9fb0c2' }}>
+                  <SlidersHorizontal size={14} />
+                </button>
+                <button className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: '#9fb0c2' }}>
+                  <MoreHorizontal size={14} />
+                </button>
+              </div>
             </div>
 
+            {/* Quick add */}
+            <input
+              placeholder="Adicionar um cartão"
+              className="w-full rounded-lg px-3 py-2.5 text-sm mb-4 outline-none"
+              style={{ background: 'rgba(34,39,43,0.85)', border: '1px solid rgba(255,255,255,0.08)', color: '#dfe1e6' }}
+            />
+
             {/* Consolidate section */}
-            <div className="rounded-xl p-4 mb-5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-              <h3 className="text-[13px] font-semibold mb-1.5" style={{ color: 'var(--text-primary)' }}>
+            <div className="rounded-2xl p-5 mb-4 flex-1 flex flex-col" style={{ background: '#1f3a63', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <h3 className="text-[26px] font-semibold text-center mb-1" style={{ color: '#f5f7fb' }}>
                 Consolide suas tarefas
               </h3>
-              <p className="text-[11px] leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
-                Conecte ferramentas que você usa para receber notificações e transformar mensagens em tickets.
+              <p className="text-sm leading-relaxed text-center mb-6" style={{ color: 'rgba(229,238,249,0.88)' }}>
+                Envie por e-mail, diga, encaminhe-da forma que for, coloque isso no Trello rapidamente.
               </p>
 
               {/* Integration icons */}
-              <div className="flex items-center justify-center gap-2.5 mb-1 flex-wrap">
+              <div className="grid grid-cols-3 gap-y-3 place-items-center mt-1 mb-auto">
                 {INTEGRATIONS.map(ig => (
                   <motion.div
                     key={ig.label}
-                    whileHover={{ scale: 1.15, y: -2 }}
+                    whileHover={{ scale: 1.08, y: -1 }}
                     onHoverStart={() => setHoveredIcon(ig.label)}
                     onHoverEnd={() => setHoveredIcon(null)}
-                    className="relative w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-shadow"
+                    className="relative w-14 h-14 rounded-full flex items-center justify-center cursor-pointer transition-shadow"
                     style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: `2px solid ${ig.border}33`,
-                      boxShadow: hoveredIcon === ig.label ? `0 0 12px ${ig.border}44` : 'none',
+                      background: 'rgba(20,25,35,0.38)',
+                      border: `1.5px solid ${ig.border}`,
+                      boxShadow: hoveredIcon === ig.label ? `0 0 10px ${ig.border}55` : 'none',
                     }}
                   >
-                    <span className="text-base">{ig.icon}</span>
+                    <span className="text-lg">{ig.icon}</span>
                     {ig.isNew && (
-                      <span className="absolute -top-1.5 -right-1.5 text-[7px] font-black px-1 py-px rounded-full text-white" style={{ background: '#3b82f6' }}>
-                        NEW
+                      <span className="absolute -top-1.5 -right-1.5 text-[9px] font-black px-1.5 py-px rounded-md text-white" style={{ background: '#1e63d8' }}>
+                        NOVO
                       </span>
                     )}
-                    <AnimatePresence>
-                      {hoveredIcon === ig.label && (
-                        <motion.span
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0 }}
-                          className="absolute -bottom-5 text-[9px] font-semibold whitespace-nowrap"
-                          style={{ color: ig.border }}
-                        >
-                          {ig.label}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
                   </motion.div>
                 ))}
               </div>
-            </div>
 
-            {/* Quick stats */}
-            <div className="space-y-1 mb-auto">
-              <NavItem label="Não lidos" count={0} />
-              <NavItem label="Menções" count={0} />
-              <NavItem label="Atribuídos a mim" count={0} active />
-            </div>
-
-            {/* Bottom lock */}
-            <div className="flex items-center gap-2 pt-3 mt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-              <Lock size={12} style={{ color: 'var(--text-muted)' }} />
-              <span className="text-[10px] leading-tight" style={{ color: 'var(--text-muted)' }}>
-                A Caixa de Entrada é visível apenas para você
-              </span>
+              {/* Bottom lock */}
+              <div className="flex items-center gap-2 pt-3 mt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.14)' }}>
+                <Lock size={12} style={{ color: 'rgba(229,238,249,0.88)' }} />
+                <span className="text-sm leading-tight font-semibold" style={{ color: 'rgba(229,238,249,0.88)' }}>
+                  A Caixa de Entrada é visível apenas para você
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -168,24 +165,5 @@ export default function Sidebar({ user, collapsed, onToggle }: SidebarProps) {
         />
       )}
     </div>
-  )
-}
-
-function NavItem({ label, count, active }: { label: string; count: number; active?: boolean }) {
-  return (
-    <button
-      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] transition-colors text-left"
-      style={{
-        background: active ? 'rgba(59,130,246,0.1)' : 'transparent',
-        color: active ? '#60a5fa' : 'var(--text-secondary)',
-      }}
-    >
-      <span className="font-medium">{label}</span>
-      {count > 0 && (
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,0.2)', color: '#60a5fa' }}>
-          {count}
-        </span>
-      )}
-    </button>
   )
 }

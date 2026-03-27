@@ -64,6 +64,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [showActivities, setShowActivities] = useState(true)
@@ -117,6 +118,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     window.addEventListener('keydown', fn)
     return () => window.removeEventListener('keydown', fn)
   }, [onClose])
+
+  useEffect(() => {
+    const closeMenu = () => setShowMoreMenu(false)
+    window.addEventListener('click', closeMenu)
+    return () => window.removeEventListener('click', closeMenu)
+  }, [])
 
   const save = useCallback(async (updates: Partial<Ticket>) => {
     setSaving(true)
@@ -268,16 +275,66 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>
-            <div className="flex items-center gap-1">
-              <button className="p-2 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
+            <div className="flex items-center gap-1 relative">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 rounded-md hover:bg-white/10 transition-colors"
+                style={{ color: '#9fadbc' }}
+                title="Adicionar imagem ou video"
+              >
                 <ImageIcon size={17} />
               </button>
-              <button className="p-2 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowMoreMenu(prev => !prev)
+                }}
+                className="p-2 rounded-md hover:bg-white/10 transition-colors"
+                style={{ color: '#9fadbc' }}
+                title="Mais opcoes"
+              >
                 <MoreHorizontal size={18} />
               </button>
               <button onClick={onClose} className="p-2 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
                 <X size={20} />
               </button>
+
+              {showMoreMenu && (
+                <div
+                  className="absolute right-10 top-11 w-44 rounded-lg overflow-hidden"
+                  style={{ background: '#2a2f35', border: '1px solid rgba(255,255,255,0.10)', boxShadow: '0 16px 34px rgba(0,0,0,0.35)' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={async () => { setShowMoreMenu(false); await handleShare() }}
+                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors"
+                    style={{ color: '#dfe1e6' }}
+                  >
+                    Compartilhar
+                  </button>
+                  <button
+                    onClick={async () => { setShowMoreMenu(false); await handleSaveAll() }}
+                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors"
+                    style={{ color: '#dfe1e6' }}
+                  >
+                    Salvar agora
+                  </button>
+                  <button
+                    onClick={async () => { setShowMoreMenu(false); await handleDelete() }}
+                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-red-500/20 transition-colors"
+                    style={{ color: '#f87171' }}
+                  >
+                    Excluir cartao
+                  </button>
+                  <button
+                    onClick={() => { setShowMoreMenu(false); onClose() }}
+                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors"
+                    style={{ color: '#9fadbc' }}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
