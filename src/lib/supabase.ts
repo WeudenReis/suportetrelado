@@ -20,6 +20,24 @@ export interface Ticket {
   tags?: string[] | null
 }
 
+export interface Comment {
+  id: string
+  ticket_id: string
+  user_name: string
+  content: string
+  created_at: string
+}
+
+export interface Attachment {
+  id: string
+  ticket_id: string
+  file_name: string
+  file_url: string
+  file_type: string
+  uploaded_by: string | null
+  created_at: string
+}
+
 export type TicketInsert = Omit<Ticket, 'id' | 'created_at' | 'updated_at'>
 
 export async function fetchTickets(): Promise<Ticket[]> {
@@ -58,6 +76,79 @@ export async function deleteTicket(id: string): Promise<void> {
     .delete()
     .eq('id', id)
   if (error) throw error
+}
+
+// --- Comments ---
+export async function fetchComments(ticketId: string): Promise<Comment[]> {
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true })
+  if (error) { console.warn('comments table may not exist:', error.message); return [] }
+  return (data ?? []) as Comment[]
+}
+
+export async function insertComment(ticketId: string, userName: string, content: string): Promise<Comment | null> {
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({ ticket_id: ticketId, user_name: userName, content })
+    .select()
+    .single()
+  if (error) { console.error('Failed to insert comment:', error.message); return null }
+  return data as Comment
+}
+
+export async function deleteComment(id: string): Promise<void> {
+  await supabase.from('comments').delete().eq('id', id)
+}
+
+// --- Attachments ---
+export async function fetchAttachments(ticketId: string): Promise<Attachment[]> {
+  const { data, error } = await supabase
+    .from('attachments')
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true })
+  if (error) { console.warn('attachments table may not exist:', error.message); return [] }
+  return (data ?? []) as Attachment[]
+}
+
+export async function uploadAttachment(ticketId: string, file: File, userName: string): Promise<Attachment | null> {
+  const fileExt = file.name.split('.').pop()
+  const filePath = `${ticketId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`
+
+  const { error: uploadError } = await supabase.storage
+    .from('attachments')
+    .upload(filePath, file)
+  if (uploadError) { console.error('Upload failed:', uploadError.message); return null }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('attachments')
+    .getPublicUrl(filePath)
+
+  const fileType = file.type.startsWith('image/') ? 'image'
+    : file.type.startsWith('video/') ? 'video' : 'file'
+
+  const { data, error } = await supabase
+    .from('attachments')
+    .insert({ ticket_id: ticketId, file_name: file.name, file_url: publicUrl, file_type: fileType, uploaded_by: userName })
+    .select()
+    .single()
+  if (error) { console.error('Failed to save attachment:', error.message); return null }
+  return data as Attachment
+}
+
+export async function deleteAttachment(id: string, fileUrl: string): Promise<void> {
+  // Extract path from URL for storage deletion
+  try {
+    const url = new URL(fileUrl)
+    const pathParts = url.pathname.split('/storage/v1/object/public/attachments/')
+    if (pathParts[1]) {
+      await supabase.storage.from('attachments').remove([decodeURIComponent(pathParts[1])])
+    }
+  } catch { /* ignore path extraction errors */ }
+  await supabase.from('attachments').delete().eq('id', id)
 }
 
 export async function sendToSlack(ticket: Ticket): Promise<boolean> {

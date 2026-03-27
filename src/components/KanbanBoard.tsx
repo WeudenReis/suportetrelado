@@ -3,10 +3,11 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2 } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
+import CardDetailModal from './CardDetailModal'
 import { supabase, fetchTickets, insertTicket, updateTicket, sendToSlack } from '../lib/supabase'
 import type { Ticket, TicketStatus } from '../lib/supabase'
 
@@ -36,6 +37,10 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [showSettings, setShowSettings] = useState(false)
   const [slackSending, setSlackSending] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([])
+  const [wallpaper, setWallpaper] = useState<string>(() => localStorage.getItem('chatpro-wallpaper') || '')
+  const [wallpaperInput, setWallpaperInput] = useState('')
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
@@ -77,6 +82,26 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
     return () => { supabase.removeChannel(channel) }
   }, [loadTickets])
+
+  // --- Presence tracking ---
+  useEffect(() => {
+    const presenceChannel = supabase.channel('online-users', {
+      config: { presence: { key: user } }
+    })
+
+    presenceChannel.on('presence', { event: 'sync' }, () => {
+      const state = presenceChannel.presenceState()
+      setOnlineUsers(Object.keys(state))
+    })
+
+    presenceChannel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await presenceChannel.track({ user, online_at: new Date().toISOString() })
+      }
+    })
+
+    return () => { supabase.removeChannel(presenceChannel) }
+  }, [user])
 
   // --- Toast helper ---
   function showToast(msg: string, type: 'ok' | 'err') {
@@ -151,8 +176,42 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
   const staleCount = tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 2 * 60 * 60 * 1000 && t.status !== 'resolved').length
 
+  const handleCardClick = (ticket: Ticket) => {
+    setSelectedTicket(ticket)
+  }
+
+  const handleTicketUpdate = (updated: Ticket) => {
+    setTickets(prev => prev.map(t => t.id === updated.id ? updated : t))
+    setSelectedTicket(updated)
+  }
+
+  const handleTicketDelete = (id: string) => {
+    setTickets(prev => prev.filter(t => t.id !== id))
+    setSelectedTicket(null)
+  }
+
+  const applyWallpaper = (url: string) => {
+    setWallpaper(url)
+    localStorage.setItem('chatpro-wallpaper', url)
+  }
+
+  const WALLPAPER_PRESETS = [
+    { label: 'Ondas', value: 'linear-gradient(135deg, #0c0c1d 0%, #111a2e 30%, #0a1628 60%, #0d0d1a 100%)' },
+    { label: 'Aurora', value: 'linear-gradient(135deg, #0d1117 0%, #161b22 25%, #0d4429 50%, #161b22 75%, #0d1117 100%)' },
+    { label: 'Noite', value: 'linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 40%, #16213e 70%, #0a0a0f 100%)' },
+    { label: 'Sunset', value: 'linear-gradient(135deg, #1a0a1e 0%, #2d1b3d 30%, #1a2a3d 60%, #0a1a2d 100%)' },
+    { label: 'Floresta', value: 'linear-gradient(135deg, #0a1a0a 0%, #1a2e1a 30%, #0d2818 60%, #0a150a 100%)' },
+    { label: 'Oceano', value: 'linear-gradient(180deg, #0a0a1a 0%, #0d1a2e 30%, #0a2a3d 50%, #0d1a2e 70%, #0a0a1a 100%)' },
+  ]
+
+  const boardBgStyle: React.CSSProperties = wallpaper
+    ? (wallpaper.startsWith('http') || wallpaper.startsWith('data:')
+        ? { backgroundImage: `url(${wallpaper})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
+        : { background: wallpaper })
+    : {}
+
   return (
-    <div className="mesh-bg min-h-screen flex flex-col">
+    <div className={clsx(!wallpaper && 'mesh-bg')} style={{ ...boardBgStyle, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Toast */}
       <AnimatePresence>
         {toast && (
@@ -180,6 +239,27 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Online Users */}
+          {onlineUsers.length > 0 && (
+            <div className="flex items-center gap-1 mr-2">
+              <div className="flex -space-x-2">
+                {onlineUsers.slice(0, 5).map((u, i) => (
+                  <div key={u} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-black/30"
+                    style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], zIndex: 10 - i }}
+                    title={u}>
+                    {u.charAt(0).toUpperCase()}
+                  </div>
+                ))}
+                {onlineUsers.length > 5 && (
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-black/30"
+                    style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>
+                    +{onlineUsers.length - 5}
+                  </div>
+                )}
+              </div>
+              <span className="text-[10px] ml-1 font-medium" style={{ color: 'var(--text-muted)' }}>{onlineUsers.length} online</span>
+            </div>
+          )}
           <div className={clsx('flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full', isConnected ? 'text-green-400' : 'text-red-400')} style={{ background: isConnected ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' }}>
             {isConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
             <span>{isConnected ? 'Online' : 'Offline'}</span>
@@ -228,7 +308,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                     <SortableContext items={colTickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
                       <div className="flex flex-col gap-2.5 min-h-[80px]">
                         <AnimatePresence>
-                          {colTickets.map(ticket => <Card key={ticket.id} ticket={ticket} onSendToSlack={handleSendToSlack} slackSending={slackSending === ticket.id} />)}
+                          {colTickets.map(ticket => <Card key={ticket.id} ticket={ticket} onSendToSlack={handleSendToSlack} slackSending={slackSending === ticket.id} onCardClick={handleCardClick} />)}
                         </AnimatePresence>
                         {colTickets.length === 0 && (
                           <div className="h-20 rounded-xl flex items-center justify-center text-xs text-slate-600" style={{ border: '2px dashed rgba(255,255,255,0.06)' }}>Solte aqui</div>
@@ -335,8 +415,58 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid ' + theme.borderSubtle, color: theme.textMuted }}>
                 Restaurar padrão
               </button>
+
+              {/* Wallpaper */}
+              <div className="mt-6">
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: theme.textMuted }}>Papel de Parede</label>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {WALLPAPER_PRESETS.map(wp => (
+                    <button key={wp.label} onClick={() => applyWallpaper(wp.value)}
+                      className="h-14 rounded-lg text-[10px] font-semibold transition-all flex items-end justify-center pb-1.5"
+                      style={{
+                        background: wp.value,
+                        border: wallpaper === wp.value ? '2px solid #25D066' : '1px solid ' + theme.borderSubtle,
+                        color: '#fff',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                      }}>
+                      {wp.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    placeholder="URL da imagem..."
+                    value={wallpaperInput}
+                    onChange={e => setWallpaperInput(e.target.value)}
+                    className="dark-input flex-1 rounded-lg px-3 py-2 text-xs"
+                  />
+                  <button onClick={() => { if (wallpaperInput.trim()) { applyWallpaper(wallpaperInput.trim()); setWallpaperInput('') } }}
+                    className="px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ background: '#25D066' }}>
+                    <Image size={14} />
+                  </button>
+                </div>
+                {wallpaper && (
+                  <button onClick={() => applyWallpaper('')} className="mt-2 w-full py-2 rounded-lg text-xs font-semibold transition-colors text-red-400 hover:bg-red-500/10"
+                    style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    Remover fundo
+                  </button>
+                )}
+              </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Card Detail Modal */}
+      <AnimatePresence>
+        {selectedTicket && (
+          <CardDetailModal
+            ticket={selectedTicket}
+            user={user}
+            onClose={() => setSelectedTicket(null)}
+            onUpdate={handleTicketUpdate}
+            onDelete={handleTicketDelete}
+          />
         )}
       </AnimatePresence>
     </div>

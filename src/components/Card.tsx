@@ -10,6 +10,7 @@ interface CardProps {
   isDragging?: boolean
   onSendToSlack?: (ticket: Ticket) => void
   slackSending?: boolean
+  onCardClick?: (ticket: Ticket) => void
 }
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000
@@ -36,16 +37,24 @@ const priorityConfig = {
 
 const avatarColors = ['from-green-600 to-emerald-500','from-emerald-500 to-teal-500','from-teal-500 to-cyan-500','from-green-500 to-lime-500']
 
-export default function Card({ ticket, isDragging = false, onSendToSlack, slackSending = false }: CardProps) {
+export default function Card({ ticket, isDragging = false, onSendToSlack, slackSending = false, onCardClick }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortableDragging } = useSortable({ id: ticket.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
   const { label: timeLabel, isStale } = getTimeSinceUpdate(ticket.updated_at)
   const priority = priorityConfig[ticket.priority]
   const avatarColor = avatarColors[ticket.assignee ? ticket.assignee.charCodeAt(0) % avatarColors.length : 0]
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (!isSortableDragging && onCardClick) {
+      e.stopPropagation()
+      onCardClick(ticket)
+    }
+  }
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: isSortableDragging ? 0.4 : 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
+        onClick={handleClick}
         className={clsx('ticket-card rounded-xl p-4 cursor-grab active:cursor-grabbing select-none', isStale && 'inactivity-alert', isDragging && 'dragging-card')}>
         <div className="flex items-start justify-between gap-2 mb-3">
           <span className="text-xs text-slate-500 font-medium">#{ticket.id.slice(-6).toUpperCase()}</span>
