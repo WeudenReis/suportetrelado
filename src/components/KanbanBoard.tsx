@@ -22,7 +22,7 @@ const COLUMNS: { id: TicketStatus; label: string; color: string; accent: string 
 
 function DroppableColumn({ id, children, isOver }: { id: string; children: React.ReactNode; isOver: boolean }) {
   const { setNodeRef } = useDroppable({ id })
-  return <div ref={setNodeRef} className={clsx('flex-1 min-h-[120px] rounded-xl transition-colors duration-200', isOver && 'drag-over-column')}>{children}</div>
+  return <div ref={setNodeRef} className={clsx('flex-1 min-h-[4px] rounded-lg transition-all duration-200', isOver && 'ring-1 ring-green-500/30 bg-green-500/[0.04]')}>{children}</div>
 }
 
 export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
@@ -41,6 +41,8 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [wallpaper, setWallpaper] = useState<string>(() => localStorage.getItem('chatpro-wallpaper') || '')
   const [wallpaperInput, setWallpaperInput] = useState('')
+  const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
+  const [inlineTitle, setInlineTitle] = useState('')
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
@@ -161,16 +163,28 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     if (!newTicket.title.trim()) return
     try {
       await insertTicket({
-        title: newTicket.title,
-        description: newTicket.description,
+        title: newTicket.title.trim(),
+        description: newTicket.description || '',
         status: newTicket.status,
         priority: newTicket.priority,
       })
       setNewTicket({ title: '', description: '', priority: 'medium', status: 'backlog' })
       setShowAddModal(false)
-    } catch (err) {
+      showToast('Ticket criado com sucesso!', 'ok')
+    } catch (err: any) {
       console.error('Failed to add ticket:', err)
-      showToast('Erro ao criar ticket', 'err')
+      showToast(err?.message || 'Erro ao criar ticket. Verifique se está logado.', 'err')
+    }
+  }
+
+  const handleInlineAdd = async (col: TicketStatus) => {
+    if (!inlineTitle.trim()) return
+    try {
+      await insertTicket({ title: inlineTitle.trim(), description: '', status: col, priority: 'medium' })
+      setInlineTitle('')
+      setAddingTo(null)
+    } catch (err: any) {
+      showToast(err?.message || 'Erro ao criar ticket', 'err')
     }
   }
 
@@ -298,30 +312,57 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
           </div>
         ) : (
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-          <div className="flex gap-4 min-w-max pb-4">
+          <div className="flex gap-3 min-w-max pb-4">
             {COLUMNS.map(col => {
               const colTickets = getColumnTickets(col.id)
               return (
-                <motion.div key={col.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: COLUMNS.indexOf(col) * 0.07 }} className="w-72 flex flex-col gap-2">
-                  <div className="flex items-center justify-between px-3 py-2.5 rounded-xl column-glass">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: col.accent, boxShadow: `0 0 6px ${col.accent}` }} />
-                      <h2 className="font-bold text-sm text-slate-200">{col.label}</h2>
-                    </div>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: col.color, color: col.accent, border: `1px solid ${col.accent}33` }}>{colTickets.length}</span>
+                <motion.div key={col.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: COLUMNS.indexOf(col) * 0.06 }}
+                  className="trello-col">
+                  {/* Column header */}
+                  <div className="trello-col__head">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.accent, boxShadow: `0 0 6px ${col.accent}44` }} />
+                    <span className="flex-1 truncate">{col.label}</span>
+                    <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.accent}15`, color: col.accent }}>{colTickets.length}</span>
                   </div>
+
+                  {/* Cards area */}
                   <DroppableColumn id={col.id} isOver={overColumn === col.id}>
-                    <SortableContext items={colTickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                      <div className="flex flex-col gap-2.5 min-h-[80px]">
+                    <div className="trello-col__cards">
+                      <SortableContext items={colTickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
                         <AnimatePresence>
                           {colTickets.map(ticket => <Card key={ticket.id} ticket={ticket} onSendToSlack={handleSendToSlack} slackSending={slackSending === ticket.id} onCardClick={handleCardClick} />)}
                         </AnimatePresence>
-                        {colTickets.length === 0 && (
-                          <div className="h-20 rounded-xl flex items-center justify-center text-xs text-slate-600" style={{ border: '2px dashed rgba(255,255,255,0.06)' }}>Solte aqui</div>
-                        )}
-                      </div>
-                    </SortableContext>
+                      </SortableContext>
+                    </div>
                   </DroppableColumn>
+
+                  {/* Inline add card (Trello-style) */}
+                  {addingTo === col.id ? (
+                    <div className="px-1.5 pt-1.5 pb-1">
+                      <textarea
+                        autoFocus
+                        value={inlineTitle}
+                        onChange={e => setInlineTitle(e.target.value)}
+                        placeholder="Insira um título para este cartão..."
+                        rows={3}
+                        className="w-full rounded-lg p-2.5 text-sm resize-none outline-none"
+                        style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInlineAdd(col.id) }
+                          if (e.key === 'Escape') { setAddingTo(null); setInlineTitle('') }
+                        }}
+                      />
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <button onClick={() => handleInlineAdd(col.id)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#25D066' }}>Adicionar</button>
+                        <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setAddingTo(col.id); setInlineTitle('') }} className="trello-col__add">
+                      <Plus size={16} /> Adicionar um cartão
+                    </button>
+                  )}
                 </motion.div>
               )
             })}

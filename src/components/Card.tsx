@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'framer-motion'
-import { Clock, AlertCircle, User, Tag, Send, Loader2 } from 'lucide-react'
+import { Clock, AlertCircle, AlignLeft, User, Send, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { Ticket } from '../lib/supabase'
 
@@ -13,92 +13,108 @@ interface CardProps {
   onCardClick?: (ticket: Ticket) => void
 }
 
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000
+const TWO_HOURS = 2 * 60 * 60 * 1000
 
-function getTimeSinceUpdate(updatedAt: string): { label: string; isStale: boolean } {
+function timeAgo(updatedAt: string) {
   const ms = Date.now() - new Date(updatedAt).getTime()
-  const isStale = ms > TWO_HOURS_MS
-  const minutes = Math.floor(ms / 60000)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-  let label: string
-  if (days > 0) label = `${days}d atrás`
-  else if (hours > 0) label = `${hours}h atrás`
-  else if (minutes > 0) label = `${minutes}m atrás`
-  else label = 'Agora'
+  const mins = Math.floor(ms / 60000)
+  const hrs = Math.floor(mins / 60)
+  const days = Math.floor(hrs / 24)
+  const isStale = ms > TWO_HOURS
+  const label = days > 0 ? `${days}d` : hrs > 0 ? `${hrs}h` : mins > 0 ? `${mins}min` : 'agora'
   return { label, isStale }
 }
 
-const priorityConfig = {
-  high:   { label: 'Alta',  className: 'priority-high',   dot: 'bg-red-400' },
-  medium: { label: 'Média', className: 'priority-medium', dot: 'bg-amber-400' },
-  low:    { label: 'Baixa', className: 'priority-low',    dot: 'bg-green-400' },
-}
-
-const avatarColors = ['from-green-600 to-emerald-500','from-emerald-500 to-teal-500','from-teal-500 to-cyan-500','from-green-500 to-lime-500']
+const PRIO_COLOR: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' }
+const PRIO_LABEL: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
 
 export default function Card({ ticket, isDragging = false, onSendToSlack, slackSending = false, onCardClick }: CardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortableDragging } = useSortable({ id: ticket.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging: sorting } = useSortable({ id: ticket.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
-  const { label: timeLabel, isStale } = getTimeSinceUpdate(ticket.updated_at)
-  const priority = priorityConfig[ticket.priority]
-  const avatarColor = avatarColors[ticket.assignee ? ticket.assignee.charCodeAt(0) % avatarColors.length : 0]
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (!isSortableDragging && onCardClick) {
-      e.stopPropagation()
-      onCardClick(ticket)
-    }
-  }
+  const { label: time, isStale } = timeAgo(ticket.updated_at)
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: isSortableDragging ? 0.4 : 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
-        onClick={handleClick}
-        className={clsx('ticket-card rounded-xl p-4 cursor-grab active:cursor-grabbing select-none', isStale && 'inactivity-alert', isDragging && 'dragging-card')}>
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <span className="text-xs text-slate-500 font-medium">#{ticket.id.slice(-6).toUpperCase()}</span>
-          <span className={clsx('text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1', priority.className)}>
-            <span className={clsx('w-1.5 h-1.5 rounded-full', priority.dot)} />{priority.label}
-          </span>
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: sorting ? 0.4 : 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.15 }}
+        onClick={e => { if (!sorting && onCardClick) { e.stopPropagation(); onCardClick(ticket) } }}
+        className={clsx('trello-card group', isStale && 'trello-card--stale', isDragging && 'trello-card--drag')}
+      >
+        {/* Color labels (Trello style) */}
+        <div className="flex gap-1 mb-2">
+          <span
+            className="h-2 w-10 rounded-sm cursor-pointer hover:h-4 transition-all"
+            style={{ background: PRIO_COLOR[ticket.priority] }}
+            title={`Prioridade: ${PRIO_LABEL[ticket.priority]}`}
+          />
+          {ticket.tags?.slice(0, 4).map((tag, i) => (
+            <span
+              key={tag}
+              className="h-2 w-10 rounded-sm cursor-pointer hover:h-4 transition-all"
+              style={{ background: `hsl(${(tag.charCodeAt(0) * 47 + i * 80) % 360}, 55%, 50%)` }}
+              title={tag}
+            />
+          ))}
         </div>
-        <h3 className="text-sm font-bold text-slate-100 leading-snug mb-2 line-clamp-2">{ticket.title}</h3>
-        {ticket.description && <p className="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-2">{ticket.description}</p>}
-        {ticket.tags && ticket.tags.length > 0 && (
-          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-            <Tag size={10} className="text-slate-500" />
-            {ticket.tags.slice(0, 3).map(tag => (
-              <span key={tag} className="text-[10px] px-2 py-0.5 rounded-md" style={{ background: 'rgba(37,208,102,0.08)', color: '#86efac', border: '1px solid rgba(37,208,102,0.15)' }}>{tag}</span>
-            ))}
-          </div>
+
+        {/* Title */}
+        <p className="text-[13.5px] font-medium leading-snug line-clamp-3" style={{ color: 'var(--text-primary)' }}>
+          {ticket.title}
+        </p>
+
+        {/* Description preview */}
+        {ticket.description && (
+          <p className="text-xs leading-relaxed line-clamp-2 mt-1" style={{ color: 'var(--text-muted)' }}>
+            {ticket.description}
+          </p>
         )}
-        <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div className={clsx('flex items-center gap-1.5 text-[11px]', isStale ? 'text-red-400' : 'text-slate-500')}>
-            {isStale ? <AlertCircle size={11} className="animate-pulse" /> : <Clock size={11} />}
-            <span className="font-medium">{timeLabel}</span>
-            {isStale && <span className="ml-1 text-red-400 font-semibold">· Sem atualização</span>}
-          </div>
-          <div className="flex items-center gap-1.5">
-            {onSendToSlack && ticket.priority === 'high' && (
-              <button
-                onClick={e => { e.stopPropagation(); onSendToSlack(ticket) }}
-                disabled={slackSending}
-                title="Enviar para o Slack"
-                className="w-6 h-6 rounded-full flex items-center justify-center transition-colors hover:bg-green-500/20"
-                style={{ background: 'rgba(37,208,102,0.1)', border: '1px solid rgba(37,208,102,0.2)' }}>
-                {slackSending ? <Loader2 size={10} className="animate-spin text-green-400" /> : <Send size={10} className="text-green-400" />}
-              </button>
-            )}
-            {ticket.assignee ? (
-              <div className={clsx('w-6 h-6 rounded-full bg-gradient-to-br flex items-center justify-center text-[10px] font-bold text-white', avatarColor)}>
-                {ticket.assignee.charAt(0).toUpperCase()}
-              </div>
-            ) : (
-              <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.15)' }}>
-                <User size={10} className="text-slate-500" />
-              </div>
-            )}
-          </div>
+
+        {/* Badges row */}
+        <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          {/* Time */}
+          <span className={clsx('inline-flex items-center gap-1 rounded px-1 py-0.5', isStale && 'text-red-400')}>
+            {isStale ? <AlertCircle size={12} className="animate-pulse" /> : <Clock size={12} />}
+            {time}
+          </span>
+
+          {/* Description indicator */}
+          {ticket.description && <AlignLeft size={12} className="opacity-50" />}
+
+          {/* Slack button */}
+          {onSendToSlack && ticket.priority === 'high' && (
+            <button
+              onClick={e => { e.stopPropagation(); onSendToSlack(ticket) }}
+              disabled={slackSending}
+              title="Enviar para o Slack"
+              className="p-0.5 rounded hover:bg-white/10 text-green-400 transition-colors"
+            >
+              {slackSending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+            </button>
+          )}
+
+          <span className="flex-1" />
+
+          {/* Assignee */}
+          {ticket.assignee ? (
+            <span
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0"
+              style={{ background: `hsl(${ticket.assignee.charCodeAt(0) * 37 % 360}, 50%, 42%)` }}
+              title={ticket.assignee}
+            >
+              {ticket.assignee.charAt(0).toUpperCase()}
+            </span>
+          ) : (
+            <span
+              className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity shrink-0"
+              style={{ border: '1.5px dashed var(--text-muted)' }}
+            >
+              <User size={10} />
+            </span>
+          )}
         </div>
       </motion.div>
     </div>

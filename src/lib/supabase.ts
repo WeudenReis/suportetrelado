@@ -46,7 +46,14 @@ export interface ActivityLog {
   created_at: string
 }
 
-export type TicketInsert = Omit<Ticket, 'id' | 'created_at' | 'updated_at'>
+export type TicketInsert = {
+  title: string
+  description?: string
+  status?: TicketStatus
+  priority?: TicketPriority
+  assignee?: string | null
+  tags?: string[] | null
+}
 
 export async function fetchTickets(): Promise<Ticket[]> {
   const { data, error } = await supabase
