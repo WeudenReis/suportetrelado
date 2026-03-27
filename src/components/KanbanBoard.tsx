@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2 } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
@@ -26,10 +27,25 @@ function DroppableColumn({ id, children, isOver }: { id: string; children: React
   return <div ref={setNodeRef} className={clsx('flex-1 min-h-[4px] rounded-lg transition-all duration-200', isOver && 'ring-1 ring-green-500/30 bg-green-500/[0.04]')}>{children}</div>
 }
 
+function SortableBoardColumn({ id, children }: { id: string; children: (drag: { attributes: Record<string, any>; listeners: Record<string, any>; isDragging: boolean }) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { type: 'column', columnId: id } })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className={clsx('trello-col group', isDragging && 'trello-col--drag')}>
+      {children({ attributes, listeners, isDragging })}
+    </div>
+  )
+}
+
 export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null)
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null)
   const [overColumn, setOverColumn] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: 'backlog' as TicketStatus, cliente: '', instancia: '' })
@@ -40,7 +56,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
-  const [wallpaper, setWallpaper] = useState<string>(() => localStorage.getItem('chatpro-wallpaper') || '')
+  const [wallpaper, setWallpaper] = useState<string>('')
   const [wallpaperInput, setWallpaperInput] = useState('')
   const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
   const [inlineTitle, setInlineTitle] = useState('')
@@ -49,8 +65,12 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [addingList, setAddingList] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [customColumns, setCustomColumns] = useState<{ id: string; label: string; accent: string }[]>([])
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => COLUMNS.map(c => c.id))
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const wallpaperStorageKey = `chatpro-wallpaper:${user.toLowerCase()}`
 
   // --- Load tickets from Supabase ---
   const loadTickets = useCallback(async () => {
@@ -139,30 +159,97 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     return filtered
   }, [tickets, searchQuery])
 
-  const allColumns = [...COLUMNS, ...customColumns.map(c => ({ ...c, color: 'rgba(255,255,255,0.05)' }))]
+  useEffect(() => {
+    const nextIds = [
+      ...COLUMNS.map(c => c.id),
+      ...customColumns.map(c => c.id),
+    ]
+    setColumnOrder(prev => {
+      const kept = prev.filter(id => nextIds.includes(id))
+      const missing = nextIds.filter(id => !kept.includes(id))
+      return [...kept, ...missing]
+    })
+  }, [customColumns])
+
+  useEffect(() => {
+    const saved = localStorage.getItem(wallpaperStorageKey) || ''
+    setWallpaper(saved)
+  }, [wallpaperStorageKey])
+
+  const allColumnsById = new Map(
+    [...COLUMNS, ...customColumns.map(c => ({ ...c, color: 'rgba(255,255,255,0.05)' }))]
+      .map(col => [col.id, col])
+  )
+  const allColumns = columnOrder
+    .map(id => allColumnsById.get(id))
+    .filter((col): col is NonNullable<typeof col> => Boolean(col))
 
   function handleDragStart(event: DragStartEvent) {
+    const dragType = event.active.data.current?.type
+    if (dragType === 'column') {
+      setActiveColumnId(String(event.active.id))
+      return
+    }
+
     const ticket = tickets.find(t => t.id === event.active.id)
     if (ticket) setActiveTicket(ticket)
   }
+
   function handleDragOver(event: DragOverEvent) {
+    if (event.active.data.current?.type === 'column') return
+
     const overId = event.over?.id as string | undefined
     if (!overId) { setOverColumn(null); return }
-    setOverColumn(COLUMNS.some(c => c.id === overId) ? overId : null)
+
+    if (allColumnsById.has(overId)) {
+      setOverColumn(overId)
+      return
+    }
+
+    const overTicket = tickets.find(t => t.id === overId)
+    setOverColumn(overTicket?.status ?? null)
   }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
-    setActiveTicket(null); setOverColumn(null)
+
+    if (active.data.current?.type === 'column') {
+      setActiveColumnId(null)
+      if (!over || active.id === over.id) return
+
+      const oldIndex = columnOrder.indexOf(String(active.id))
+      const newIndex = columnOrder.indexOf(String(over.id))
+      if (oldIndex < 0 || newIndex < 0) return
+
+      setColumnOrder(prev => arrayMove(prev, oldIndex, newIndex))
+      return
+    }
+
+    setActiveTicket(null)
+    setOverColumn(null)
     if (!over) return
-    const targetColumn = COLUMNS.find(c => c.id === over.id)
-    const targetStatus = targetColumn?.id ?? tickets.find(t => t.id === over.id)?.status
+
+    const overId = String(over.id)
+    const targetStatus = allColumnsById.has(overId)
+      ? overId
+      : tickets.find(t => t.id === overId)?.status
+
     if (!targetStatus) return
     const ticket = tickets.find(t => t.id === active.id)
     if (!ticket || ticket.status === targetStatus) return
+
     const fromLabel = COLUMNS.find(c => c.id === ticket.status)?.label || ticket.status
     const toLabel = COLUMNS.find(c => c.id === targetStatus)?.label || targetStatus
+
     // Optimistic update
     setTickets(prev => prev.map(t => t.id === active.id ? { ...t, status: targetStatus as TicketStatus } : t))
+
+    const canPersistStatus = COLUMNS.some(c => c.id === targetStatus)
+    if (!canPersistStatus) {
+      insertActivityLog(active.id as string, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
+      return
+    }
+
     // Persist to Supabase
     updateTicket(active.id as string, { status: targetStatus as TicketStatus })
       .then(() => {
@@ -231,7 +318,107 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
   const applyWallpaper = (url: string) => {
     setWallpaper(url)
-    localStorage.setItem('chatpro-wallpaper', url)
+    try {
+      localStorage.setItem(wallpaperStorageKey, url)
+    } catch {
+      showToast('Sem espaço local para salvar este fundo', 'err')
+    }
+  }
+
+  const readFileAsDataURL = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : ''
+      if (!dataUrl) return reject(new Error('empty_data_url'))
+      resolve(dataUrl)
+    }
+    reader.onerror = () => reject(new Error('read_error'))
+    reader.readAsDataURL(file)
+  })
+
+  const loadImageFromFile = (file: File) => new Promise<HTMLImageElement>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new window.Image()
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve(img)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('load_image_error'))
+    }
+    img.src = objectUrl
+  })
+
+  const estimateDataUrlBytes = (dataUrl: string) => {
+    const base64 = dataUrl.split(',')[1] || ''
+    return Math.floor(base64.length * 0.75)
+  }
+
+  const compressWallpaperImage = async (file: File): Promise<string> => {
+    const image = await loadImageFromFile(file)
+
+    const MAX_DIMENSION = 1920
+    const TARGET_BYTES = 900 * 1024
+
+    const largestSide = Math.max(image.width, image.height)
+    const scale = largestSide > MAX_DIMENSION ? MAX_DIMENSION / largestSide : 1
+
+    let width = Math.max(1, Math.round(image.width * scale))
+    let height = Math.max(1, Math.round(image.height * scale))
+
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('canvas_context_error')
+
+    let quality = 0.86
+    let output = ''
+
+    for (let step = 0; step < 6; step += 1) {
+      canvas.width = width
+      canvas.height = height
+      ctx.clearRect(0, 0, width, height)
+      ctx.drawImage(image, 0, 0, width, height)
+
+      output = canvas.toDataURL('image/jpeg', quality)
+
+      if (estimateDataUrlBytes(output) <= TARGET_BYTES) return output
+
+      if (quality > 0.52) {
+        quality = Math.max(0.52, quality - 0.08)
+      } else {
+        width = Math.max(800, Math.round(width * 0.88))
+        height = Math.max(500, Math.round(height * 0.88))
+      }
+    }
+
+    return output || canvas.toDataURL('image/jpeg', 0.52)
+  }
+
+  const handleWallpaperFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Selecione um arquivo de imagem válido', 'err')
+      event.target.value = ''
+      return
+    }
+
+    try {
+      const SOURCE_COMPRESSION_THRESHOLD = 900 * 1024
+      const needsCompression = file.size > SOURCE_COMPRESSION_THRESHOLD
+      const dataUrl = needsCompression
+        ? await compressWallpaperImage(file)
+        : await readFileAsDataURL(file)
+
+      applyWallpaper(dataUrl)
+      showToast(needsCompression ? 'Fundo importado e comprimido com sucesso' : 'Fundo atualizado com imagem local', 'ok')
+    } catch {
+      showToast('Erro ao importar imagem', 'err')
+    }
+
+    event.target.value = ''
   }
 
   const WALLPAPER_PRESETS = [
@@ -365,72 +552,81 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         ) : (
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
           <div className="board-columns">
-            {allColumns.map((col, colIdx) => {
-              const colTickets = getColumnTickets(col.id)
-              return (
-                <motion.div key={col.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, delay: colIdx * 0.06 }}
-                  className="trello-col">
-                  {/* Column header */}
-                  <div className="trello-col__head">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.accent, boxShadow: `0 0 6px ${col.accent}44` }} />
-                    <span className="flex-1 truncate">{col.label}</span>
-                    <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.accent}15`, color: col.accent }}>{colTickets.length}</span>
-                    {customColumns.some(cc => cc.id === col.id) && (
-                      <button
-                        onClick={() => {
-                          if (!confirm(`Excluir a lista "${col.label}"?`)) return
-                          setCustomColumns(prev => prev.filter(cc => cc.id !== col.id))
-                          showToast('Lista excluída', 'ok')
-                        }}
-                        className="p-1 rounded hover:bg-red-500/20 transition-colors ml-1"
-                        title="Excluir lista"
-                      >
-                        <Trash2 size={12} className="text-red-400" />
-                      </button>
-                    )}
-                  </div>
+            <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+              {allColumns.map((col, colIdx) => {
+                const colTickets = getColumnTickets(col.id)
+                return (
+                  <motion.div key={col.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: colIdx * 0.06 }}>
+                    <SortableBoardColumn id={col.id}>
+                      {({ attributes, listeners }) => (
+                        <>
+                          {/* Column header (drag handle) */}
+                          <div className="trello-col__head" {...attributes} {...listeners}>
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.accent, boxShadow: `0 0 6px ${col.accent}44` }} />
+                            <span className="flex-1 truncate">{col.label}</span>
+                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.accent}15`, color: col.accent }}>{colTickets.length}</span>
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                if (colTickets.length > 0 && !confirm(`A lista "${col.label}" tem ${colTickets.length} cartão(s). Excluir mesmo assim?`)) return
+                                if (colTickets.length === 0 && !confirm(`Excluir a lista "${col.label}"?`)) return
+                                if (customColumns.some(cc => cc.id === col.id)) {
+                                  setCustomColumns(prev => prev.filter(cc => cc.id !== col.id))
+                                }
+                                setTickets(prev => prev.filter(t => t.status !== col.id))
+                                showToast('Lista excluída', 'ok')
+                              }}
+                              className="p-1 rounded hover:bg-red-500/20 transition-colors ml-1 opacity-0 group-hover:opacity-100"
+                              title="Excluir lista"
+                            >
+                              <Trash2 size={12} className="text-red-400" />
+                            </button>
+                          </div>
 
-                  {/* Cards area */}
-                  <DroppableColumn id={col.id} isOver={overColumn === col.id}>
-                    <div className="trello-col__cards">
-                      <SortableContext items={colTickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                        <AnimatePresence>
-                          {colTickets.map(ticket => <Card key={ticket.id} ticket={ticket} onSendToSlack={handleSendToSlack} slackSending={slackSending === ticket.id} onCardClick={handleCardClick} />)}
-                        </AnimatePresence>
-                      </SortableContext>
-                    </div>
-                  </DroppableColumn>
+                          {/* Cards area */}
+                          <DroppableColumn id={col.id} isOver={overColumn === col.id}>
+                            <div className="trello-col__cards">
+                              <SortableContext items={colTickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                                <AnimatePresence>
+                                  {colTickets.map(ticket => <Card key={ticket.id} ticket={ticket} onSendToSlack={handleSendToSlack} slackSending={slackSending === ticket.id} onCardClick={handleCardClick} />)}
+                                </AnimatePresence>
+                              </SortableContext>
+                            </div>
+                          </DroppableColumn>
 
-                  {/* Inline add card (Trello-style) */}
-                  {addingTo === col.id ? (
-                    <div className="px-1.5 pt-1.5 pb-1">
-                      <textarea
-                        autoFocus
-                        value={inlineTitle}
-                        onChange={e => setInlineTitle(e.target.value)}
-                        placeholder="Insira um título para este cartão..."
-                        rows={3}
-                        className="w-full rounded-lg p-2.5 text-sm resize-none outline-none"
-                        style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInlineAdd(col.id as TicketStatus) }
-                          if (e.key === 'Escape') { setAddingTo(null); setInlineTitle('') }
-                        }}
-                      />
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#25D066' }}>Adicionar</button>
-                        <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={() => { setAddingTo(col.id as TicketStatus); setInlineTitle('') }} className="trello-col__add">
-                      <Plus size={16} /> Adicionar um cartão
-                    </button>
-                  )}
-                </motion.div>
-              )
-            })}
+                          {/* Inline add card (Trello-style) */}
+                          {addingTo === col.id ? (
+                            <div className="px-1.5 pt-1.5 pb-1">
+                              <textarea
+                                autoFocus
+                                value={inlineTitle}
+                                onChange={e => setInlineTitle(e.target.value)}
+                                placeholder="Insira um título para este cartão..."
+                                rows={3}
+                                className="w-full rounded-lg p-2.5 text-sm resize-none outline-none"
+                                style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInlineAdd(col.id as TicketStatus) }
+                                  if (e.key === 'Escape') { setAddingTo(null); setInlineTitle('') }
+                                }}
+                              />
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#25D066' }}>Adicionar</button>
+                                <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setAddingTo(col.id as TicketStatus); setInlineTitle('') }} className="trello-col__add">
+                              <Plus size={16} /> Adicionar um cartão
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </SortableBoardColumn>
+                  </motion.div>
+                )
+              })}
+            </SortableContext>
             {/* Add another list */}
             {addingList ? (
               <div className="add-list-form">
@@ -477,6 +673,14 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             )}
           </div>
           <DragOverlay dropAnimation={null}>
+            {activeColumnId && allColumnsById.get(activeColumnId) && (
+              <div className="trello-col trello-col--drag" style={{ transform: 'rotate(2deg)', opacity: 0.88 }}>
+                <div className="trello-col__head">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: allColumnsById.get(activeColumnId)?.accent }} />
+                  <span className="flex-1 truncate">{allColumnsById.get(activeColumnId)?.label}</span>
+                </div>
+              </div>
+            )}
             {activeTicket && (
               <div style={{ transform: 'rotate(5deg)', opacity: 0.92 }}>
                 <Card ticket={activeTicket} isDragging />
@@ -648,6 +852,20 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                     <Image size={14} />
                   </button>
                 </div>
+                <input
+                  ref={wallpaperFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleWallpaperFileSelect}
+                />
+                <button
+                  onClick={() => wallpaperFileInputRef.current?.click()}
+                  className="mt-2 w-full py-2 rounded-lg text-xs font-semibold transition-colors"
+                  style={{ background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa' }}
+                >
+                  Importar imagem do computador
+                </button>
                 {wallpaper && (
                   <button onClick={() => applyWallpaper('')} className="mt-2 w-full py-2 rounded-lg text-xs font-semibold transition-colors text-red-400 hover:bg-red-500/10"
                     style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>

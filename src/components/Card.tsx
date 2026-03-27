@@ -29,7 +29,10 @@ const PRIO_COLOR: Record<string, string> = { high: '#ef4444', medium: '#f59e0b',
 const PRIO_LABEL: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
 
 export default function Card({ ticket, isDragging = false, onSendToSlack, slackSending = false, onCardClick }: CardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging: sorting } = useSortable({ id: ticket.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging: sorting } = useSortable({
+    id: ticket.id,
+    data: { type: 'ticket', ticket },
+  })
   const style = { transform: CSS.Transform.toString(transform), transition }
   const { label: time, isStale } = timeAgo(ticket.updated_at)
 
