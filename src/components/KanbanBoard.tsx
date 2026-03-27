@@ -481,10 +481,10 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   ]
 
   const boardWrapperStyle: React.CSSProperties = {
-    minHeight: '100%',
     display: 'flex',
     flexDirection: 'column',
     flex: 1,
+    minHeight: 0,
     background: '#1d2125',
   }
 

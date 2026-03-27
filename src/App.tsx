@@ -60,14 +60,14 @@ export default function App() {
       case 'planner':
         return (
           <motion.div key="planner" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}
-            className="flex-1 overflow-y-auto mesh-bg" style={{ minHeight: '100%' }}>
+            className="flex-1 overflow-y-auto mesh-bg min-h-0">
             <PlannerView tickets={plannerTickets} />
           </motion.div>
         )
       case 'switch':
         return (
           <motion.div key="switch" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}
-            className="flex-1 flex items-center justify-center mesh-bg" style={{ minHeight: '100%' }}>
+            className="flex-1 flex items-center justify-center mesh-bg min-h-0">
             <div className="text-center">
               <div className="text-4xl mb-3">📋</div>
               <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Mudar de Quadros</h2>
@@ -78,7 +78,7 @@ export default function App() {
       default:
         return (
           <motion.div key={activeTab === 'inbox' ? 'board-with-inbox' : 'board'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-            className="flex-1 flex flex-col" style={{ minHeight: '100%' }}>
+            className="flex-1 flex flex-col min-h-0">
             <KanbanBoard user={user!} onLogout={handleLogout} />
           </motion.div>
         )
