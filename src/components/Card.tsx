@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'framer-motion'
-import { Clock, AlertCircle, AlignLeft, User, Send, Loader2 } from 'lucide-react'
+import { Clock, AlertCircle, AlignLeft, User, Send, Loader2, Calendar } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { Ticket } from '../lib/supabase'
 
@@ -36,6 +36,9 @@ export default function Card({ ticket, isDragging = false, onSendToSlack, slackS
   const style = { transform: CSS.Transform.toString(transform), transition }
   const { label: time, isStale } = timeAgo(ticket.updated_at)
 
+  const createdDate = new Date(ticket.created_at)
+  const createdLabel = createdDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + ', ' + createdDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <motion.div
@@ -48,19 +51,23 @@ export default function Card({ ticket, isDragging = false, onSendToSlack, slackS
         className={clsx('trello-card group', isStale && 'trello-card--stale', isDragging && 'trello-card--drag')}
       >
         {/* Color labels (Trello style) */}
-        <div className="flex gap-1 mb-2">
+        <div className="flex flex-wrap gap-1 mb-2">
           <span
-            className="h-2 w-10 rounded-sm cursor-pointer hover:h-4 transition-all"
+            className="h-4 px-2 rounded-sm text-[10px] font-bold leading-[16px] cursor-pointer hover:h-5 hover:leading-[20px] transition-all inline-flex items-center text-white"
             style={{ background: PRIO_COLOR[ticket.priority] }}
             title={`Prioridade: ${PRIO_LABEL[ticket.priority]}`}
-          />
+          >
+            {PRIO_LABEL[ticket.priority]}
+          </span>
           {ticket.tags?.slice(0, 4).map((tag, i) => (
             <span
               key={tag}
-              className="h-2 w-10 rounded-sm cursor-pointer hover:h-4 transition-all"
-              style={{ background: `hsl(${(tag.charCodeAt(0) * 47 + i * 80) % 360}, 55%, 50%)` }}
+              className="h-4 px-2 rounded-sm text-[10px] font-bold leading-[16px] cursor-pointer hover:h-5 hover:leading-[20px] transition-all inline-flex items-center text-white"
+              style={{ background: `hsl(${(tag.charCodeAt(0) * 47 + i * 80) % 360}, 55%, 45%)` }}
               title={tag}
-            />
+            >
+              {tag}
+            </span>
           ))}
         </div>
 
@@ -78,10 +85,16 @@ export default function Card({ ticket, isDragging = false, onSendToSlack, slackS
 
         {/* Badges row */}
         <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-          {/* Time */}
+          {/* Time since update */}
           <span className={clsx('inline-flex items-center gap-1 rounded px-1 py-0.5', isStale && 'text-red-400')}>
             {isStale ? <AlertCircle size={12} className="animate-pulse" /> : <Clock size={12} />}
             {time}
+          </span>
+
+          {/* Creation date */}
+          <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 opacity-70">
+            <Calendar size={10} />
+            {createdLabel}
           </span>
 
           {/* Description indicator */}

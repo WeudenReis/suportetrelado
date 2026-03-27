@@ -94,7 +94,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => {
           if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
-          return [payload.new as Ticket, ...prev]
+          return [...prev, payload.new as Ticket]
         })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, payload => {
@@ -321,7 +321,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         cliente: newTicket.cliente || '',
         instancia: newTicket.instancia || '',
       })
-      setTickets(prev => prev.some(t => t.id === created.id) ? prev : [created, ...prev])
+      setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
       setNewTicket({ title: '', description: '', priority: 'medium', status: 'backlog', cliente: '', instancia: '' })
       setShowAddModal(false)
       showToast('Ticket criado!', 'ok')
@@ -335,7 +335,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     if (!inlineTitle.trim()) return
     try {
       const created = await insertTicket({ title: inlineTitle.trim(), description: '', status: col, priority: 'medium' })
-      setTickets(prev => prev.some(t => t.id === created.id) ? prev : [created, ...prev])
+      setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
       setInlineTitle('')
       setAddingTo(null)
     } catch (err: any) {
