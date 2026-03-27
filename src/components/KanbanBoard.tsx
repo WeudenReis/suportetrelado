@@ -636,14 +636,9 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             Criar
           </motion.button>
 
-          <div className="trello-user-chip">
-            <div className="trello-user-chip__avatar" style={{ background: '#25D066' }}>
-              {user.charAt(0).toUpperCase()}
-            </div>
-            <button onClick={onLogout} className="trello-icon-btn trello-icon-btn--danger" type="button" title="Sair">
-              <LogOut size={14} />
-            </button>
-          </div>
+          <button onClick={onLogout} className="trello-icon-btn trello-icon-btn--danger" type="button" title="Sair">
+            <LogOut size={14} />
+          </button>
         </div>
       </header>
 

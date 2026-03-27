@@ -53,7 +53,6 @@ body {
     radial-gradient(ellipse 60% 40% at 70% 20%, rgba(59,130,246,0.12) 0%, transparent 55%),
     radial-gradient(ellipse 100% 60% at 50% 100%, rgba(15,23,42,0.90) 0%, transparent 70%),
     linear-gradient(180deg, #0c0c1d 0%, #111a2e 30%, #0a1628 60%, #0d0d1a 100%);
-  min-height: 100vh;
 }
 
 /* Glassmorphism card */

@@ -244,7 +244,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto"
+      className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto"
       style={{ background: 'rgba(0,0,0,0.62)', backdropFilter: 'blur(4px)' }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
@@ -253,10 +253,10 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 34 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-[1120px] my-10 mx-4 rounded-xl overflow-hidden shadow-2xl"
-        style={{ background: '#22272b', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.08)' }}
+        className="w-full max-w-[960px] mx-4 rounded-xl overflow-hidden shadow-2xl"
+        style={{ background: '#22272b', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.08)', maxHeight: 'calc(100vh - 48px)' }}
       >
-        <div className="px-5 pt-4 pb-4">
+        <div className="px-5 pt-3 pb-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 56px)' }}>
           <div className="flex items-center justify-between mb-3">
             <select
               value={status}
@@ -339,7 +339,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-            <div className="px-6 py-6 space-y-6 min-w-0" style={{ background: '#22272b', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="px-5 py-4 space-y-4 min-w-0" style={{ background: '#22272b', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
               <div className="min-w-0">
                 <div className="flex items-center gap-3 mb-1.5">
                   <CreditCard size={18} style={{ color: '#9fadbc' }} />
@@ -347,7 +347,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                     onBlur={handleTitleBlur}
-                    className="bg-transparent border-none outline-none text-[44px] leading-tight font-bold w-full"
+                    className="bg-transparent border-none outline-none text-2xl leading-tight font-bold w-full"
                     style={{ color: '#dfe1e6' }}
                   />
                 </div>
@@ -374,7 +374,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 onChange={e => setDescription(e.target.value)}
                 onBlur={saveOnBlur}
                 className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: '#1d2125', color: '#dfe1e6', border: '1px solid rgba(255,255,255,0.12)', minHeight: 110 }}
+                style={{ background: '#1d2125', color: '#dfe1e6', border: '1px solid rgba(255,255,255,0.12)', minHeight: 70 }}
                 placeholder="Adicione uma descricao mais detalhada..."
               />
               </section>
