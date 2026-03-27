@@ -470,22 +470,32 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   }
 
   const WALLPAPER_PRESETS = [
-    { label: 'Ondas', value: 'linear-gradient(135deg, #0c0c1d 0%, #111a2e 30%, #0a1628 60%, #0d0d1a 100%)' },
-    { label: 'Aurora', value: 'linear-gradient(135deg, #0d1117 0%, #161b22 25%, #0d4429 50%, #161b22 75%, #0d1117 100%)' },
-    { label: 'Noite', value: 'linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 40%, #16213e 70%, #0a0a0f 100%)' },
-    { label: 'Sunset', value: 'linear-gradient(135deg, #1a0a1e 0%, #2d1b3d 30%, #1a2a3d 60%, #0a1a2d 100%)' },
-    { label: 'Floresta', value: 'linear-gradient(135deg, #0a1a0a 0%, #1a2e1a 30%, #0d2818 60%, #0a150a 100%)' },
-    { label: 'Oceano', value: 'linear-gradient(180deg, #0a0a1a 0%, #0d1a2e 30%, #0a2a3d 50%, #0d1a2e 70%, #0a0a1a 100%)' },
+    { label: 'Azul', value: '#0f3b73' },
+    { label: 'Marinho', value: '#172b4d' },
+    { label: 'Grafite', value: '#1d2125' },
+    { label: 'Verde', value: '#216e4e' },
+    { label: 'Roxo', value: '#5e4db2' },
+    { label: 'Vinho', value: '#6b2b3a' },
   ]
 
-  const boardBgStyle: React.CSSProperties = wallpaper
+  const boardWrapperStyle: React.CSSProperties = {
+    minHeight: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+    background: '#1d2125',
+  }
+
+  const boardSurfaceStyle: React.CSSProperties = wallpaper
     ? (wallpaper.startsWith('http') || wallpaper.startsWith('data:')
-        ? { backgroundImage: `url(${wallpaper})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
-        : { background: wallpaper })
-    : {}
+        ? { backgroundImage: `url(${wallpaper})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : wallpaper.startsWith('#') || wallpaper.startsWith('rgb') || wallpaper.startsWith('hsl')
+            ? { backgroundColor: wallpaper }
+            : { background: wallpaper })
+    : { backgroundColor: '#0f3b73' }
 
   return (
-    <div className={clsx('board-wrapper', !wallpaper && 'mesh-bg')} style={{ ...boardBgStyle, minHeight: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}>
+    <div className="board-wrapper" style={boardWrapperStyle}>
       {/* Toast */}
       <AnimatePresence>
         {toast && (
@@ -591,7 +601,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       </header>
 
       {/* Board */}
-      <main className="board-main">
+      <main className="board-main" style={boardSurfaceStyle}>
         {loading ? (
           <div className="flex items-center justify-center h-64 gap-3 text-slate-400">
             <Loader2 size={24} className="animate-spin" />
@@ -871,9 +881,9 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                 Restaurar padrão
               </button>
 
-              {/* Wallpaper */}
+              {/* Board background */}
               <div className="mt-6">
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: theme.textMuted }}>Papel de Parede</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: theme.textMuted }}>Fundo do Quadro</label>
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {WALLPAPER_PRESETS.map(wp => (
                     <button key={wp.label} onClick={() => applyWallpaper(wp.value)}
@@ -888,9 +898,20 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                     </button>
                   ))}
                 </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    type="color"
+                    value={wallpaper.startsWith('#') ? wallpaper : '#0f3b73'}
+                    onChange={(e) => applyWallpaper(e.target.value)}
+                    className="w-9 h-9 rounded cursor-pointer border-0"
+                    style={{ background: 'none' }}
+                    title="Cor sólida do quadro"
+                  />
+                  <span className="text-[11px]" style={{ color: theme.textMuted }}>Escolher cor sólida</span>
+                </div>
                 <div className="flex gap-2">
                   <input
-                    placeholder="URL da imagem..."
+                    placeholder="URL da imagem do quadro..."
                     value={wallpaperInput}
                     onChange={e => setWallpaperInput(e.target.value)}
                     className="dark-input flex-1 rounded-lg px-3 py-2 text-xs"
@@ -912,7 +933,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   className="mt-2 w-full py-2 rounded-lg text-xs font-semibold transition-colors"
                   style={{ background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa' }}
                 >
-                  Importar imagem do computador
+                  Importar imagem do computador (quadro)
                 </button>
                 {wallpaper && (
                   <button onClick={() => applyWallpaper('')} className="mt-2 w-full py-2 rounded-lg text-xs font-semibold transition-colors text-red-400 hover:bg-red-500/10"
