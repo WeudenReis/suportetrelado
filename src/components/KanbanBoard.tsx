@@ -56,6 +56,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
+  const [showOnlineUsers, setShowOnlineUsers] = useState(false)
   const [wallpaper, setWallpaper] = useState<string>('')
   const [wallpaperInput, setWallpaperInput] = useState('')
   const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
@@ -349,6 +350,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   }
 
   const staleCount = tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 2 * 60 * 60 * 1000 && t.status !== 'resolved').length
+  const visibleUsers = onlineUsers.length > 0 ? onlineUsers : [user]
 
   const handleCardClick = (ticket: Ticket) => {
     setSelectedTicket(ticket)
@@ -538,9 +540,13 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
         <div className="flex items-center gap-2">
           {/* Avatar group with presence */}
-          <div className="flex items-center mr-1">
-            <div className="flex -space-x-2">
-              {(onlineUsers.length > 0 ? onlineUsers : [user]).slice(0, 5).map((u, i) => (
+          <div
+            className="relative flex items-center mr-1"
+            onMouseEnter={() => setShowOnlineUsers(true)}
+            onMouseLeave={() => setShowOnlineUsers(false)}
+          >
+            <div className="flex -space-x-2 cursor-default">
+              {visibleUsers.slice(0, 5).map((u, i) => (
                 <div key={u} className="relative"
                   style={{ zIndex: 10 - i }}>
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-[#0c0c1d]"
@@ -551,13 +557,38 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 ring-2 ring-[#0c0c1d]" />
                 </div>
               ))}
-              {onlineUsers.length > 5 && (
+              {visibleUsers.length > 5 && (
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-[#0c0c1d]"
                   style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>
-                  +{onlineUsers.length - 5}
+                  +{visibleUsers.length - 5}
                 </div>
               )}
             </div>
+
+            <AnimatePresence>
+              {showOnlineUsers && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  transition={{ duration: 0.14 }}
+                  className="absolute right-0 top-[120%] z-50 min-w-[220px] rounded-lg p-2"
+                  style={{ background: '#1f2530', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 14px 30px rgba(0,0,0,0.35)' }}
+                >
+                  <div className="text-[10px] font-bold uppercase tracking-wide px-1 pb-1" style={{ color: '#9fadbc' }}>
+                    Usuarios online ({visibleUsers.length})
+                  </div>
+                  <div className="max-h-56 overflow-y-auto pr-1 space-y-1">
+                    {visibleUsers.map((u, i) => (
+                      <div key={`${u}-${i}`} className="flex items-center gap-2 px-1.5 py-1 rounded-md" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                        <span className="w-2 h-2 rounded-full bg-green-400" />
+                        <span className="text-xs truncate" style={{ color: '#dfe1e6' }} title={u}>{u}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Share button */}
@@ -602,6 +633,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
       {/* Board */}
       <main className="board-main" style={boardSurfaceStyle}>
+        <div className="board-main__scroller">
         {loading ? (
           <div className="flex items-center justify-center h-64 gap-3 text-slate-400">
             <Loader2 size={24} className="animate-spin" />
@@ -747,6 +779,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
           </DragOverlay>
         </DndContext>
         )}
+        </div>
       </main>
 
       {/* Add Modal */}
