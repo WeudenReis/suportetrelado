@@ -175,7 +175,7 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
-  max-height: calc(100vh - 180px);
+  max-height: calc(100vh - 230px);
   padding-bottom: 4px;
   border: 1px solid rgba(255,255,255,0.06);
   box-shadow: 0 2px 12px rgba(0,0,0,0.18);
@@ -966,7 +966,7 @@ body {
   .add-list-form,
   .add-list-ghost {
     width: min(272px, calc(100vw - 110px));
-    max-height: calc(100vh - 240px);
+    max-height: calc(100vh - 280px);
   }
 
   .bottom-nav__item {

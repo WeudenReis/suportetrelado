@@ -320,6 +320,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         priority: newTicket.priority,
         cliente: newTicket.cliente || '',
         instancia: newTicket.instancia || '',
+        assignee: user,
       })
       setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
       setNewTicket({ title: '', description: '', priority: 'medium', status: 'backlog', cliente: '', instancia: '' })
@@ -334,7 +335,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const handleInlineAdd = async (col: TicketStatus) => {
     if (!inlineTitle.trim()) return
     try {
-      const created = await insertTicket({ title: inlineTitle.trim(), description: '', status: col, priority: 'medium' })
+      const created = await insertTicket({ title: inlineTitle.trim(), description: '', status: col, priority: 'medium', assignee: user })
       setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
       setInlineTitle('')
       setAddingTo(null)
