@@ -207,3 +207,204 @@ body {
   background: rgba(255,255,255,0.06);
   color: var(--text-secondary);
 }
+
+/* =========================================
+   App Layout (Sidebar + Main)
+   ========================================= */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+.app-layout__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+/* =========================================
+   Sidebar
+   ========================================= */
+.sidebar-root {
+  background: rgba(15, 23, 42, 0.50);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border-subtle);
+}
+
+/* =========================================
+   Board Header
+   ========================================= */
+.board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  backdrop-filter: blur(16px);
+  gap: 16px;
+}
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 7px 14px;
+  flex: 1;
+  max-width: 360px;
+  transition: border-color 0.2s;
+}
+.header-search:focus-within {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+
+/* =========================================
+   Board Main
+   ========================================= */
+.board-main {
+  flex: 1;
+  padding: 16px 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.board-columns {
+  display: flex;
+  gap: 12px;
+  height: 100%;
+  min-width: max-content;
+  padding-bottom: 8px;
+  align-items: flex-start;
+}
+
+/* Ghost add list button */
+.add-list-ghost {
+  width: 272px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  height: fit-content;
+}
+.add-list-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* =========================================
+   Bottom Nav
+   ========================================= */
+.bottom-nav-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 8px 20px 12px;
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+.bottom-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  pointer-events: all;
+}
+.bottom-nav__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 18px 6px;
+  border-radius: 9999px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.bottom-nav__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.bottom-nav__indicator {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  border-radius: 1px;
+  background: #60a5fa;
+}
+
+/* =========================================
+   Modal Form Fields
+   ========================================= */
+.modal-field {
+  width: 100%;
+  background: #22252a;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #c8cad0;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.modal-field:focus {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+.modal-field::placeholder {
+  color: rgba(148, 163, 184, 0.35);
+}
+.modal-field option {
+  background: #22252a;
+  color: #c8cad0;
+}
+.modal-field-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  flex-shrink: 0;
+  transition: background 0.15s;
+  cursor: pointer;
+  text-decoration: none;
+}
+.modal-field-icon-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+.modal-scroll::-webkit-scrollbar { width: 4px; }
+.modal-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }

@@ -3,10 +3,14 @@ import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
+import Sidebar from './components/Sidebar'
+import BottomNav from './components/BottomNav'
 
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'switch'>('board')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -44,7 +48,13 @@ export default function App() {
       {!user ? (
         <Login onLogin={handleLogin} />
       ) : (
-        <KanbanBoard user={user} onLogout={handleLogout} />
+        <div className="app-layout">
+          <Sidebar user={user} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
+          <div className="app-layout__main">
+            <KanbanBoard user={user} onLogout={handleLogout} />
+            <BottomNav active={activeTab} onChange={setActiveTab} />
+          </div>
+        </div>
       )}
     </ThemeProvider>
   )

@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  X, AlignLeft, MessageSquare, Paperclip, Tag, Calendar, Users, CheckSquare,
-  Clock, Share2, Trash2, Send, Loader2, Download, Plus, Video, FileText,
-  ChevronDown, ArrowRight, Image as ImageIcon
+  X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
+  ChevronDown, ArrowRight, Image as ImageIcon, ExternalLink, Save
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
@@ -56,10 +55,14 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   // --- State ---
   const [title, setTitle] = useState(ticket.title)
   const [description, setDescription] = useState(ticket.description || '')
-  const [editingDesc, setEditingDesc] = useState(false)
   const [status, setStatus] = useState<TicketStatus>(ticket.status)
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false)
+  const [priority, setPriority] = useState(ticket.priority)
   const [assignee, setAssignee] = useState(ticket.assignee || '')
+  const [cliente, setCliente] = useState(ticket.cliente || '')
+  const [instancia, setInstancia] = useState(ticket.instancia || '')
+  const [linkRetaguarda, setLinkRetaguarda] = useState(ticket.link_retaguarda || '')
+  const [linkSessao, setLinkSessao] = useState(ticket.link_sessao || '')
+  const [observacao, setObservacao] = useState(ticket.observacao || '')
   const [saving, setSaving] = useState(false)
 
   const [comments, setComments] = useState<Comment[]>([])
@@ -125,28 +128,38 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     setSaving(false)
   }, [ticket.id, onUpdate])
 
+  // --- Save all fields ---
+  const handleSaveAll = async () => {
+    const updates: Partial<Ticket> = {}
+    if (title.trim() && title !== ticket.title) updates.title = title.trim()
+    if (description !== (ticket.description || '')) updates.description = description
+    if (status !== ticket.status) updates.status = status
+    if (priority !== ticket.priority) updates.priority = priority
+    if (assignee !== (ticket.assignee || '')) updates.assignee = assignee || null
+    if (cliente !== (ticket.cliente || '')) updates.cliente = cliente
+    if (instancia !== (ticket.instancia || '')) updates.instancia = instancia
+    if (linkRetaguarda !== (ticket.link_retaguarda || '')) updates.link_retaguarda = linkRetaguarda
+    if (linkSessao !== (ticket.link_sessao || '')) updates.link_sessao = linkSessao
+    if (observacao !== (ticket.observacao || '')) updates.observacao = observacao
+
+    if (Object.keys(updates).length > 0) {
+      await save(updates)
+      if (updates.status) {
+        const oldLabel = STATUS_MAP[ticket.status]
+        const newLabel = STATUS_MAP[updates.status]
+        await insertActivityLog(ticket.id, user, `moveu este cartão de ${oldLabel} para ${newLabel}`)
+        fetchActivityLog(ticket.id).then(setActivities)
+      }
+    }
+  }
+
   // --- Handlers ---
   const handleTitleBlur = () => {
     if (title.trim() && title !== ticket.title) save({ title: title.trim() })
   }
 
-  const handleDescSave = () => {
-    setEditingDesc(false)
-    if (description !== (ticket.description || '')) save({ description })
-  }
-
   const handleStatusChange = async (newStatus: TicketStatus) => {
-    const oldLabel = STATUS_MAP[status]
-    const newLabel = STATUS_MAP[newStatus]
     setStatus(newStatus)
-    setShowStatusDropdown(false)
-    await save({ status: newStatus })
-    await insertActivityLog(ticket.id, user, `moveu este cartão de ${oldLabel} para ${newLabel}`)
-    fetchActivityLog(ticket.id).then(setActivities)
-  }
-
-  const handleAssigneeBlur = () => {
-    if (assignee !== (ticket.assignee || '')) save({ assignee: assignee || null })
   }
 
   const handleSendComment = async () => {
@@ -216,256 +229,291 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       <motion.div
         initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-[768px] my-12 mx-4 rounded-xl overflow-hidden shadow-2xl"
+        className="w-full max-w-[520px] my-12 mx-4 rounded-xl overflow-hidden shadow-2xl"
         style={{ background: '#1e1f23', color: '#c8cad0' }}
       >
         {/* ===== HEADER ===== */}
-        <div className="relative px-6 pt-5 pb-3">
-          {/* Close X */}
-          <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
+        <div className="relative px-6 pt-5 pb-2 flex items-center justify-between">
+          <h2 className="text-lg font-bold" style={{ color: '#c8cad0' }}>Editar Ticket</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
             <X size={20} />
           </button>
-
-          {/* Title */}
-          <div className="flex items-start gap-3 pr-10">
-            <div className="mt-1 flex-shrink-0" style={{ color: '#9fadbc' }}><AlignLeft size={20} /></div>
-            <div className="flex-1 min-w-0">
-              <input
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                onBlur={handleTitleBlur}
-                onKeyDown={e => e.key === 'Enter' && (e.currentTarget.blur())}
-                className="w-full text-xl font-semibold bg-transparent border-none outline-none focus:bg-white/5 rounded px-1 -ml-1 transition-colors"
-                style={{ color: '#c8cad0' }}
-              />
-              {/* In list indicator */}
-              <div className="flex items-center gap-1.5 mt-1 text-sm" style={{ color: '#9fadbc' }}>
-                <span>na lista</span>
-                <div className="relative">
-                  <button
-                    onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded hover:bg-white/10 font-medium underline underline-offset-2 transition-colors"
-                    style={{ color: STATUS_COLORS[status] }}
-                  >
-                    {STATUS_MAP[status]}
-                    <ChevronDown size={14} />
-                  </button>
-                  {showStatusDropdown && (
-                    <div className="absolute top-full left-0 mt-1 z-20 rounded-lg overflow-hidden py-1 min-w-[200px] shadow-xl"
-                      style={{ background: '#282a2e', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      {(Object.entries(STATUS_MAP) as [TicketStatus, string][]).map(([key, label]) => (
-                        <button key={key} onClick={() => handleStatusChange(key)}
-                          className={clsx('w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-colors hover:bg-white/8', status === key && 'bg-white/5')}
-                          style={{ color: status === key ? STATUS_COLORS[key] : '#c8cad0' }}>
-                          <span className="w-3 h-3 rounded-sm" style={{ background: STATUS_COLORS[key] }} />
-                          {label}
-                          {status === key && <span className="ml-auto text-xs opacity-50">atual</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {saving && <Loader2 size={14} className="animate-spin ml-1" style={{ color: '#25D066' }} />}
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* ===== BODY: Two columns ===== */}
-        <div className="flex flex-col lg:flex-row">
-          {/* --- LEFT: Main content --- */}
-          <div className="flex-1 px-6 pb-6 min-w-0">
+        {/* ===== FORM BODY ===== */}
+        <div className="px-6 pb-6 space-y-4 max-h-[calc(100vh-160px)] overflow-y-auto modal-scroll">
 
-            {/* Quick action buttons row */}
-            <div className="flex flex-wrap gap-2 mb-6 mt-2">
-              <SidebarBtn icon={<Plus size={14} />} label="Adicionar" onClick={() => fileInputRef.current?.click()} />
-              <SidebarBtn icon={<Tag size={14} />} label="Etiquetas" />
-              <SidebarBtn icon={<Calendar size={14} />} label="Datas" />
-              <SidebarBtn icon={<CheckSquare size={14} />} label="Checklist" />
-              <SidebarBtn icon={<Users size={14} />} label="Membros" />
-            </div>
+          {/* Título */}
+          <FieldGroup label="Título">
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="modal-field"
+              placeholder="Título do ticket..."
+            />
+          </FieldGroup>
 
-            {/* ---- Description ---- */}
-            <SectionHeader icon={<AlignLeft size={18} />} title="Descrição" />
-            {editingDesc ? (
-              <div className="ml-[30px] mt-2">
-                <textarea
-                  autoFocus
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  rows={5}
-                  className="w-full rounded-lg px-4 py-3 text-sm resize-y outline-none"
-                  style={{ background: '#22252a', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.1)' }}
-                  placeholder="Adicione uma descrição mais detalhada..."
-                />
-                <div className="flex gap-2 mt-2">
-                  <button onClick={handleDescSave} className="px-5 py-2 rounded-md text-sm font-semibold text-white" style={{ background: '#25D066' }}>Salvar</button>
-                  <button onClick={() => { setEditingDesc(false); setDescription(ticket.description || '') }} className="px-4 py-2 rounded-md text-sm hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>Cancelar</button>
-                </div>
-              </div>
-            ) : (
-              <div
-                onClick={() => setEditingDesc(true)}
-                className="ml-[30px] mt-2 cursor-pointer rounded-lg px-4 py-3 text-sm min-h-[72px] transition-colors hover:bg-white/5"
-                style={{ background: '#22252a', color: description ? '#c8cad0' : '#6b7280', border: '1px solid rgba(255,255,255,0.06)' }}
+          {/* Cliente + Instância (side by side) */}
+          <div className="grid grid-cols-2 gap-3">
+            <FieldGroup label="Cliente">
+              <input
+                value={cliente}
+                onChange={e => setCliente(e.target.value)}
+                className="modal-field"
+                placeholder="Nome do cliente..."
+              />
+            </FieldGroup>
+            <FieldGroup label="Instância">
+              <input
+                value={instancia}
+                onChange={e => setInstancia(e.target.value)}
+                className="modal-field"
+                placeholder="Código da instância..."
+              />
+            </FieldGroup>
+          </div>
+
+          {/* Prioridade + Coluna (side by side) */}
+          <div className="grid grid-cols-2 gap-3">
+            <FieldGroup label="Prioridade">
+              <select
+                value={priority}
+                onChange={e => setPriority(e.target.value as Ticket['priority'])}
+                className="modal-field"
               >
-                {description || 'Adicione uma descrição mais detalhada...'}
+                <option value="low">Baixa</option>
+                <option value="medium">Média</option>
+                <option value="high">Alta</option>
+              </select>
+            </FieldGroup>
+            <FieldGroup label="Coluna">
+              <select
+                value={status}
+                onChange={e => handleStatusChange(e.target.value as TicketStatus)}
+                className="modal-field"
+              >
+                {(Object.entries(STATUS_MAP) as [TicketStatus, string][]).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </FieldGroup>
+          </div>
+
+          {/* Link de Retaguarda */}
+          <FieldGroup label="Link de Retaguarda">
+            <div className="flex gap-2">
+              <input
+                value={linkRetaguarda}
+                onChange={e => setLinkRetaguarda(e.target.value)}
+                className="modal-field flex-1"
+                placeholder="URL do sistema de retaguarda..."
+              />
+              {linkRetaguarda && (
+                <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link">
+                  <ExternalLink size={14} />
+                </a>
+              )}
+            </div>
+          </FieldGroup>
+
+          {/* Link de Sessão */}
+          <FieldGroup label="Link de Sessão">
+            <div className="flex gap-2">
+              <input
+                value={linkSessao}
+                onChange={e => setLinkSessao(e.target.value)}
+                className="modal-field flex-1"
+                placeholder="URL da conversa / sessão..."
+              />
+              {linkSessao && (
+                <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link">
+                  <ExternalLink size={14} />
+                </a>
+              )}
+            </div>
+          </FieldGroup>
+
+          {/* Problema / Descrição */}
+          <FieldGroup label="Problema">
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="modal-field resize-y"
+              placeholder="Descreva o problema em detalhes..."
+              rows={4}
+            />
+            {saving && (
+              <div className="absolute top-2 right-3">
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(37,208,102,0.15)', color: '#25D066' }}>Preen</span>
               </div>
             )}
+          </FieldGroup>
 
-            {/* ---- Attachments ---- */}
-            {(attachments.length > 0 || uploading) && (
-              <>
-                <SectionHeader icon={<Paperclip size={18} />} title="Anexos" className="mt-6" />
-                <div className="ml-[30px] mt-2 grid grid-cols-3 gap-2">
+          {/* Evidências (Fotos e Vídeos) */}
+          <FieldGroup label="Evidências (Fotos e Vídeos)">
+            <div className="space-y-2">
+              {attachments.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
                   {attachments.map(att => (
                     <div key={att.id} className="group relative rounded-lg overflow-hidden" style={{ background: '#22252a', border: '1px solid rgba(255,255,255,0.06)' }}>
                       {att.file_type === 'image' ? (
-                        <a href={att.file_url} target="_blank" rel="noreferrer"><img src={att.file_url} alt={att.file_name} className="w-full h-24 object-cover" /></a>
+                        <a href={att.file_url} target="_blank" rel="noreferrer"><img src={att.file_url} alt={att.file_name} className="w-full h-20 object-cover" /></a>
                       ) : att.file_type === 'video' ? (
-                        <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-24"><Video size={24} style={{ color: '#6b7280' }} /></a>
+                        <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-20"><Video size={20} style={{ color: '#6b7280' }} /></a>
                       ) : (
-                        <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-24"><FileText size={24} style={{ color: '#6b7280' }} /></a>
+                        <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-20"><FileText size={20} style={{ color: '#6b7280' }} /></a>
                       )}
-                      <div className="px-2 py-1.5 flex items-center justify-between">
-                        <span className="text-[10px] truncate" style={{ color: '#9fadbc' }}>{att.file_name}</span>
+                      <div className="px-2 py-1 flex items-center justify-between">
+                        <span className="text-[9px] truncate" style={{ color: '#9fadbc' }}>{att.file_name}</span>
                         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <a href={att.file_url} download target="_blank" rel="noreferrer" className="p-1 rounded hover:bg-white/10"><Download size={10} style={{ color: '#9fadbc' }} /></a>
-                          <button onClick={() => handleDeleteAttachment(att)} className="p-1 rounded hover:bg-red-500/20"><Trash2 size={10} className="text-red-400" /></button>
+                          <a href={att.file_url} download target="_blank" rel="noreferrer" className="p-0.5 rounded hover:bg-white/10"><Download size={10} style={{ color: '#9fadbc' }} /></a>
+                          <button onClick={() => handleDeleteAttachment(att)} className="p-0.5 rounded hover:bg-red-500/20"><Trash2 size={10} className="text-red-400" /></button>
                         </div>
                       </div>
                     </div>
                   ))}
                   {uploading && (
-                    <div className="flex items-center justify-center h-24 rounded-lg" style={{ background: '#22252a', border: '2px dashed rgba(255,255,255,0.08)' }}>
-                      <Loader2 size={20} className="animate-spin" style={{ color: '#25D066' }} />
+                    <div className="flex items-center justify-center h-20 rounded-lg" style={{ background: '#22252a', border: '2px dashed rgba(255,255,255,0.08)' }}>
+                      <Loader2 size={18} className="animate-spin" style={{ color: '#25D066' }} />
                     </div>
                   )}
-                </div>
-              </>
-            )}
-            <input ref={fileInputRef} type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileUpload} />
-
-            {/* ---- Responsável ---- */}
-            <SectionHeader icon={<Users size={18} />} title="Responsável" className="mt-6" />
-            <div className="ml-[30px] mt-2">
-              <input
-                value={assignee}
-                onChange={e => setAssignee(e.target.value)}
-                onBlur={handleAssigneeBlur}
-                onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()}
-                placeholder="Atribuir responsável..."
-                className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors focus:ring-1 focus:ring-green-500/30"
-                style={{ background: '#22252a', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.06)' }}
-              />
-            </div>
-
-            {/* ---- Comentários e atividade ---- */}
-            <div className="flex items-center justify-between mt-8 mb-2">
-              <SectionHeader icon={<MessageSquare size={18} />} title="Comentários e atividade" />
-              <button
-                onClick={() => setShowDetails(!showDetails)}
-                className="text-xs px-3 py-1 rounded-md hover:bg-white/10 transition-colors"
-                style={{ color: '#9fadbc' }}
-              >
-                {showDetails ? 'Mostrar Detalhes' : 'Ocultar Detalhes'}
-              </button>
-            </div>
-
-            {/* Comment input */}
-            <div className="ml-[30px] flex gap-3 mb-4">
-              <Avatar name={user} size={32} />
-              <div className="flex-1">
-                <textarea
-                  ref={commentRef}
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  onFocus={() => setCommentFocused(true)}
-                  onBlur={() => !newComment.trim() && setCommentFocused(false)}
-                  placeholder="Escrever um comentário..."
-                  rows={commentFocused ? 3 : 1}
-                  className="w-full rounded-lg px-4 py-2.5 text-sm outline-none resize-none transition-all"
-                  style={{ background: '#22252a', color: '#c8cad0', border: commentFocused ? '1px solid rgba(37,208,102,0.3)' : '1px solid rgba(255,255,255,0.06)' }}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment() } }}
-                />
-                <AnimatePresence>
-                  {(commentFocused || newComment.trim()) && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex justify-end mt-2">
-                      <button onClick={handleSendComment} disabled={!newComment.trim() || sendingComment}
-                        className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-semibold text-white disabled:opacity-40"
-                        style={{ background: '#25D066' }}>
-                        {sendingComment ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                        Salvar
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {/* Feed: Comments + Activity merged */}
-            <div className="ml-[30px] space-y-4 mb-4">
-              <AnimatePresence>
-                {feedItems.map(item => (
-                  <motion.div key={item.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex gap-3 group">
-                    <Avatar name={item.user} size={32} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold" style={{ color: '#c8cad0' }}>
-                          {item.user.includes('@') ? item.user.split('@')[0] : item.user}
-                        </span>
-                        <span className="text-[11px]" style={{ color: '#6b7280' }}>{timeAgo(item.time)}</span>
-                      </div>
-
-                      {item.type === 'comment' ? (
-                        <>
-                          <div className="mt-1 rounded-lg px-3.5 py-2.5 text-sm leading-relaxed" style={{ background: '#282a2e', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.04)' }}>
-                            {item.text}
-                          </div>
-                          {item.user === user && (
-                            <button onClick={() => handleDeleteComment(item.id)}
-                              className="mt-1 text-[11px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400"
-                              style={{ color: '#6b7280' }}>
-                              <Trash2 size={10} /> Excluir
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <div className="mt-0.5 text-sm flex items-center gap-1.5" style={{ color: '#9fadbc' }}>
-                          <ArrowRight size={12} style={{ color: '#25D066' }} />
-                          {item.text}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {feedItems.length === 0 && (
-                <div className="text-center py-8 text-sm" style={{ color: '#6b7280' }}>
-                  Nenhuma atividade ainda.
                 </div>
               )}
-              <div ref={commentsEndRef} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/6"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.12)', color: '#9fadbc' }}
+              >
+                <ImageIcon size={16} />
+                Adicionar Foto ou Vídeo
+              </button>
             </div>
-          </div>
+          </FieldGroup>
+          <input ref={fileInputRef} type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileUpload} />
 
-          {/* --- RIGHT: Sidebar --- */}
-          <div className="lg:w-[192px] flex-shrink-0 px-4 pb-6 lg:pr-4 lg:pl-0">
-            <div className="lg:sticky lg:top-0 space-y-1">
-              <SidebarLabel>Adicionar ao cartão</SidebarLabel>
-              <SidebarBtn icon={<Users size={14} />} label="Membros" />
-              <SidebarBtn icon={<Tag size={14} />} label="Etiquetas" />
-              <SidebarBtn icon={<CheckSquare size={14} />} label="Checklist" />
-              <SidebarBtn icon={<Calendar size={14} />} label="Datas" />
-              <SidebarBtn icon={<Paperclip size={14} />} label="Anexo" onClick={() => fileInputRef.current?.click()} />
+          {/* Observação */}
+          <FieldGroup label="Observação">
+            <textarea
+              value={observacao}
+              onChange={e => setObservacao(e.target.value)}
+              className="modal-field resize-y"
+              placeholder="Notas adicionais sobre a evidência..."
+              rows={2}
+            />
+          </FieldGroup>
 
-              <div className="pt-3" />
-              <SidebarLabel>Ações</SidebarLabel>
-              <SidebarBtn icon={<Share2 size={14} />} label="Compartilhar" onClick={handleShare} />
-              <SidebarBtn icon={<Trash2 size={14} />} label="Excluir" onClick={handleDelete} danger />
-            </div>
+          {/* ---- Comentários e atividade (collapsible) ---- */}
+          <div>
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="flex items-center gap-2 text-sm font-semibold mb-2 transition-colors hover:text-white"
+              style={{ color: '#9fadbc' }}
+            >
+              <MessageSquare size={16} />
+              Comentários e Atividade
+              <ChevronDown size={14} className={clsx('transition-transform', !showDetails && '-rotate-90')} />
+            </button>
+
+            <AnimatePresence>
+              {showDetails && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                  {/* Comment input */}
+                  <div className="flex gap-2.5 mb-3">
+                    <Avatar name={user} size={28} />
+                    <div className="flex-1">
+                      <textarea
+                        ref={commentRef}
+                        value={newComment}
+                        onChange={e => setNewComment(e.target.value)}
+                        onFocus={() => setCommentFocused(true)}
+                        onBlur={() => !newComment.trim() && setCommentFocused(false)}
+                        placeholder="Escrever um comentário..."
+                        rows={commentFocused ? 3 : 1}
+                        className="modal-field resize-none transition-all text-[13px]"
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment() } }}
+                      />
+                      <AnimatePresence>
+                        {(commentFocused || newComment.trim()) && (
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex justify-end mt-1.5">
+                            <button onClick={handleSendComment} disabled={!newComment.trim() || sendingComment}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-40"
+                              style={{ background: '#25D066' }}>
+                              {sendingComment ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                              Enviar
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                  {/* Feed */}
+                  <div className="space-y-3 mb-2">
+                    {feedItems.map(item => (
+                      <div key={item.id} className="flex gap-2.5 group">
+                        <Avatar name={item.user} size={28} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13px] font-semibold" style={{ color: '#c8cad0' }}>
+                              {item.user.includes('@') ? item.user.split('@')[0] : item.user}
+                            </span>
+                            <span className="text-[10px]" style={{ color: '#6b7280' }}>{timeAgo(item.time)}</span>
+                          </div>
+                          {item.type === 'comment' ? (
+                            <>
+                              <div className="mt-0.5 rounded-lg px-3 py-2 text-[13px] leading-relaxed" style={{ background: '#282a2e', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.04)' }}>
+                                {item.text}
+                              </div>
+                              {item.user === user && (
+                                <button onClick={() => handleDeleteComment(item.id)}
+                                  className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400"
+                                  style={{ color: '#6b7280' }}>
+                                  <Trash2 size={9} /> Excluir
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <div className="mt-0.5 text-[13px] flex items-center gap-1.5" style={{ color: '#9fadbc' }}>
+                              <ArrowRight size={11} style={{ color: '#25D066' }} />
+                              {item.text}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {feedItems.length === 0 && (
+                      <div className="text-center py-4 text-[13px]" style={{ color: '#6b7280' }}>Nenhuma atividade ainda.</div>
+                    )}
+                    <div ref={commentsEndRef} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
+        </div>
+
+        {/* ===== FOOTER: Save + Delete ===== */}
+        <div className="px-6 pb-5 pt-2 flex gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={handleSaveAll}
+            disabled={saving}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-60"
+            style={{ background: '#25D066' }}
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            Salvar
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={handleDelete}
+            className="px-5 py-2.5 rounded-lg text-sm font-bold text-white"
+            style={{ background: '#ef4444' }}
+          >
+            Excluir
+          </motion.button>
         </div>
       </motion.div>
     </motion.div>
@@ -485,31 +533,14 @@ function Avatar({ name, size = 32 }: { name: string; size?: number }) {
   )
 }
 
-function SectionHeader({ icon, title, className = '' }: { icon: React.ReactNode; title: string; className?: string }) {
+function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className={clsx('flex items-center gap-3', className)}>
-      <span style={{ color: '#9fadbc' }}>{icon}</span>
-      <h3 className="text-base font-semibold" style={{ color: '#c8cad0' }}>{title}</h3>
+    <div className="relative">
+      <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9fadbc' }}>
+        {label}
+      </label>
+      {children}
     </div>
   )
 }
 
-function SidebarLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[11px] font-semibold uppercase tracking-wider pb-1" style={{ color: '#6b7280' }}>{children}</p>
-}
-
-function SidebarBtn({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick?: () => void; danger?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      className={clsx(
-        'w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors text-left',
-        danger ? 'hover:bg-red-500/15 text-red-400' : 'hover:bg-white/10'
-      )}
-      style={danger ? {} : { color: '#c8cad0', background: 'rgba(255,255,255,0.04)' }}
-    >
-      {icon}
-      {label}
-    </button>
-  )
-}

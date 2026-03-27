@@ -3,7 +3,7 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image, Search } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -43,6 +43,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [wallpaperInput, setWallpaperInput] = useState('')
   const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
   const [inlineTitle, setInlineTitle] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
@@ -124,7 +125,14 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
-  const getColumnTickets = useCallback((status: TicketStatus) => tickets.filter(t => t.status === status), [tickets])
+  const getColumnTickets = useCallback((status: TicketStatus) => {
+    let filtered = tickets.filter(t => t.status === status)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter(t => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)))
+    }
+    return filtered
+  }, [tickets, searchQuery])
 
   function handleDragStart(event: DragStartEvent) {
     const ticket = tickets.find(t => t.id === event.active.id)
@@ -246,12 +254,12 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       </AnimatePresence>
 
       {/* Nav */}
-      <header className="sticky top-0 z-40 px-6 py-3 flex items-center justify-between" style={{ background: theme.bgPrimary + 'e6', backdropFilter: 'blur(16px)', borderBottom: '1px solid ' + theme.borderSubtle }}>
+      <header className="board-header">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#25D066' }}>
             <LayoutGrid size={16} className="text-white" />
           </div>
-          <h1 className="text-xl" style={{ fontFamily: "'Paytone One', sans-serif", color: theme.textPrimary }}>Suporte chatPro</h1>
+          <h1 className="text-lg font-bold" style={{ fontFamily: "'Paytone One', sans-serif", color: theme.textPrimary }}>Suporte chatPro</h1>
           {staleCount > 0 && (
             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
@@ -260,43 +268,60 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             </motion.div>
           )}
         </div>
+
+        {/* Center: Search bar */}
+        <div className="header-search">
+          <Search size={15} className="text-slate-500 flex-shrink-0" />
+          <input
+            type="text"
+            placeholder="Pesquisar tickets..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="bg-transparent border-none outline-none text-sm flex-1"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </div>
+
         <div className="flex items-center gap-2">
-          {/* Online Users */}
+          {/* Avatar group */}
           {onlineUsers.length > 0 && (
-            <div className="flex items-center gap-1 mr-2">
+            <div className="flex items-center mr-1">
               <div className="flex -space-x-2">
                 {onlineUsers.slice(0, 5).map((u, i) => (
-                  <div key={u} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-black/30"
-                    style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], zIndex: 10 - i }}
+                  <div key={u} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2"
+                    style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], zIndex: 10 - i, ringColor: 'var(--bg-primary)' }}
                     title={u}>
-                    {u.charAt(0).toUpperCase()}
+                    {u.slice(0, 2).toUpperCase()}
                   </div>
                 ))}
                 {onlineUsers.length > 5 && (
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-black/30"
-                    style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2"
+                    style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)', ringColor: 'var(--bg-primary)' }}>
                     +{onlineUsers.length - 5}
                   </div>
                 )}
               </div>
-              <span className="text-[10px] ml-1 font-medium" style={{ color: 'var(--text-muted)' }}>{onlineUsers.length} online</span>
             </div>
           )}
+
+          {/* Connection status */}
           <div className={clsx('flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full', isConnected ? 'text-green-400' : 'text-red-400')} style={{ background: isConnected ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' }}>
             {isConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
-            <span>{isConnected ? 'Online' : 'Offline'}</span>
           </div>
           <button onClick={handleRefresh} className="p-2 rounded-lg text-slate-400 hover:text-white transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>
             <RefreshCw size={15} className={clsx(refreshing && 'animate-spin')} />
           </button>
+
+          {/* Blue "Criar" button */}
           <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white" style={{ background: '#25D066' }}>
-            <Plus size={15} />Novo Ticket
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white"
+            style={{ background: '#3b82f6' }}>
+            <Plus size={15} />Criar
           </motion.button>
           <button onClick={() => setShowSettings(true)} className="p-2 rounded-lg transition-colors" style={{ background: 'rgba(255,255,255,0.05)', color: theme.textMuted }}>
             <Settings size={15} />
           </button>
-          <div className="flex items-center gap-2 ml-2 pl-2" style={{ borderLeft: '1px solid ' + theme.borderSubtle }}>
+          <div className="flex items-center gap-2 ml-1 pl-2" style={{ borderLeft: '1px solid ' + theme.borderSubtle }}>
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: '#25D066' }}>
               {user.charAt(0).toUpperCase()}
             </div>
@@ -306,7 +331,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       </header>
 
       {/* Board */}
-      <main className="flex-1 p-6 overflow-x-auto">
+      <main className="board-main">
         {loading ? (
           <div className="flex items-center justify-center h-64 gap-3 text-slate-400">
             <Loader2 size={24} className="animate-spin" />
@@ -314,7 +339,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
           </div>
         ) : (
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-          <div className="flex gap-3 min-w-max pb-4">
+          <div className="board-columns">
             {COLUMNS.map(col => {
               const colTickets = getColumnTickets(col.id)
               return (
@@ -368,8 +393,19 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                 </motion.div>
               )
             })}
+            {/* Ghost: Add another list */}
+            <div className="add-list-ghost">
+              <Plus size={16} />
+              <span>Adicionar outra lista</span>
+            </div>
           </div>
-          <DragOverlay>{activeTicket && <Card ticket={activeTicket} isDragging />}</DragOverlay>
+          <DragOverlay dropAnimation={null}>
+            {activeTicket && (
+              <div style={{ transform: 'rotate(5deg)', opacity: 0.92 }}>
+                <Card ticket={activeTicket} isDragging />
+              </div>
+            )}
+          </DragOverlay>
         </DndContext>
         )}
       </main>

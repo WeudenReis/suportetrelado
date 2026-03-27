@@ -18,6 +18,11 @@ export interface Ticket {
   created_at: string
   updated_at: string
   tags?: string[] | null
+  cliente?: string | null
+  instancia?: string | null
+  link_retaguarda?: string | null
+  link_sessao?: string | null
+  observacao?: string | null
 }
 
 export interface Comment {
@@ -53,6 +58,11 @@ export type TicketInsert = {
   priority?: TicketPriority
   assignee?: string | null
   tags?: string[] | null
+  cliente?: string | null
+  instancia?: string | null
+  link_retaguarda?: string | null
+  link_sessao?: string | null
+  observacao?: string | null
 }
 
 export async function fetchTickets(): Promise<Ticket[]> {
