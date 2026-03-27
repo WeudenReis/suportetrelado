@@ -187,7 +187,6 @@ body {
 }
 .trello-col--drag {
   opacity: 0.85;
-  transform: rotate(2deg) !important;
   box-shadow: 0 20px 42px rgba(0,0,0,0.45);
 }
 .trello-col__head {

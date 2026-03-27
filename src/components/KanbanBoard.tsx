@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
+import { DndContext, DragOverlay, closestCenter, closestCorners, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -183,6 +183,26 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const allColumns = columnOrder
     .map(id => allColumnsById.get(id))
     .filter((col): col is NonNullable<typeof col> => Boolean(col))
+  const columnIds = allColumns.map(col => col.id)
+
+  const collisionDetectionStrategy: CollisionDetection = (args) => {
+    const dragType = args.active.data.current?.type
+
+    if (dragType === 'column') {
+      const columnContainers = args.droppableContainers.filter(container => columnIds.includes(String(container.id)))
+      return closestCenter({ ...args, droppableContainers: columnContainers })
+    }
+
+    const pointerIntersections = pointerWithin(args)
+    if (pointerIntersections.length > 0) return pointerIntersections
+    return closestCorners(args)
+  }
+
+  const handleDragCancel = () => {
+    setActiveColumnId(null)
+    setActiveTicket(null)
+    setOverColumn(null)
+  }
 
   function handleDragStart(event: DragStartEvent) {
     const dragType = event.active.data.current?.type
@@ -217,8 +237,16 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       setActiveColumnId(null)
       if (!over || active.id === over.id) return
 
-      const oldIndex = columnOrder.indexOf(String(active.id))
-      const newIndex = columnOrder.indexOf(String(over.id))
+      const activeColumnId = String(active.id)
+      const overId = String(over.id)
+      const overColumnId = allColumnsById.has(overId)
+        ? overId
+        : tickets.find(t => t.id === overId)?.status
+
+      if (!overColumnId || activeColumnId === overColumnId) return
+
+      const oldIndex = columnOrder.indexOf(activeColumnId)
+      const newIndex = columnOrder.indexOf(overColumnId)
       if (oldIndex < 0 || newIndex < 0) return
 
       setColumnOrder(prev => arrayMove(prev, oldIndex, newIndex))
@@ -241,8 +269,28 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     const fromLabel = COLUMNS.find(c => c.id === ticket.status)?.label || ticket.status
     const toLabel = COLUMNS.find(c => c.id === targetStatus)?.label || targetStatus
 
-    // Optimistic update
-    setTickets(prev => prev.map(t => t.id === active.id ? { ...t, status: targetStatus as TicketStatus } : t))
+    // Optimistic update with ordering preservation.
+    setTickets(prev => {
+      const activeId = String(active.id)
+      const activeIndex = prev.findIndex(t => t.id === activeId)
+      if (activeIndex < 0) return prev
+
+      const next = [...prev]
+      const current = next[activeIndex]
+      next[activeIndex] = { ...current, status: targetStatus as TicketStatus }
+
+      const overIndex = next.findIndex(t => t.id === overId)
+
+      if (overIndex >= 0) {
+        return arrayMove(next, activeIndex, overIndex)
+      }
+
+      const withoutActive = next.filter(t => t.id !== activeId)
+      const lastInTarget = withoutActive.reduce((idx, t, i) => (t.status === targetStatus ? i : idx), -1)
+      const insertAt = lastInTarget >= 0 ? lastInTarget + 1 : withoutActive.length
+      withoutActive.splice(insertAt, 0, next[activeIndex])
+      return withoutActive
+    })
 
     const canPersistStatus = COLUMNS.some(c => c.id === targetStatus)
     if (!canPersistStatus) {
@@ -550,7 +598,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             <span className="text-sm">Carregando tickets...</span>
           </div>
         ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
           <div className="board-columns">
             <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
               {allColumns.map((col, colIdx) => {
@@ -561,7 +609,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                       {({ attributes, listeners }) => (
                         <>
                           {/* Column header (drag handle) */}
-                          <div className="trello-col__head" {...attributes} {...listeners}>
+                          <div className="trello-col__head cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.accent, boxShadow: `0 0 6px ${col.accent}44` }} />
                             <span className="flex-1 truncate">{col.label}</span>
                             <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.accent}15`, color: col.accent }}>{colTickets.length}</span>
