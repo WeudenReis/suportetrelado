@@ -3,11 +3,12 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image, Search, Share2 } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Wifi, WifiOff, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal from './CardDetailModal'
+import InstanceModal from './InstanceModal'
 import { supabase, fetchTickets, insertTicket, updateTicket, sendToSlack, insertActivityLog } from '../lib/supabase'
 import type { Ticket, TicketStatus } from '../lib/supabase'
 
@@ -44,6 +45,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
   const [inlineTitle, setInlineTitle] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [showInstanceModal, setShowInstanceModal] = useState(false)
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
@@ -317,6 +319,13 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             <RefreshCw size={15} className={clsx(refreshing && 'animate-spin')} />
           </button>
 
+          {/* Instance config button */}
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowInstanceModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
+            style={{ background: 'rgba(59,130,246,0.10)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)' }}>
+            <Plug size={14} /> Instância
+          </motion.button>
+
           {/* Blue "Criar" button */}
           <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white"
@@ -559,6 +568,9 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
           />
         )}
       </AnimatePresence>
+
+      {/* Instance Configuration Modal */}
+      <InstanceModal open={showInstanceModal} onClose={() => setShowInstanceModal(false)} user={user} />
     </div>
   )
 }
