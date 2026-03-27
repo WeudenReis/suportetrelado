@@ -162,15 +162,16 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const handleAddTicket = async () => {
     if (!newTicket.title.trim()) return
     try {
-      await insertTicket({
+      const created = await insertTicket({
         title: newTicket.title.trim(),
         description: newTicket.description || '',
         status: newTicket.status,
         priority: newTicket.priority,
       })
+      setTickets(prev => prev.some(t => t.id === created.id) ? prev : [created, ...prev])
       setNewTicket({ title: '', description: '', priority: 'medium', status: 'backlog' })
       setShowAddModal(false)
-      showToast('Ticket criado com sucesso!', 'ok')
+      showToast('Ticket criado!', 'ok')
     } catch (err: any) {
       console.error('Failed to add ticket:', err)
       showToast(err?.message || 'Erro ao criar ticket. Verifique se está logado.', 'err')
@@ -180,7 +181,8 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const handleInlineAdd = async (col: TicketStatus) => {
     if (!inlineTitle.trim()) return
     try {
-      await insertTicket({ title: inlineTitle.trim(), description: '', status: col, priority: 'medium' })
+      const created = await insertTicket({ title: inlineTitle.trim(), description: '', status: col, priority: 'medium' })
+      setTickets(prev => prev.some(t => t.id === created.id) ? prev : [created, ...prev])
       setInlineTitle('')
       setAddingTo(null)
     } catch (err: any) {
