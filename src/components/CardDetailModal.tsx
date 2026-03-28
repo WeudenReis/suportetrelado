@@ -280,12 +280,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 34 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-[960px] mx-4 rounded-xl overflow-hidden shadow-2xl"
+        className="w-full max-w-[768px] mx-4 rounded-xl overflow-hidden shadow-2xl"
         style={{ background: '#22272b', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.08)', maxHeight: 'calc(100vh - 48px)' }}
       >
         {/* Cover image banner */}
         {coverImage && (
-          <div className="relative w-full h-[160px] overflow-hidden" style={{ background: '#1d2125' }}>
+          <div className="relative w-full h-[120px] overflow-hidden" style={{ background: '#1d2125' }}>
             <img src={coverImage} alt="" className="w-full h-full object-cover" />
             <div className="absolute bottom-2 right-2 flex gap-1">
               <button
@@ -307,7 +307,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         )}
         <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
 
-        <div className="px-5 pt-3 pb-3 overflow-y-auto" style={{ maxHeight: coverImage ? 'calc(100vh - 216px)' : 'calc(100vh - 56px)' }}>
+        <div className="px-4 pt-2 pb-2 overflow-y-auto" style={{ maxHeight: coverImage ? 'calc(100vh - 216px)' : 'calc(100vh - 56px)' }}>
           <div className="flex items-center justify-between mb-3">
             <select
               value={status}
@@ -390,7 +390,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-            <div className="px-5 py-4 space-y-4 min-w-0" style={{ background: '#22272b', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="px-4 py-3 space-y-3 min-w-0" style={{ background: '#22272b', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
               <div className="min-w-0">
                 <div className="flex items-center gap-3 mb-1.5">
                   <CreditCard size={18} style={{ color: '#9fadbc' }} />
@@ -398,7 +398,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                     onBlur={handleTitleBlur}
-                    className="bg-transparent border-none outline-none text-2xl leading-tight font-bold w-full"
+                    className="bg-transparent border-none outline-none text-lg leading-tight font-bold w-full"
                     style={{ color: '#dfe1e6' }}
                   />
                 </div>
@@ -407,22 +407,22 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>+ Adicionar</button>
+              <div className="flex flex-wrap gap-1.5">
+                <button onClick={() => fileInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>+ Adicionar</button>
                 {!coverImage && (
                   <button
                     onClick={() => coverInputRef.current?.click()}
                     disabled={uploadingCover}
-                    className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors"
+                    className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors"
                     style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}
                   >
                     {uploadingCover ? 'Enviando...' : 'Capa'}
                   </button>
                 )}
-                <button onClick={() => setShowLabelPicker(p => !p)} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showLabelPicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showLabelPicker ? '#60a5fa' : '#c8cad0' }}>Etiquetas</button>
-                <button onClick={() => setShowDatePicker(p => !p)} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showDatePicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showDatePicker ? '#60a5fa' : '#c8cad0' }}>Datas</button>
-                <button onClick={() => { const item = prompt('Item do checklist:'); if (item?.trim()) { setObservacao(prev => prev ? prev + '\n☐ ' + item.trim() : '☐ ' + item.trim()); save({ observacao: observacao ? observacao + '\n☐ ' + item.trim() : '☐ ' + item.trim() }) } }} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Checklist</button>
-                <button onClick={() => memberRef.current?.focus()} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Membros</button>
+                <button onClick={() => setShowLabelPicker(p => !p)} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showLabelPicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showLabelPicker ? '#60a5fa' : '#c8cad0' }}>Etiquetas</button>
+                <button onClick={() => setShowDatePicker(p => !p)} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showDatePicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showDatePicker ? '#60a5fa' : '#c8cad0' }}>Datas</button>
+                <button onClick={() => { const item = prompt('Item do checklist:'); if (item?.trim()) { setObservacao(prev => prev ? prev + '\n☐ ' + item.trim() : '☐ ' + item.trim()); save({ observacao: observacao ? observacao + '\n☐ ' + item.trim() : '☐ ' + item.trim() }) } }} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Checklist</button>
+                <button onClick={() => memberRef.current?.focus()} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Membros</button>
               </div>
 
               {/* Labels picker */}
@@ -467,8 +467,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               )}
 
               <section>
-              <div className="flex items-center gap-2 mb-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
-                <AlignLeft size={16} style={{ color: '#9fadbc' }} />
+              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#dfe1e6' }}>
+                <AlignLeft size={14} style={{ color: '#9fadbc' }} />
                 Descricao
               </div>
               <textarea
@@ -476,39 +476,39 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 onChange={e => setDescription(e.target.value)}
                 onBlur={saveOnBlur}
                 className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: '#1d2125', color: '#dfe1e6', border: '1px solid rgba(255,255,255,0.12)', minHeight: 70 }}
+                style={{ background: '#1d2125', color: '#dfe1e6', border: '1px solid rgba(255,255,255,0.12)', minHeight: 50 }}
                 placeholder="Adicione uma descricao mais detalhada..."
               />
               </section>
 
               <section>
-              <div className="flex items-center gap-2 mb-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
-                <Paperclip size={16} style={{ color: '#9fadbc' }} />
+              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#dfe1e6' }}>
+                <Paperclip size={14} style={{ color: '#9fadbc' }} />
                 Campos personalizados
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <FieldGroup label="Cliente">
                   <input value={cliente} onChange={e => setCliente(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Nome do cliente" />
                 </FieldGroup>
                 <FieldGroup label="Instancia">
                   <input value={instancia} onChange={e => setInstancia(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Codigo da instancia" />
                 </FieldGroup>
-                <FieldGroup label="Link de retaguarda">
-                  <div className="flex gap-2">
-                    <input value={linkRetaguarda} onChange={e => setLinkRetaguarda(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL do sistema" />
+                <FieldGroup label="Link retaguarda">
+                  <div className="flex gap-1">
+                    <input value={linkRetaguarda} onChange={e => setLinkRetaguarda(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
                     {linkRetaguarda && (
                       <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link">
-                        <ExternalLink size={14} />
+                        <ExternalLink size={12} />
                       </a>
                     )}
                   </div>
                 </FieldGroup>
-                <FieldGroup label="Link de sessao">
-                  <div className="flex gap-2">
-                    <input value={linkSessao} onChange={e => setLinkSessao(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL da sessao" />
+                <FieldGroup label="Link sessao">
+                  <div className="flex gap-1">
+                    <input value={linkSessao} onChange={e => setLinkSessao(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
                     {linkSessao && (
                       <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link">
-                        <ExternalLink size={14} />
+                        <ExternalLink size={12} />
                       </a>
                     )}
                   </div>
@@ -531,17 +531,17 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 <FieldGroup label="Membro">
                   <input ref={memberRef} value={assignee} onChange={e => setAssignee(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Responsavel" />
                 </FieldGroup>
-                <div className="sm:col-span-2">
+                <div className="col-span-2">
                   <FieldGroup label="Observacao">
-                    <textarea value={observacao} onChange={e => setObservacao(e.target.value)} onBlur={saveOnBlur} className="modal-field resize-y" rows={3} placeholder="Notas adicionais" />
+                    <textarea value={observacao} onChange={e => setObservacao(e.target.value)} onBlur={saveOnBlur} className="modal-field resize-y" rows={2} placeholder="Notas adicionais" />
                   </FieldGroup>
                 </div>
               </div>
               </section>
 
               <section>
-              <div className="flex items-center gap-2 mb-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
-                <Paperclip size={16} style={{ color: '#9fadbc' }} />
+              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#dfe1e6' }}>
+                <Paperclip size={14} style={{ color: '#9fadbc' }} />
                 Anexos
               </div>
               <div className="space-y-2">
@@ -603,15 +603,15 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               </div>
             </div>
 
-            <div className="px-4 py-5" style={{ background: '#1d2125' }}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-xl font-semibold" style={{ color: '#dfe1e6' }}>
-                  <MessageSquare size={17} style={{ color: '#9fadbc' }} />
+            <div className="px-3 py-3" style={{ background: '#1d2125' }}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
+                  <MessageSquare size={14} style={{ color: '#9fadbc' }} />
                   Comentarios e atividade
                 </div>
                 <button
                   onClick={() => setShowActivities(!showActivities)}
-                  className="text-sm font-semibold px-3 py-1.5 rounded-md transition-colors"
+                  className="text-xs font-semibold px-2.5 py-1 rounded-md transition-colors"
                   style={{
                     background: showActivities ? 'rgba(255,255,255,0.08)' : 'rgba(59,130,246,0.12)',
                     color: showActivities ? '#dfe1e6' : '#60a5fa',
@@ -711,7 +711,7 @@ function Avatar({ name, size = 32 }: { name: string; size?: number }) {
 function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="relative">
-      <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9fadbc' }}>
+      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#9fadbc' }}>
         {label}
       </label>
       {children}
