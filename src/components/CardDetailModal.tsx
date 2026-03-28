@@ -407,8 +407,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                <button onClick={() => fileInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>+ Adicionar</button>
+              <div className="flex items-center gap-1.5 flex-nowrap">
+                <button onClick={() => fileInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors whitespace-nowrap" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>+ Adicionar</button>
                 {!coverImage && (
                   <button
                     onClick={() => coverInputRef.current?.click()}
