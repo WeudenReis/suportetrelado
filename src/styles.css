@@ -74,7 +74,7 @@ body {
 .ticket-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .ticket-card:hover {
   background: #2a2a2a;
@@ -109,7 +109,7 @@ body {
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .dark-input:focus {
   outline: none;
@@ -138,16 +138,31 @@ body {
   padding: 8px 12px 6px;
   cursor: pointer;
   border: 1px solid transparent;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 0 1px rgba(0,0,0,0.08);
-  transition: all 0.3s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
   user-select: none;
 }
 .trello-card:hover {
-  border-color: rgba(37,208,102,0.3);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-  background: color-mix(in srgb, var(--bg-card) 92%, white);
-  transform: translateY(-1px);
+  border-color: rgba(37,208,102,0.25);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
+
+/* Card cover image */
+.card-cover {
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+  border-radius: 7px 7px 0 0;
+  margin: -8px -12px 8px -12px;
+  width: calc(100% + 24px);
+}
+.card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .trello-card--stale {
   border-color: rgba(239,68,68,0.45) !important;
   animation: trello-stale 2s ease-in-out infinite;
@@ -163,6 +178,16 @@ body {
   z-index: 999;
 }
 
+/* Drop indicator line between cards */
+.dnd-drop-indicator {
+  height: 2px;
+  background: #3b82f6;
+  border-radius: 1px;
+  margin: 2px 4px;
+  box-shadow: 0 0 6px rgba(59,130,246,0.5);
+  transition: opacity 0.1s;
+}
+
 /* =========================================
    Trello-style Columns — inside floating board
    ========================================= */
@@ -172,17 +197,12 @@ body {
   display: flex;
   flex-direction: column;
   background: rgba(22, 27, 34, 0.62);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
-  max-height: calc(100vh - 230px);
-  padding-bottom: 4px;
+  max-height: calc(100vh - 140px);
+  padding-bottom: 0;
   border: 1px solid rgba(255,255,255,0.06);
   box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
-}
-.trello-col:hover {
-  box-shadow: 0 4px 20px rgba(0,0,0,0.28);
+  overflow: hidden;
 }
 .trello-col--drag {
   opacity: 0.85;
@@ -199,18 +219,27 @@ body {
   letter-spacing: -0.01em;
 }
 .trello-col__cards {
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 6px 4px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-height: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
 }
 .trello-col__cards::-webkit-scrollbar { width: 4px; }
-.trello-col__cards::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+.trello-col__cards::-webkit-scrollbar-track { background: transparent; }
+.trello-col__cards::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+.trello-col__cards::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+.trello-col__footer {
+  flex: 0 0 auto;
+  padding: 4px 6px 6px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
 .trello-col__add {
-  margin: 4px 6px 2px;
   padding: 8px 10px;
   border-radius: 8px;
   display: flex;
@@ -219,10 +248,10 @@ body {
   font-size: 14px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
+  transition: background 0.15s, color 0.15s;
   border: none;
   background: none;
-  width: calc(100% - 12px);
+  width: 100%;
   text-align: left;
 }
 .trello-col__add:hover {

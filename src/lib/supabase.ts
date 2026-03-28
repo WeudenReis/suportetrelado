@@ -24,6 +24,7 @@ export interface Ticket {
   link_sessao?: string | null
   observacao?: string | null
   due_date?: string | null
+  cover_image?: string | null
 }
 
 export interface Comment {
@@ -196,54 +197,4 @@ export async function insertActivityLog(cardId: string, userName: string, action
     .single()
   if (error) { console.warn('Failed to insert activity:', error.message); return null }
   return data as ActivityLog
-}
-
-export async function sendToSlack(ticket: Ticket): Promise<boolean> {
-  const webhookUrl = import.meta.env.VITE_SLACK_WEBHOOK_URL
-  if (!webhookUrl) {
-    console.error('VITE_SLACK_WEBHOOK_URL not set in .env')
-    return false
-  }
-
-  const priorityEmoji = { high: '🔴', medium: '🟡', low: '🟢' }
-  const statusLabel: Record<TicketStatus, string> = {
-    backlog: 'Backlog',
-    in_progress: 'Em Progresso',
-    waiting_devs: 'Aguardando Devs',
-    resolved: 'Resolvido',
-  }
-
-  const payload = {
-    blocks: [
-      {
-        type: 'header',
-        text: { type: 'plain_text', text: `${priorityEmoji[ticket.priority]} Ticket de Alta Prioridade`, emoji: true }
-      },
-      {
-        type: 'section',
-        fields: [
-          { type: 'mrkdwn', text: `*Título:*\n${ticket.title}` },
-          { type: 'mrkdwn', text: `*Prioridade:*\n${ticket.priority.toUpperCase()}` },
-          { type: 'mrkdwn', text: `*Status:*\n${statusLabel[ticket.status]}` },
-          { type: 'mrkdwn', text: `*Responsável:*\n${ticket.assignee || 'Não atribuído'}` },
-        ]
-      },
-      ...(ticket.description ? [{
-        type: 'section',
-        text: { type: 'mrkdwn', text: `*Descrição:*\n${ticket.description}` }
-      }] : []),
-    ]
-  }
-
-  try {
-    const res = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    return res.ok
-  } catch (err) {
-    console.error('Failed to send to Slack:', err)
-    return false
-  }
 }

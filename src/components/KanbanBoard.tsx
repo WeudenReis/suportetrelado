@@ -10,7 +10,7 @@ import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
-import { supabase, fetchTickets, insertTicket, updateTicket, sendToSlack, insertActivityLog } from '../lib/supabase'
+import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog } from '../lib/supabase'
 import type { Ticket, TicketStatus } from '../lib/supabase'
 
 interface KanbanBoardProps { user: string; onLogout: () => void }
@@ -47,12 +47,12 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null)
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null)
   const [overColumn, setOverColumn] = useState<string | null>(null)
+  const [overCardId, setOverCardId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: 'backlog' as TicketStatus, cliente: '', instancia: '' })
   const [isConnected, setIsConnected] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [slackSending, setSlackSending] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
@@ -138,14 +138,6 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     setTimeout(() => setToast(null), 3000)
   }
 
-  // --- Send to Slack ---
-  async function handleSendToSlack(ticket: Ticket) {
-    setSlackSending(ticket.id)
-    const ok = await sendToSlack(ticket)
-    setSlackSending(null)
-    showToast(ok ? 'Enviado para o Slack!' : 'Falha ao enviar para o Slack', ok ? 'ok' : 'err')
-  }
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -203,6 +195,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     setActiveColumnId(null)
     setActiveTicket(null)
     setOverColumn(null)
+    setOverCardId(null)
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -220,15 +213,17 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     if (event.active.data.current?.type === 'column') return
 
     const overId = event.over?.id as string | undefined
-    if (!overId) { setOverColumn(null); return }
+    if (!overId) { setOverColumn(null); setOverCardId(null); return }
 
     if (allColumnsById.has(overId)) {
       setOverColumn(overId)
+      setOverCardId(null)
       return
     }
 
     const overTicket = tickets.find(t => t.id === overId)
     setOverColumn(overTicket?.status ?? null)
+    setOverCardId(overId)
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -256,6 +251,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
     setActiveTicket(null)
     setOverColumn(null)
+    setOverCardId(null)
     if (!over) return
 
     const overId = String(over.id)
@@ -353,9 +349,9 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const staleCount = tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 2 * 60 * 60 * 1000 && t.status !== 'resolved').length
   const visibleUsers = onlineUsers.length > 0 ? onlineUsers : [user]
 
-  const handleCardClick = (ticket: Ticket) => {
+  const handleCardClick = useCallback((ticket: Ticket) => {
     setSelectedTicket(ticket)
-  }
+  }, [])
 
   const handleTicketUpdate = (updated: Ticket) => {
     setTickets(prev => prev.map(t => t.id === updated.id ? updated : t))
@@ -473,12 +469,10 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   }
 
   const WALLPAPER_PRESETS = [
-    { label: 'Azul', value: '#0f3b73' },
-    { label: 'Marinho', value: '#172b4d' },
-    { label: 'Grafite', value: '#1d2125' },
-    { label: 'Verde', value: '#216e4e' },
-    { label: 'Roxo', value: '#5e4db2' },
-    { label: 'Vinho', value: '#6b2b3a' },
+    { label: 'Oceano', value: 'linear-gradient(135deg, #1a3a5c 0%, #0d2137 50%, #1e4976 100%)' },
+    { label: 'Grafite', value: 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 50%, #333 100%)' },
+    { label: 'Floresta', value: '#1d5c3a' },
+    { label: 'Vinho', value: '#6b1f2a' },
   ]
 
   const boardWrapperStyle: React.CSSProperties = {
@@ -632,10 +626,10 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             <Settings size={15} />
           </button>
 
-          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
+          <button onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
             <Plus size={15} />
             Criar
-          </motion.button>
+          </button>
 
           <button onClick={onLogout} className="trello-icon-btn trello-icon-btn--danger" type="button" title="Sair">
             <LogOut size={14} />
@@ -658,7 +652,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
               {allColumns.map((col, colIdx) => {
                 const colTickets = getColumnTickets(col.id)
                 return (
-                  <motion.div key={col.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: colIdx * 0.06 }}>
+                  <div key={col.id}>
                     <SortableBoardColumn id={col.id}>
                       {({ attributes, listeners }) => (
                         <>
@@ -689,14 +683,20 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                           <DroppableColumn id={col.id} isOver={overColumn === col.id}>
                             <div className="trello-col__cards">
                               <SortableContext items={colTickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                                <AnimatePresence>
-                                  {colTickets.map(ticket => <Card key={ticket.id} ticket={ticket} onSendToSlack={handleSendToSlack} slackSending={slackSending === ticket.id} onCardClick={handleCardClick} />)}
-                                </AnimatePresence>
+                                  {colTickets.map(ticket => (
+                                    <div key={ticket.id}>
+                                      {activeTicket && overCardId === ticket.id && activeTicket.id !== ticket.id && (
+                                        <div className="dnd-drop-indicator" />
+                                      )}
+                                      <Card ticket={ticket} onCardClick={handleCardClick} />
+                                    </div>
+                                  ))}
                               </SortableContext>
                             </div>
                           </DroppableColumn>
 
-                          {/* Inline add card (Trello-style) */}
+                          {/* Inline add card — FIXED footer */}
+                          <div className="trello-col__footer">
                           {addingTo === col.id ? (
                             <div className="px-1.5 pt-1.5 pb-1">
                               <textarea
@@ -722,10 +722,11 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                               <Plus size={16} /> Adicionar um cartão
                             </button>
                           )}
+                          </div>
                         </>
                       )}
                     </SortableBoardColumn>
-                  </motion.div>
+                  </div>
                 )
               })}
             </SortableContext>
@@ -855,9 +856,9 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
               {/* Modal footer */}
               <div className="px-6 py-4 flex gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15,23,42,0.30)' }}>
                 <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancelar</button>
-                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={handleAddTicket} disabled={!newTicket.title.trim()} className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-40" style={{ background: '#3b82f6' }}>
+                <button onClick={handleAddTicket} disabled={!newTicket.title.trim()} className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-40" style={{ background: '#3b82f6' }}>
                   <Plus size={15} className="inline mr-1" />Criar Ticket
-                </motion.button>
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -877,48 +878,24 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                 </button>
               </div>
 
-              {/* Presets */}
-              <div className="mb-6">
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: theme.textMuted }}>Tema</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {presets.map(p => (
-                    <button key={p.key} onClick={() => setPreset(p.key)}
-                      className="px-3 py-2.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{
-                        background: presetKey === p.key ? 'rgba(37,208,102,0.12)' : 'rgba(255,255,255,0.04)',
-                        border: presetKey === p.key ? '1px solid rgba(37,208,102,0.3)' : '1px solid ' + theme.borderSubtle,
-                        color: presetKey === p.key ? '#25D066' : theme.textSecondary,
-                      }}>
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Reset */}
-              <button onClick={() => setPreset('dark')} className="mt-6 w-full py-2.5 rounded-lg text-xs font-semibold transition-colors"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid ' + theme.borderSubtle, color: theme.textMuted }}>
-                Restaurar padrão
-              </button>
-
               {/* Board background */}
-              <div className="mt-6">
+              <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: theme.textMuted }}>Fundo do Quadro</label>
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {WALLPAPER_PRESETS.map(wp => (
                     <button key={wp.label} onClick={() => applyWallpaper(wp.value)}
-                      className="h-14 rounded-lg text-[10px] font-semibold transition-all flex items-end justify-center pb-1.5"
+                      className="h-[72px] rounded-[10px] text-[12px] font-semibold transition-all flex items-end justify-center pb-2 hover:scale-[1.03]"
                       style={{
                         background: wp.value,
-                        border: wallpaper === wp.value ? '2px solid #25D066' : '1px solid ' + theme.borderSubtle,
+                        border: wallpaper === wp.value ? '2px solid #4CAF50' : '1px solid ' + theme.borderSubtle,
                         color: '#fff',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.6)',
                       }}>
                       {wp.label}
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-3">
                   <input
                     type="color"
                     value={wallpaper.startsWith('#') ? wallpaper : '#0f3b73'}
@@ -929,7 +906,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   />
                   <span className="text-[11px]" style={{ color: theme.textMuted }}>Escolher cor sólida</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 mb-2">
                   <input
                     placeholder="URL da imagem do quadro..."
                     value={wallpaperInput}
@@ -950,17 +927,15 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                 />
                 <button
                   onClick={() => wallpaperFileInputRef.current?.click()}
-                  className="mt-2 w-full py-2 rounded-lg text-xs font-semibold transition-colors"
+                  className="w-full py-2.5 rounded-lg text-xs font-semibold transition-colors mb-2"
                   style={{ background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa' }}
                 >
                   Importar imagem do computador (quadro)
                 </button>
-                {wallpaper && (
-                  <button onClick={() => applyWallpaper('')} className="mt-2 w-full py-2 rounded-lg text-xs font-semibold transition-colors text-red-400 hover:bg-red-500/10"
-                    style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                    Remover fundo
-                  </button>
-                )}
+                <button onClick={() => applyWallpaper('')} className="w-full py-2.5 rounded-lg text-xs font-semibold transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}>
+                  Restaurar padrão
+                </button>
               </div>
             </motion.div>
           </motion.div>

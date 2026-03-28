@@ -10,15 +10,6 @@ interface LoginProps {
 type ToastType = 'error' | 'success' | 'warning'
 interface Toast { id: string; type: ToastType; title: string; message: string }
 
-const SlackLogo = () => (
-  <svg width="20" height="20" viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M19.712.133a5.381 5.381 0 0 0-5.376 5.387 5.381 5.381 0 0 0 5.376 5.386h5.376V5.52A5.381 5.381 0 0 0 19.712.133m0 14.365H5.376A5.381 5.381 0 0 0 0 19.884a5.381 5.381 0 0 0 5.376 5.387h14.336a5.381 5.381 0 0 0 5.376-5.387 5.381 5.381 0 0 0-5.376-5.386" fill="#36C5F0"/>
-    <path d="M53.76 19.884a5.381 5.381 0 0 0-5.376-5.386 5.381 5.381 0 0 0-5.376 5.386v5.387h5.376a5.381 5.381 0 0 0 5.376-5.387m-14.336 0V5.52A5.381 5.381 0 0 0 34.048.133a5.381 5.381 0 0 0-5.376 5.387v14.364a5.381 5.381 0 0 0 5.376 5.387 5.381 5.381 0 0 0 5.376-5.387" fill="#2EB67D"/>
-    <path d="M34.048 54a5.381 5.381 0 0 0 5.376-5.387 5.381 5.381 0 0 0-5.376-5.386h-5.376v5.386A5.381 5.381 0 0 0 34.048 54m0-14.365h14.336a5.381 5.381 0 0 0 5.376-5.386 5.381 5.381 0 0 0-5.376-5.387H34.048a5.381 5.381 0 0 0-5.376 5.387 5.381 5.381 0 0 0 5.376 5.386" fill="#ECB22E"/>
-    <path d="M0 34.249a5.381 5.381 0 0 0 5.376 5.386 5.381 5.381 0 0 0 5.376-5.386v-5.387H5.376A5.381 5.381 0 0 0 0 34.249m14.336 0v14.364A5.381 5.381 0 0 0 19.712 54a5.381 5.381 0 0 0 5.376-5.387V34.249a5.381 5.381 0 0 0-5.376-5.387 5.381 5.381 0 0 0-5.376 5.387" fill="#E01E5A"/>
-  </svg>
-)
-
 const toastCfg = {
   error:   { icon: AlertTriangle, bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',   iconColor: '#f87171', titleColor: '#fca5a5' },
   success: { icon: CheckCircle2,  bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   iconColor: '#4ade80', titleColor: '#86efac' },
@@ -51,7 +42,6 @@ const statusItems = [{ label: 'API', ok: true }, { label: 'Supabase', ok: true }
 export default function Login({ onLogin }: LoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loadingSlack, setLoadingSlack] = useState(false)
   const [loadingEmail, setLoadingEmail] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -72,24 +62,6 @@ export default function Login({ onLogin }: LoginProps) {
   }
   function dismissToast(id: string) { setToasts(prev => prev.filter(t => t.id !== id)) }
 
-  async function handleSlackLogin() {
-    setLoadingSlack(true)
-    try {
-      const redirectTo = `${window.location.origin}${window.location.pathname}`
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'slack_oidc', options: { redirectTo } })
-      if (error) {
-        const msg = error.message.includes('provider is not enabled')
-          ? 'O provider Slack não está ativado no Supabase. Ative em Authentication → Providers → Slack.'
-          : error.message
-        pushToast('error', 'Slack SSO indisponível', msg)
-        setLoadingSlack(false)
-      }
-    } catch {
-      pushToast('error', 'Erro inesperado', 'Não foi possível contactar o servidor de autenticação.')
-      setLoadingSlack(false)
-    }
-  }
-
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault()
     if (!email || !password) return
@@ -108,7 +80,7 @@ export default function Login({ onLogin }: LoginProps) {
     }
   }
 
-  const isLoading = loadingSlack || loadingEmail
+  const isLoading = loadingEmail
 
   const inputStyle = {
     background: 'var(--bg-input)',
@@ -156,21 +128,6 @@ export default function Login({ onLogin }: LoginProps) {
         <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
           className="rounded-2xl p-8"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}>
-
-          {/* Slack button */}
-          <motion.button onClick={handleSlackLogin} disabled={isLoading} whileHover={!isLoading ? { scale: 1.025, y: -1 } : {}} whileTap={!isLoading ? { scale: 0.975 } : {}} transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            className="w-full flex items-center justify-center gap-3 py-3.5 px-6 rounded-xl font-semibold text-white text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ background: loadingSlack ? 'rgba(74,21,75,0.7)' : 'linear-gradient(135deg, #4A154B 0%, #611a63 100%)', border: '1px solid rgba(255,255,255,0.10)', boxShadow: loadingSlack ? 'none' : '0 4px 16px rgba(74,21,75,0.35)', transition: 'background 0.2s, box-shadow 0.2s' }}>
-            {loadingSlack ? <Loader2 size={18} className="animate-spin text-purple-300" /> : <SlackLogo />}
-            <span>{loadingSlack ? 'Redirecionando…' : 'Entrar com Slack'}</span>
-          </motion.button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px" style={{ background: 'var(--border-subtle)' }} />
-            <span className="text-[11px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>ou</span>
-            <div className="flex-1 h-px" style={{ background: 'var(--border-subtle)' }} />
-          </div>
 
           {/* Email form */}
           <form onSubmit={handleEmailLogin} className="space-y-4" noValidate>

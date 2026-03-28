@@ -73,6 +73,9 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [dueDate, setDueDate] = useState(ticket.due_date || '')
   const [tags, setTags] = useState<string[]>(ticket.tags || [])
   const [newTag, setNewTag] = useState('')
+  const [coverImage, setCoverImage] = useState(ticket.cover_image || '')
+  const [uploadingCover, setUploadingCover] = useState(false)
+  const coverInputRef = useRef<HTMLInputElement>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
@@ -203,6 +206,24 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     await deleteComment(id)
   }
 
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingCover(true)
+    const att = await uploadAttachment(ticket.id, file, user)
+    if (att) {
+      setCoverImage(att.file_url)
+      await save({ cover_image: att.file_url })
+    }
+    setUploadingCover(false)
+    if (coverInputRef.current) coverInputRef.current.value = ''
+  }
+
+  const handleRemoveCover = async () => {
+    setCoverImage('')
+    await save({ cover_image: null })
+  }
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files?.length) return
@@ -262,7 +283,31 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         className="w-full max-w-[960px] mx-4 rounded-xl overflow-hidden shadow-2xl"
         style={{ background: '#22272b', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.08)', maxHeight: 'calc(100vh - 48px)' }}
       >
-        <div className="px-5 pt-3 pb-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 56px)' }}>
+        {/* Cover image banner */}
+        {coverImage && (
+          <div className="relative w-full h-[160px] overflow-hidden" style={{ background: '#1d2125' }}>
+            <img src={coverImage} alt="" className="w-full h-full object-cover" />
+            <div className="absolute bottom-2 right-2 flex gap-1">
+              <button
+                onClick={() => coverInputRef.current?.click()}
+                className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm"
+                style={{ background: 'rgba(0,0,0,0.6)', color: '#dfe1e6' }}
+              >
+                Alterar capa
+              </button>
+              <button
+                onClick={handleRemoveCover}
+                className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm"
+                style={{ background: 'rgba(0,0,0,0.6)', color: '#f87171' }}
+              >
+                Remover
+              </button>
+            </div>
+          </div>
+        )}
+        <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+
+        <div className="px-5 pt-3 pb-3 overflow-y-auto" style={{ maxHeight: coverImage ? 'calc(100vh - 216px)' : 'calc(100vh - 56px)' }}>
           <div className="flex items-center justify-between mb-3">
             <select
               value={status}
@@ -364,6 +409,16 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>+ Adicionar</button>
+                {!coverImage && (
+                  <button
+                    onClick={() => coverInputRef.current?.click()}
+                    disabled={uploadingCover}
+                    className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors"
+                    style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}
+                  >
+                    {uploadingCover ? 'Enviando...' : 'Capa'}
+                  </button>
+                )}
                 <button onClick={() => setShowLabelPicker(p => !p)} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showLabelPicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showLabelPicker ? '#60a5fa' : '#c8cad0' }}>Etiquetas</button>
                 <button onClick={() => setShowDatePicker(p => !p)} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showDatePicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showDatePicker ? '#60a5fa' : '#c8cad0' }}>Datas</button>
                 <button onClick={() => { const item = prompt('Item do checklist:'); if (item?.trim()) { setObservacao(prev => prev ? prev + '\n☐ ' + item.trim() : '☐ ' + item.trim()); save({ observacao: observacao ? observacao + '\n☐ ' + item.trim() : '☐ ' + item.trim() }) } }} className="px-3 py-1.5 rounded-md text-sm font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Checklist</button>

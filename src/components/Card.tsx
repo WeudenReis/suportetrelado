@@ -1,15 +1,13 @@
+import { memo } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { motion } from 'framer-motion'
-import { Clock, AlertCircle, AlignLeft, User, Send, Loader2, Calendar } from 'lucide-react'
+import { Clock, AlertCircle, AlignLeft, User, Calendar } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { Ticket } from '../lib/supabase'
 
 interface CardProps {
   ticket: Ticket
   isDragging?: boolean
-  onSendToSlack?: (ticket: Ticket) => void
-  slackSending?: boolean
   onCardClick?: (ticket: Ticket) => void
 }
 
@@ -28,7 +26,7 @@ function timeAgo(updatedAt: string) {
 const PRIO_COLOR: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' }
 const PRIO_LABEL: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
 
-export default function Card({ ticket, isDragging = false, onSendToSlack, slackSending = false, onCardClick }: CardProps) {
+function Card({ ticket, isDragging = false, onCardClick }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: sorting } = useSortable({
     id: ticket.id,
     data: { type: 'ticket', ticket },
@@ -41,15 +39,17 @@ export default function Card({ ticket, isDragging = false, onSendToSlack, slackS
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: sorting ? 0.4 : 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96 }}
-        transition={{ duration: 0.15 }}
+      <div
         onClick={e => { if (!sorting && onCardClick) { e.stopPropagation(); onCardClick(ticket) } }}
         className={clsx('trello-card group', isStale && 'trello-card--stale', isDragging && 'trello-card--drag')}
       >
+        {/* Cover image */}
+        {ticket.cover_image && (
+          <div className="card-cover">
+            <img src={ticket.cover_image} alt="" loading="lazy" />
+          </div>
+        )}
+
         {/* Color labels (Trello style) */}
         <div className="flex flex-wrap gap-1 mb-2">
           <span
@@ -100,18 +100,6 @@ export default function Card({ ticket, isDragging = false, onSendToSlack, slackS
           {/* Description indicator */}
           {ticket.description && <AlignLeft size={12} className="opacity-50" />}
 
-          {/* Slack button */}
-          {onSendToSlack && ticket.priority === 'high' && (
-            <button
-              onClick={e => { e.stopPropagation(); onSendToSlack(ticket) }}
-              disabled={slackSending}
-              title="Enviar para o Slack"
-              className="p-0.5 rounded hover:bg-white/10 text-green-400 transition-colors"
-            >
-              {slackSending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
-            </button>
-          )}
-
           <span className="flex-1" />
 
           {/* Assignee */}
@@ -132,7 +120,9 @@ export default function Card({ ticket, isDragging = false, onSendToSlack, slackS
             </span>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   )
 }
+
+export default memo(Card)

@@ -5,7 +5,6 @@ import { Inbox, Lock, ChevronLeft, ChevronRight, SlidersHorizontal, MoreHorizont
 const INTEGRATIONS = [
   { label: 'Email',  icon: '✉️', border: '#3b82f6', isNew: false },
   { label: 'Chrome', icon: '🌐', border: '#f59e0b', isNew: false },
-  { label: 'Slack',  icon: '💬', border: '#e11d48', isNew: true },
   { label: 'Phone',  icon: '📱', border: '#22c55e', isNew: false },
   { label: 'Teams',  icon: '🟣', border: '#8b5cf6', isNew: true },
 ]
