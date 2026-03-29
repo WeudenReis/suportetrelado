@@ -82,7 +82,13 @@ export async function insertTicket(ticket: TicketInsert): Promise<Ticket> {
     .insert(ticket)
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    console.error('insertTicket error:', error)
+    if (error.message?.includes('schema cache')) {
+      throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
+    }
+    throw error
+  }
   return data as Ticket
 }
 
@@ -93,7 +99,13 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
     .eq('id', id)
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    console.error('updateTicket error:', error)
+    if (error.message?.includes('schema cache')) {
+      throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
+    }
+    throw error
+  }
   return data as Ticket
 }
 
