@@ -1,37 +1,33 @@
-import { Inbox, CalendarDays, Columns3 } from 'lucide-react'
+import { Inbox, Calendar, LayoutGrid } from 'lucide-react'
 
 type NavTab = 'inbox' | 'planner' | 'board'
 
-interface BottomNavProps {
+interface BottomBarProps {
   active: NavTab
   onChange: (tab: NavTab) => void
 }
 
-const TABS: { id: NavTab; label: string; icon: typeof Inbox }[] = [
-  { id: 'inbox',   label: 'Caixa de entrada', icon: Inbox },
-  { id: 'planner', label: 'Planejador',       icon: CalendarDays },
-  { id: 'board',   label: 'Quadro',           icon: Columns3 },
+const NAV_ITEMS = [
+  { id: 'inbox',   label: 'Caixa de entrada', icon: <Inbox size={18} strokeWidth={1.6} /> },
+  { id: 'planner', label: 'Planejador',      icon: <Calendar size={18} strokeWidth={1.6} /> },
+  { id: 'board',   label: 'Quadro',          icon: <LayoutGrid size={18} strokeWidth={1.6} /> },
 ]
 
-export default function BottomNav({ active, onChange }: BottomNavProps) {
+export default function BottomBar({ active, onChange }: BottomBarProps) {
   return (
-    <div className="bottom-nav-wrapper">
-      <nav className="bottom-nav">
-        {TABS.map(tab => {
-          const Icon = tab.icon
-          const isActive = tab.id === active
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onChange(tab.id)}
-              className={`bottom-nav__item ${isActive ? 'bottom-nav__item--active' : ''}`}
-              style={{ color: isActive ? '#579dff' : '#8c9bab' }}
-            >
-              <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
-              <span className="text-[10px] font-medium mt-0.5">{tab.label}</span>
-            </button>
-          )
-        })}
+    <div className="bottom-bar-outer">
+      <nav className="bottom-bar">
+        {NAV_ITEMS.map(item => (
+          <button
+            key={item.id}
+            onClick={() => onChange(item.id as NavTab)}
+            className={`nav-item${active === item.id ? ' nav-item-active' : ''}`}
+            type="button"
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
       </nav>
     </div>
   )

@@ -145,19 +145,49 @@ body {
 }
 
 /* Card cover image */
+
+/* ===== CAPA DO CARD (TRELLO STYLE) ===== */
 .card-cover {
   width: 100%;
   height: 160px;
+  position: relative;
+  background: #1d2125;
+  flex-shrink: 0;
   overflow: hidden;
-  border-radius: 7px 7px 0 0;
-  margin: -8px -12px 8px -12px;
-  width: calc(100% + 24px);
+  border-radius: 8px 8px 0 0;
 }
-.card-cover img {
+.card-cover-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
+}
+.card-cover-edit-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: rgba(23, 43, 77, 0.75);
+  border: none;
+  color: #b6c2cf;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  backdrop-filter: blur(4px);
+  z-index: 2;
+}
+.trello-card:hover .card-cover-edit-btn {
+  opacity: 1;
+}
+.card-cover-edit-btn:hover {
+  background: rgba(23, 43, 77, 0.95);
+  color: #fff;
 }
 
 .trello-card--stale {
@@ -262,6 +292,7 @@ body {
   color: var(--text-secondary);
 }
 
+
 /* =========================================
    App Layout (Sidebar + Main) — Floating
    ========================================= */
@@ -282,6 +313,81 @@ body {
   position: relative;
   gap: 0;
   overflow: hidden;
+}
+
+/* ===== BOTTOM BAR FLUTUANTE (TRELLO STYLE) ===== */
+.bottom-bar-outer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.bottom-bar {
+  pointer-events: all;
+  background: #1d2125;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  align-items: center;
+  height: 50px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow:
+    0 -1px 0 rgba(166,197,226,0.12),
+    0 -6px 24px rgba(0,0,0,0.55);
+}
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 24px;
+  height: 100%;
+  color: #9fadbc;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  position: relative;
+  transition: color 0.12s;
+}
+.nav-item svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.6;
+  flex-shrink: 0;
+}
+.nav-item:hover {
+  color: #b6c2cf;
+}
+.nav-item-active {
+  color: #579dff !important;
+}
+.nav-item-active svg {
+  color: #579dff;
+}
+.nav-item-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: #579dff;
+  border-radius: 2px 2px 0 0;
+}
+.nav-item + .nav-item {
+  border-left: 1px solid rgba(166,197,226,0.06);
 }
 
 /* =========================================

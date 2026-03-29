@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Clock, AlertCircle, AlignLeft, User, Calendar } from 'lucide-react'
+import { Clock, AlertCircle, AlignLeft, User, Calendar, Pencil } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { Ticket } from '../lib/supabase'
 
@@ -9,6 +9,7 @@ interface CardProps {
   ticket: Ticket
   isDragging?: boolean
   onCardClick?: (ticket: Ticket) => void
+  onEditCover?: (e: React.MouseEvent) => void
 }
 
 const TWO_HOURS = 2 * 60 * 60 * 1000
@@ -26,7 +27,7 @@ function timeAgo(updatedAt: string) {
 const PRIO_COLOR: Record<string, string> = { high: '#ef5c48', medium: '#f5a623', low: '#4bce97' }
 const PRIO_LABEL: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
 
-function Card({ ticket, isDragging = false, onCardClick }: CardProps) {
+function Card({ ticket, isDragging = false, onCardClick, onEditCover }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: sorting } = useSortable({
     id: ticket.id,
     data: { type: 'ticket', ticket },
@@ -42,15 +43,34 @@ function Card({ ticket, isDragging = false, onCardClick }: CardProps) {
       <div
         onClick={e => { if (!sorting && onCardClick) { e.stopPropagation(); onCardClick(ticket) } }}
         className={clsx('trello-card group', isStale && 'trello-card--stale', isDragging && 'trello-card--drag')}
+        style={{ overflow: 'hidden', position: 'relative', marginBottom: 8 }}
       >
-        {/* Cover image */}
+        {/* ===== CAPA ===== */}
         {ticket.cover_image && (
-          <div className="card-cover">
-            <img src={ticket.cover_image} alt="" loading="lazy" />
+          <div className="card-cover" style={{ position: 'relative', width: '100%', height: 160, background: '#1d2125', flexShrink: 0 }}>
+            <img
+              src={ticket.cover_image}
+              alt=""
+              className="card-cover-img"
+              loading="lazy"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }}
+            />
+            {/* Botão editar capa — para ao clicar para não abrir o modal */}
+            <button
+              className="card-cover-edit-btn"
+              onClick={e => { e.stopPropagation(); onEditCover?.(e) }}
+              title="Editar capa"
+              type="button"
+              style={{ position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 4, background: 'rgba(23,43,77,0.75)', border: 'none', color: '#b6c2cf', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.15s, background 0.15s', backdropFilter: 'blur(4px)' }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+            >
+              <Pencil size={13} />
+            </button>
           </div>
         )}
 
-        {/* Color labels (Trello style) */}
+        {/* ===== CORPO ===== */}
         <div className="flex flex-wrap gap-1 mb-2">
           <span
             className="h-4 px-2 rounded-sm text-[10px] font-bold leading-[16px] cursor-pointer hover:h-5 hover:leading-[20px] transition-all inline-flex items-center text-white"
