@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
+import { AnimatePresence } from 'framer-motion'
+import gsap from 'gsap'
 import {
   X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
   ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
@@ -39,7 +40,7 @@ function timeAgo(dateStr: string): string {
   return 'ha pouco'
 }
 
-const avatarPalette = ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#ec4899']
+const avatarPalette = ['#3b82f6', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#ec4899']
 function avatarColor(name: string) {
   return avatarPalette[name.charCodeAt(0) % avatarPalette.length]
 }
@@ -82,6 +83,22 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const commentsEndRef = useRef<HTMLDivElement>(null)
   const memberRef = useRef<HTMLInputElement>(null)
 
+  // GSAP refs
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  // ─── GSAP entrance animation ──────────────────────────────
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out' })
+      gsap.fromTo(modalRef.current,
+        { scale: 0.95, autoAlpha: 0, y: 20 },
+        { scale: 1, autoAlpha: 1, y: 0, duration: 0.35, ease: 'power3.out', delay: 0.05 }
+      )
+    })
+    return () => ctx.revert()
+  }, [])
+
   useEffect(() => {
     setTitle(ticket.title)
     setDescription(ticket.description || '')
@@ -123,7 +140,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   }, [comments.length, activities.length])
 
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', fn)
     return () => window.removeEventListener('keydown', fn)
   }, [onClose])
@@ -133,6 +150,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     window.addEventListener('click', closeMenu)
     return () => window.removeEventListener('click', closeMenu)
   }, [])
+
+  const handleClose = useCallback(() => {
+    const tl = gsap.timeline({ onComplete: onClose })
+    tl.to(modalRef.current, { scale: 0.95, autoAlpha: 0, y: 20, duration: 0.22, ease: 'power2.in' })
+    tl.to(overlayRef.current, { opacity: 0, duration: 0.18, ease: 'power2.in' }, '-=0.12')
+  }, [onClose])
 
   const save = useCallback(async (updates: Partial<Ticket>) => {
     setSaving(true)
@@ -258,7 +281,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     if (!confirm('Tem certeza que deseja excluir este cartao?')) return
     await deleteTicket(ticket.id)
     onDelete(ticket.id)
-    onClose()
+    handleClose()
   }
 
   const feedItems = [
@@ -267,48 +290,45 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto"
-      style={{ background: 'rgba(0,0,0,0.62)', backdropFilter: 'blur(4px)' }}
-      onClick={e => e.target === e.currentTarget && onClose()}
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-[60] flex items-center justify-center"
+      style={{ background: 'rgba(0,0,10,0.75)', backdropFilter: 'blur(10px)' }}
+      onClick={e => e.target === e.currentTarget && handleClose()}
     >
-      <motion.div
-        initial={{ opacity: 0, y: 34 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 34 }}
-        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-[768px] mx-4 rounded-xl overflow-hidden shadow-2xl"
-        style={{ background: '#22272b', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.08)', maxHeight: 'calc(100vh - 48px)' }}
+      <div
+        ref={modalRef}
+        className="elite-modal"
+        style={{ visibility: 'hidden' }}
       >
-        {/* Cover image banner */}
+        {/* ── Cover image banner ── */}
         {coverImage && (
-          <div className="relative w-full h-[120px] overflow-hidden" style={{ background: '#1d2125' }}>
+          <div className="relative w-full h-[100px] overflow-hidden flex-shrink-0" style={{ background: '#010d1a' }}>
             <img src={coverImage} alt="" className="w-full h-full object-cover" />
             <div className="absolute bottom-2 right-2 flex gap-1">
-              <button
-                onClick={() => coverInputRef.current?.click()}
-                className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm"
-                style={{ background: 'rgba(0,0,0,0.6)', color: '#dfe1e6' }}
-              >
-                Alterar capa
-              </button>
-              <button
-                onClick={handleRemoveCover}
-                className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm"
-                style={{ background: 'rgba(0,0,0,0.6)', color: '#f87171' }}
-              >
-                Remover
-              </button>
+              <button onClick={() => coverInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#c7d2fe' }}>Alterar capa</button>
+              <button onClick={handleRemoveCover} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#f87171' }}>Remover</button>
             </div>
           </div>
         )}
         <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
 
-        <div className="px-4 pt-2 pb-2 overflow-y-auto" style={{ maxHeight: coverImage ? 'calc(100vh - 216px)' : 'calc(100vh - 56px)' }}>
-          <div className="flex items-center justify-between mb-3">
+        {/* ── Top bar ── */}
+        <div className="elite-modal__topbar">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <CreditCard size={18} style={{ color: '#6b7fa3' }} />
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              onBlur={handleTitleBlur}
+              className="bg-transparent border-none outline-none text-base leading-tight font-bold w-full"
+              style={{ color: '#e0e7ff' }}
+            />
+            <span className="text-xs whitespace-nowrap" style={{ color: '#6b7fa3' }}>
+              {STATUS_MAP[status]}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 relative flex-shrink-0">
             <select
               value={status}
               onChange={async e => {
@@ -319,156 +339,159 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 await save({ status: next })
                 await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`)
               }}
-              className="rounded-md px-2.5 py-1.5 text-sm font-semibold border"
-              style={{ background: '#3a3f44', color: '#dfe1e6', borderColor: 'rgba(255,255,255,0.12)' }}
+              className="rounded-md px-2 py-1 text-xs font-semibold border cursor-pointer"
+              style={{ background: 'rgba(255,255,255,0.05)', color: '#c7d2fe', borderColor: 'rgba(255,255,255,0.12)' }}
             >
               {(Object.entries(STATUS_MAP) as [TicketStatus, string][]).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>
-            <div className="flex items-center gap-1 relative">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 rounded-md hover:bg-white/10 transition-colors"
-                style={{ color: '#9fadbc' }}
-                title="Adicionar imagem ou video"
-              >
-                <ImageIcon size={17} />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowMoreMenu(prev => !prev)
-                }}
-                className="p-2 rounded-md hover:bg-white/10 transition-colors"
-                style={{ color: '#9fadbc' }}
-                title="Mais opcoes"
-              >
-                <MoreHorizontal size={18} />
-              </button>
-              <button onClick={onClose} className="p-2 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
-                <X size={20} />
-              </button>
+            <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#6b7fa3' }} title="Adicionar imagem ou video"><ImageIcon size={15} /></button>
+            <button onClick={(e) => { e.stopPropagation(); setShowMoreMenu(prev => !prev) }} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#6b7fa3' }} title="Mais opcoes"><MoreHorizontal size={16} /></button>
+            <button onClick={handleClose} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#6b7fa3' }}><X size={18} /></button>
 
-              {showMoreMenu && (
-                <div
-                  className="absolute right-10 top-11 w-44 rounded-lg overflow-hidden"
-                  style={{ background: '#2a2f35', border: '1px solid rgba(255,255,255,0.10)', boxShadow: '0 16px 34px rgba(0,0,0,0.35)' }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    onClick={async () => { setShowMoreMenu(false); await handleShare() }}
-                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors"
-                    style={{ color: '#dfe1e6' }}
-                  >
-                    Compartilhar
-                  </button>
-                  <button
-                    onClick={async () => { setShowMoreMenu(false); await handleSaveAll() }}
-                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors"
-                    style={{ color: '#dfe1e6' }}
-                  >
-                    Salvar agora
-                  </button>
-                  <button
-                    onClick={async () => { setShowMoreMenu(false); await handleDelete() }}
-                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-red-500/20 transition-colors"
-                    style={{ color: '#f87171' }}
-                  >
-                    Excluir cartao
-                  </button>
-                  <button
-                    onClick={() => { setShowMoreMenu(false); onClose() }}
-                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors"
-                    style={{ color: '#9fadbc' }}
-                  >
-                    Fechar
-                  </button>
+            {showMoreMenu && (
+              <div className="absolute right-10 top-10 w-44 rounded-lg overflow-hidden z-20" style={{ background: 'rgba(0,0,50,0.95)', border: '1px solid rgba(255,255,255,0.10)', boxShadow: '0 16px 34px rgba(0,0,30,0.5)' }} onClick={(e) => e.stopPropagation()}>
+                <button onClick={async () => { setShowMoreMenu(false); await handleShare() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#c7d2fe' }}>Compartilhar</button>
+                <button onClick={async () => { setShowMoreMenu(false); await handleSaveAll() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#c7d2fe' }}>Salvar agora</button>
+                <button onClick={async () => { setShowMoreMenu(false); await handleDelete() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-red-500/20 transition-colors" style={{ color: '#f87171' }}>Excluir cartao</button>
+                <button onClick={() => { setShowMoreMenu(false); handleClose() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#6b7fa3' }}>Fechar</button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Action quick bar ── */}
+        <div className="flex items-center gap-1.5 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={() => fileInputRef.current?.click()} className="elite-action-chip">+ Adicionar</button>
+          {!coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
+          <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(96,165,250,0.5)', color: '#60a5fa' } : {}}>Etiquetas</button>
+          <button onClick={() => setShowDatePicker(p => !p)} className="elite-action-chip" style={showDatePicker ? { borderColor: 'rgba(96,165,250,0.5)', color: '#60a5fa' } : {}}>Datas</button>
+          <button onClick={() => { const item = prompt('Item do checklist:'); if (item?.trim()) { setObservacao(prev => prev ? prev + '\n☐ ' + item.trim() : '☐ ' + item.trim()); save({ observacao: observacao ? observacao + '\n☐ ' + item.trim() : '☐ ' + item.trim() }) } }} className="elite-action-chip">Checklist</button>
+          <button onClick={() => memberRef.current?.focus()} className="elite-action-chip">Membros</button>
+        </div>
+
+        {/* ── Tri-column body ── */}
+        <div className="elite-modal__body">
+          {/* ═══ LEFT: Identification ═══ */}
+          <div className="elite-modal__col-left">
+            {/* Labels picker */}
+            {showLabelPicker && (
+              <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: 'rgba(0,0,40,0.50)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="text-xs font-semibold mb-1" style={{ color: '#6b7fa3' }}>Etiquetas</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {tags.map((tag, i) => (
+                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-white cursor-pointer hover:opacity-80"
+                      style={{ background: `hsl(${(tag.charCodeAt(0) * 47 + i * 80) % 360}, 55%, 45%)` }}
+                      onClick={() => { const next = tags.filter(t => t !== tag); setTags(next); save({ tags: next }) }}
+                      title="Clique para remover"
+                    >{tag} ×</span>
+                  ))}
                 </div>
-              )}
+                <div className="flex gap-2">
+                  <input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Nova etiqueta..." className="modal-field flex-1 text-xs"
+                    onKeyDown={e => { if (e.key === 'Enter' && newTag.trim()) { const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next }) } }} />
+                  <button onClick={() => { if (newTag.trim()) { const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next }) } }}
+                    className="px-3 py-1 rounded-md text-xs font-semibold" style={{ background: 'rgba(96,165,250,0.18)', color: '#60a5fa' }}>Adicionar</button>
+                </div>
+              </div>
+            )}
+
+            {/* Date picker */}
+            {showDatePicker && (
+              <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: 'rgba(0,0,40,0.50)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="text-xs font-semibold mb-1" style={{ color: '#6b7fa3' }}>Data de entrega</div>
+                <input type="date" value={dueDate} onChange={e => { setDueDate(e.target.value); save({ due_date: e.target.value || null } as any) }} className="modal-field text-sm" />
+                {dueDate && <div className="text-xs" style={{ color: '#6b7fa3' }}>Entrega: {new Date(dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <FieldGroup label="Cliente">
+                <input value={cliente} onChange={e => setCliente(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Nome do cliente" />
+              </FieldGroup>
+              <FieldGroup label="Instancia">
+                <input value={instancia} onChange={e => setInstancia(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Codigo instancia" />
+              </FieldGroup>
+              <FieldGroup label="Link retaguarda">
+                <div className="flex gap-1">
+                  <input value={linkRetaguarda} onChange={e => setLinkRetaguarda(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
+                  {linkRetaguarda && (
+                    <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
+                  )}
+                </div>
+              </FieldGroup>
+              <FieldGroup label="Link sessao">
+                <div className="flex gap-1">
+                  <input value={linkSessao} onChange={e => setLinkSessao(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
+                  {linkSessao && (
+                    <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
+                  )}
+                </div>
+              </FieldGroup>
             </div>
+
+            {/* Attachments */}
+            <section className="mt-3">
+              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#e0e7ff' }}>
+                <Paperclip size={14} style={{ color: '#6b7fa3' }} />
+                Anexos
+              </div>
+              <div className="space-y-2">
+                {attachments.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {attachments.map(att => (
+                      <div key={att.id} className="group relative rounded-lg overflow-hidden" style={{ background: 'rgba(0,0,40,0.50)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        {att.file_type === 'image' ? (
+                          <a href={att.file_url} target="_blank" rel="noreferrer"><img src={att.file_url} alt={att.file_name} className="w-full h-16 object-cover" /></a>
+                        ) : att.file_type === 'video' ? (
+                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16"><Video size={18} style={{ color: '#6b7fa3' }} /></a>
+                        ) : (
+                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16"><FileText size={18} style={{ color: '#6b7fa3' }} /></a>
+                        )}
+                        <div className="px-2 py-1 flex items-center justify-between">
+                          <span className="text-[9px] truncate" style={{ color: '#6b7fa3' }}>{att.file_name}</span>
+                          <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <a href={att.file_url} download target="_blank" rel="noreferrer" className="p-0.5 rounded hover:bg-white/10"><Download size={10} style={{ color: '#6b7fa3' }} /></a>
+                            <button onClick={() => handleDeleteAttachment(att)} className="p-0.5 rounded hover:bg-red-500/20"><Trash2 size={10} className="text-red-400" /></button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {uploading && (
+                      <div className="flex items-center justify-center h-16 rounded-lg" style={{ background: 'rgba(0,0,40,0.50)', border: '2px dashed rgba(255,255,255,0.08)' }}>
+                        <Loader2 size={16} className="animate-spin" style={{ color: '#60a5fa' }} />
+                      </div>
+                    )}
+                  </div>
+                )}
+                <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.10)', color: '#6b7fa3' }}>
+                  <ImageIcon size={14} /> Adicionar Foto ou Video
+                </button>
+              </div>
+              <input ref={fileInputRef} type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileUpload} />
+            </section>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-            <div className="px-4 py-3 space-y-3 min-w-0" style={{ background: '#22272b', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="min-w-0">
-                <div className="flex items-center gap-3 mb-1.5">
-                  <CreditCard size={18} style={{ color: '#9fadbc' }} />
-                  <input
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    onBlur={handleTitleBlur}
-                    className="bg-transparent border-none outline-none text-lg leading-tight font-bold w-full"
-                    style={{ color: '#dfe1e6' }}
-                  />
-                </div>
-                <div className="text-sm" style={{ color: '#9fadbc' }}>
-                  na lista <span className="font-semibold" style={{ color: '#dfe1e6' }}>{STATUS_MAP[status]}</span>
-                </div>
-              </div>
+          {/* ═══ CENTER: Actions & Status ═══ */}
+          <div className="elite-modal__col-center">
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <FieldGroup label="Prioridade">
+                <select value={priority} onChange={async e => { const next = e.target.value as Ticket['priority']; setPriority(next); await save({ priority: next }) }} className="modal-field">
+                  <option value="low">Baixa</option>
+                  <option value="medium">Media</option>
+                  <option value="high">Alta</option>
+                </select>
+              </FieldGroup>
+              <FieldGroup label="Membro responsavel">
+                <input ref={memberRef} value={assignee} onChange={e => setAssignee(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Responsavel" />
+              </FieldGroup>
+            </div>
 
-              <div className="flex items-center gap-1.5 flex-nowrap">
-                <button onClick={() => fileInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors whitespace-nowrap" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>+ Adicionar</button>
-                {!coverImage && (
-                  <button
-                    onClick={() => coverInputRef.current?.click()}
-                    disabled={uploadingCover}
-                    className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors"
-                    style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}
-                  >
-                    {uploadingCover ? 'Enviando...' : 'Capa'}
-                  </button>
-                )}
-                <button onClick={() => setShowLabelPicker(p => !p)} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showLabelPicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showLabelPicker ? '#60a5fa' : '#c8cad0' }}>Etiquetas</button>
-                <button onClick={() => setShowDatePicker(p => !p)} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: showDatePicker ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)', color: showDatePicker ? '#60a5fa' : '#c8cad0' }}>Datas</button>
-                <button onClick={() => { const item = prompt('Item do checklist:'); if (item?.trim()) { setObservacao(prev => prev ? prev + '\n☐ ' + item.trim() : '☐ ' + item.trim()); save({ observacao: observacao ? observacao + '\n☐ ' + item.trim() : '☐ ' + item.trim() }) } }} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Checklist</button>
-                <button onClick={() => memberRef.current?.focus()} className="px-2.5 py-1 rounded-md text-xs font-semibold border hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.12)', color: '#c8cad0' }}>Membros</button>
-              </div>
-
-              {/* Labels picker */}
-              {showLabelPicker && (
-                <div className="rounded-lg p-3 space-y-2" style={{ background: '#1d2125', border: '1px solid rgba(255,255,255,0.10)' }}>
-                  <div className="text-xs font-semibold mb-1" style={{ color: '#9fadbc' }}>Etiquetas</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {tags.map((tag, i) => (
-                      <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-white cursor-pointer hover:opacity-80"
-                        style={{ background: `hsl(${(tag.charCodeAt(0) * 47 + i * 80) % 360}, 55%, 45%)` }}
-                        onClick={() => { const next = tags.filter(t => t !== tag); setTags(next); save({ tags: next }) }}
-                        title="Clique para remover"
-                      >
-                        {tag} ×
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Nova etiqueta..." className="modal-field flex-1 text-xs"
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && newTag.trim()) {
-                          const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next })
-                        }
-                      }}
-                    />
-                    <button onClick={() => { if (newTag.trim()) { const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next }) } }}
-                      className="px-3 py-1 rounded-md text-xs font-semibold" style={{ background: 'rgba(37,208,102,0.18)', color: '#2de379' }}>
-                      Adicionar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Date picker */}
-              {showDatePicker && (
-                <div className="rounded-lg p-3 space-y-2" style={{ background: '#1d2125', border: '1px solid rgba(255,255,255,0.10)' }}>
-                  <div className="text-xs font-semibold mb-1" style={{ color: '#9fadbc' }}>Data de entrega</div>
-                  <input type="date" value={dueDate} onChange={e => { setDueDate(e.target.value); save({ due_date: e.target.value || null } as any) }}
-                    className="modal-field text-sm" />
-                  {dueDate && <div className="text-xs" style={{ color: '#9fadbc' }}>Entrega: {new Date(dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>}
-                </div>
-              )}
-
-              <section>
-              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#dfe1e6' }}>
-                <AlignLeft size={14} style={{ color: '#9fadbc' }} />
+            <section>
+              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#e0e7ff' }}>
+                <AlignLeft size={14} style={{ color: '#6b7fa3' }} />
                 Descricao
               </div>
               <textarea
@@ -476,224 +499,126 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 onChange={e => setDescription(e.target.value)}
                 onBlur={saveOnBlur}
                 className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: '#1d2125', color: '#dfe1e6', border: '1px solid rgba(255,255,255,0.12)', minHeight: 50 }}
+                style={{ background: 'rgba(0,0,40,0.50)', color: '#c7d2fe', border: '1px solid rgba(255,255,255,0.10)', minHeight: 60 }}
                 placeholder="Adicione uma descricao mais detalhada..."
               />
-              </section>
+            </section>
 
-              <section>
-              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#dfe1e6' }}>
-                <Paperclip size={14} style={{ color: '#9fadbc' }} />
-                Campos personalizados
+            <section className="mt-3">
+              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#e0e7ff' }}>
+                <Paperclip size={14} style={{ color: '#6b7fa3' }} />
+                Observacao
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <FieldGroup label="Cliente">
-                  <input value={cliente} onChange={e => setCliente(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Nome do cliente" />
-                </FieldGroup>
-                <FieldGroup label="Instancia">
-                  <input value={instancia} onChange={e => setInstancia(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Codigo da instancia" />
-                </FieldGroup>
-                <FieldGroup label="Link retaguarda">
-                  <div className="flex gap-1">
-                    <input value={linkRetaguarda} onChange={e => setLinkRetaguarda(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
-                    {linkRetaguarda && (
-                      <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link">
-                        <ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
-                </FieldGroup>
-                <FieldGroup label="Link sessao">
-                  <div className="flex gap-1">
-                    <input value={linkSessao} onChange={e => setLinkSessao(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
-                    {linkSessao && (
-                      <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link">
-                        <ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
-                </FieldGroup>
-                <FieldGroup label="Prioridade">
-                  <select
-                    value={priority}
-                    onChange={async e => {
-                      const next = e.target.value as Ticket['priority']
-                      setPriority(next)
-                      await save({ priority: next })
-                    }}
-                    className="modal-field"
-                  >
-                    <option value="low">Baixa</option>
-                    <option value="medium">Media</option>
-                    <option value="high">Alta</option>
-                  </select>
-                </FieldGroup>
-                <FieldGroup label="Membro">
-                  <input ref={memberRef} value={assignee} onChange={e => setAssignee(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Responsavel" />
-                </FieldGroup>
-                <div className="col-span-2">
-                  <FieldGroup label="Observacao">
-                    <textarea value={observacao} onChange={e => setObservacao(e.target.value)} onBlur={saveOnBlur} className="modal-field resize-y" rows={2} placeholder="Notas adicionais" />
-                  </FieldGroup>
-                </div>
-              </div>
-              </section>
+              <textarea
+                value={observacao}
+                onChange={e => setObservacao(e.target.value)}
+                onBlur={saveOnBlur}
+                className="w-full rounded-md p-3 text-sm resize-y outline-none"
+                style={{ background: 'rgba(0,0,40,0.50)', color: '#c7d2fe', border: '1px solid rgba(255,255,255,0.10)', minHeight: 80 }}
+                rows={4}
+                placeholder="Notas adicionais"
+              />
+            </section>
+          </div>
 
-              <section>
-              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#dfe1e6' }}>
-                <Paperclip size={14} style={{ color: '#9fadbc' }} />
-                Anexos
+          {/* ═══ RIGHT: Timeline / Activity ═══ */}
+          <div className="elite-modal__col-right">
+            <div className="flex items-center justify-between mb-2 flex-shrink-0">
+              <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#e0e7ff' }}>
+                <MessageSquare size={14} style={{ color: '#6b7fa3' }} />
+                Timeline
               </div>
-              <div className="space-y-2">
-                {attachments.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {attachments.map(att => (
-                      <div key={att.id} className="group relative rounded-lg overflow-hidden" style={{ background: '#1d2125', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        {att.file_type === 'image' ? (
-                          <a href={att.file_url} target="_blank" rel="noreferrer"><img src={att.file_url} alt={att.file_name} className="w-full h-20 object-cover" /></a>
-                        ) : att.file_type === 'video' ? (
-                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-20"><Video size={20} style={{ color: '#6b7280' }} /></a>
-                        ) : (
-                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-20"><FileText size={20} style={{ color: '#6b7280' }} /></a>
-                        )}
-                        <div className="px-2 py-1 flex items-center justify-between">
-                          <span className="text-[9px] truncate" style={{ color: '#9fadbc' }}>{att.file_name}</span>
-                          <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <a href={att.file_url} download target="_blank" rel="noreferrer" className="p-0.5 rounded hover:bg-white/10"><Download size={10} style={{ color: '#9fadbc' }} /></a>
-                            <button onClick={() => handleDeleteAttachment(att)} className="p-0.5 rounded hover:bg-red-500/20"><Trash2 size={10} className="text-red-400" /></button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {uploading && (
-                      <div className="flex items-center justify-center h-20 rounded-lg" style={{ background: '#1d2125', border: '2px dashed rgba(255,255,255,0.08)' }}>
-                        <Loader2 size={18} className="animate-spin" style={{ color: '#25D066' }} />
-                      </div>
-                    )}
-                  </div>
-                )}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/6"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.12)', color: '#9fadbc' }}
-                >
-                  <ImageIcon size={16} />
-                  Adicionar Foto ou Video
-                </button>
-              </div>
-              <input ref={fileInputRef} type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileUpload} />
-              </section>
+              <button onClick={() => setShowActivities(!showActivities)} className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
+                style={{ background: showActivities ? 'rgba(255,255,255,0.06)' : 'rgba(96,165,250,0.12)', color: showActivities ? '#c7d2fe' : '#60a5fa' }}>
+                {showActivities ? 'Ocultar' : 'Mostrar'} atividade
+              </button>
+            </div>
 
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  onClick={handleSaveAll}
-                  disabled={!hasPendingChanges() || saving}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors disabled:opacity-45"
-                  style={{ background: 'rgba(37,208,102,0.18)', color: '#2de379', border: '1px solid rgba(37,208,102,0.24)' }}
-                >
-                  {saving ? 'Salvando...' : 'Salvar'}
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
-                  style={{ background: 'rgba(239,68,68,0.16)', color: '#f87171', border: '1px solid rgba(239,68,68,0.24)' }}
-                >
-                  Excluir
-                </button>
+            {/* Comment input */}
+            <div className="flex gap-2 mb-3 flex-shrink-0">
+              <Avatar name={user} size={28} />
+              <div className="flex-1">
+                <textarea
+                  ref={commentRef}
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  onFocus={() => setCommentFocused(true)}
+                  onBlur={() => !newComment.trim() && setCommentFocused(false)}
+                  placeholder="Escrever um comentario..."
+                  rows={commentFocused ? 3 : 1}
+                  className="modal-field resize-none transition-all text-[13px]"
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment() } }}
+                />
+                <AnimatePresence>
+                  {(commentFocused || newComment.trim()) && (
+                    <div className="flex justify-end mt-1.5">
+                      <button onClick={handleSendComment} disabled={!newComment.trim() || sendingComment}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-40"
+                        style={{ background: '#3b82f6' }}>
+                        {sendingComment ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                        Enviar
+                      </button>
+                    </div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
-            <div className="px-3 py-3" style={{ background: '#1d2125' }}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#dfe1e6' }}>
-                  <MessageSquare size={14} style={{ color: '#9fadbc' }} />
-                  Comentarios e atividade
-                </div>
-                <button
-                  onClick={() => setShowActivities(!showActivities)}
-                  className="text-xs font-semibold px-2.5 py-1 rounded-md transition-colors"
-                  style={{
-                    background: showActivities ? 'rgba(255,255,255,0.08)' : 'rgba(59,130,246,0.12)',
-                    color: showActivities ? '#dfe1e6' : '#60a5fa',
-                  }}
-                >
-                  Mostrar Detalhes
-                </button>
-              </div>
-
-              <div className="flex gap-2.5 mb-3">
-                <Avatar name={user} size={32} />
-                <div className="flex-1">
-                  <textarea
-                    ref={commentRef}
-                    value={newComment}
-                    onChange={e => setNewComment(e.target.value)}
-                    onFocus={() => setCommentFocused(true)}
-                    onBlur={() => !newComment.trim() && setCommentFocused(false)}
-                    placeholder="Escrever um comentario..."
-                    rows={commentFocused ? 3 : 1}
-                    className="modal-field resize-none transition-all text-[14px]"
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment() } }}
-                  />
-                  <AnimatePresence>
-                    {(commentFocused || newComment.trim()) && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex justify-end mt-1.5">
-                        <button
-                          onClick={handleSendComment}
-                          disabled={!newComment.trim() || sendingComment}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-40"
-                          style={{ background: '#25D066' }}
-                        >
-                          {sendingComment ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                          Enviar
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                {feedItems.map(item => (
-                  <div key={item.id} className="flex gap-2.5 group">
-                    <Avatar name={item.user} size={28} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold" style={{ color: '#c8cad0' }}>
-                          {item.user.includes('@') ? item.user.split('@')[0] : item.user}
-                        </span>
-                        <span className="text-[10px]" style={{ color: '#6b7280' }}>{timeAgo(item.time)}</span>
-                      </div>
-                      {item.type === 'comment' ? (
-                        <>
-                          <div className="mt-0.5 rounded-lg px-3 py-2 text-[13px] leading-relaxed" style={{ background: '#1d2125', color: '#c8cad0', border: '1px solid rgba(255,255,255,0.04)' }}>
-                            {item.text}
-                          </div>
-                          {item.user === user && (
-                            <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#6b7280' }}>
-                              <Trash2 size={9} /> Excluir
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <div className="mt-0.5 text-[13px] flex items-center gap-1.5" style={{ color: '#9fadbc' }}>
-                          <ArrowRight size={11} style={{ color: '#25D066' }} />
+            {/* Feed */}
+            <div className="elite-modal__feed">
+              {feedItems.map(item => (
+                <div key={item.id} className="flex gap-2 group">
+                  <Avatar name={item.user} size={24} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-semibold" style={{ color: '#c7d2fe' }}>
+                        {item.user.includes('@') ? item.user.split('@')[0] : item.user}
+                      </span>
+                      <span className="text-[10px]" style={{ color: '#4b5e7a' }}>{timeAgo(item.time)}</span>
+                    </div>
+                    {item.type === 'comment' ? (
+                      <>
+                        <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: 'rgba(0,0,40,0.50)', color: '#c7d2fe', border: '1px solid rgba(255,255,255,0.04)' }}>
                           {item.text}
                         </div>
-                      )}
-                    </div>
+                        {item.user === user && (
+                          <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#4b5e7a' }}>
+                            <Trash2 size={9} /> Excluir
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="mt-0.5 text-[12px] flex items-center gap-1.5" style={{ color: '#6b7fa3' }}>
+                        <ArrowRight size={10} style={{ color: '#60a5fa' }} />
+                        {item.text}
+                      </div>
+                    )}
                   </div>
-                ))}
-                {feedItems.length === 0 && (
-                  <div className="text-center py-4 text-[13px]" style={{ color: '#6b7280' }}>Nenhuma atividade ainda.</div>
-                )}
-                <div ref={commentsEndRef} />
-              </div>
+                </div>
+              ))}
+              {feedItems.length === 0 && (
+                <div className="text-center py-6 text-[12px]" style={{ color: '#4b5e7a' }}>Nenhuma atividade ainda.</div>
+              )}
+              <div ref={commentsEndRef} />
             </div>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+
+        {/* ── Footer with glass effect ── */}
+        <div className="elite-modal__footer">
+          <button onClick={handleSaveAll} disabled={!hasPendingChanges() || saving}
+            className="px-4 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
+            style={{ background: 'rgba(96,165,250,0.18)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.24)' }}>
+            {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+          <button onClick={handleDelete}
+            className="px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
+            style={{ background: 'rgba(239,68,68,0.14)', color: '#f87171', border: '1px solid rgba(239,68,68,0.22)' }}>
+            Excluir
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -711,11 +636,10 @@ function Avatar({ name, size = 32 }: { name: string; size?: number }) {
 function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="relative">
-      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#9fadbc' }}>
+      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#6b7fa3' }}>
         {label}
       </label>
       {children}
     </div>
   )
 }
-

@@ -10,21 +10,17 @@ import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
-import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog } from '../lib/supabase'
+import { supabase, updateTicket, insertActivityLog } from '../lib/supabase'
+import { useKanban, COLUMNS } from '../hooks/useKanban'
 import type { Ticket, TicketStatus } from '../lib/supabase'
 
 interface KanbanBoardProps { user: string; onLogout: () => void }
 
-const COLUMNS: { id: TicketStatus; label: string; color: string; accent: string }[] = [
-  { id: 'backlog',      label: 'Backlog',           color: 'rgba(209,209,213,0.08)', accent: '#D1D1D5' },
-  { id: 'in_progress',  label: 'Em Progresso',      color: 'rgba(37,208,102,0.10)',  accent: '#25D066' },
-  { id: 'waiting_devs', label: 'Aguardando Devs',   color: 'rgba(245,158,11,0.10)',  accent: '#fbbf24' },
-  { id: 'resolved',     label: 'Resolvido',         color: 'rgba(27,173,83,0.10)',   accent: '#1BAD53' },
-]
+const COLUMNS_LEGACY: { id: TicketStatus; label: string; color: string; accent: string }[] = COLUMNS
 
 function DroppableColumn({ id, children, isOver }: { id: string; children: React.ReactNode; isOver: boolean }) {
   const { setNodeRef } = useDroppable({ id })
-  return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-green-500/30 bg-green-500/[0.04]')}>{children}</div>
+  return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
 }
 
 function SortableBoardColumn({ id, children }: { id: string; children: (drag: { attributes: Record<string, any>; listeners: Record<string, any>; isDragging: boolean }) => React.ReactNode }) {
@@ -480,7 +476,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     flexDirection: 'column',
     flex: 1,
     minHeight: 0,
-    background: '#1d2125',
+    background: '#010d1a',
   }
 
   const boardSurfaceStyle: React.CSSProperties = wallpaper
@@ -489,7 +485,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         : wallpaper.startsWith('#') || wallpaper.startsWith('rgb') || wallpaper.startsWith('hsl')
             ? { backgroundColor: wallpaper }
             : { background: wallpaper })
-    : { backgroundColor: '#0f3b73' }
+    : { backgroundColor: '#010409' }
 
   return (
     <div className="board-wrapper" style={boardWrapperStyle}>
@@ -498,21 +494,32 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         {toast && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-xl text-sm font-semibold shadow-xl"
-            style={{ background: toast.type === 'ok' ? '#25D066' : '#ef4444', color: '#fff' }}>
+            style={{ background: toast.type === 'ok' ? '#3b82f6' : '#ef4444', color: '#fff' }}>
             {toast.msg}
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Nav */}
-      <header className="board-header trello-board-header">
+      <header className="board-header">
         <div className="trello-board-header__left">
           <div className="trello-board-header__badge" aria-hidden>
-            <LayoutGrid size={15} className="text-white" />
+            <LayoutGrid size={16} style={{ color: 'rgba(255,255,255,0.8)' }} />
           </div>
 
           <button className="trello-board-chip trello-board-chip--title" type="button">
             <span className="trello-board-chip__title">Suporte chatPro</span>
+          </button>
+
+          <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
+
+          <button
+            onClick={() => setShowInstanceModal(true)}
+            className="trello-board-chip"
+            type="button"
+          >
+            <Plug size={14} />
+            Instancia
           </button>
 
           {staleCount > 0 && (
@@ -525,54 +532,72 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
               {staleCount} sem resposta +2h
             </motion.div>
           )}
-
-          <button
-            onClick={() => setShowInstanceModal(true)}
-            className="trello-board-chip"
-            type="button"
-          >
-            <Plug size={13} />
-            Instancia
-          </button>
         </div>
 
         <div className="trello-board-header__center">
           <div className="header-search">
-            <Search size={15} className="text-slate-500 flex-shrink-0" />
+            <Search size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
             <input
               type="text"
-              placeholder="Pesquisar tickets..."
+              placeholder="Pesquisar"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="bg-transparent border-none outline-none text-sm flex-1"
-              style={{ color: 'var(--text-primary)' }}
+              style={{ color: '#B6C2CF' }}
             />
           </div>
         </div>
 
         <div className="trello-board-header__right">
+          <div className={clsx('trello-board-status', isConnected ? 'trello-board-status--ok' : 'trello-board-status--off')} title={isConnected ? 'Conectado ao realtime' : 'Sem conexao'}>
+            <span className="trello-board-status__dot" />
+          </div>
+
+          <button onClick={handleRefresh} className="trello-icon-btn" type="button" title="Atualizar tickets">
+            <RefreshCw size={16} className={clsx(refreshing && 'animate-spin')} />
+          </button>
+
+          <button
+            className="trello-icon-btn"
+            type="button"
+            title="Compartilhar"
+            onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Link copiado!', 'ok') }}
+          >
+            <Share2 size={16} />
+          </button>
+
+          <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configuracoes">
+            <Settings size={16} />
+          </button>
+
+          <button onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
+            Criar
+          </button>
+
+          <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
+
           <div
             className="relative flex items-center"
             onMouseEnter={() => setShowOnlineUsers(true)}
             onMouseLeave={() => setShowOnlineUsers(false)}
           >
-            <div className="flex -space-x-2 cursor-default">
+            <div className="flex -space-x-1.5 cursor-default">
               {visibleUsers.slice(0, 5).map((u, i) => (
                 <div key={u} className="relative" style={{ zIndex: 10 - i }}>
                   <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white border"
-                    style={{ background: ['#25D066', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], borderColor: 'rgba(12,18,30,0.92)' }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                    style={{ background: ['#579DFF', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], border: '2px solid #1D2125' }}
                     title={u}
                   >
                     {u.slice(0, 2).toUpperCase()}
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border" style={{ borderColor: 'rgba(12,18,30,0.92)' }} />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2" style={{ background: '#4BCE97', borderColor: '#1D2125' }} />
                 </div>
               ))}
               {visibleUsers.length > 5 && (
                 <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border"
-                  style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)', borderColor: 'rgba(12,18,30,0.92)' }}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
+                  style={{ background: '#22272B', color: '#9FADBC', border: '2px solid #1D2125' }}
                 >
                   +{visibleUsers.length - 5}
                 </div>
@@ -587,16 +612,16 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   exit={{ opacity: 0, y: 6 }}
                   transition={{ duration: 0.14 }}
                   className="absolute right-0 top-[120%] z-50 min-w-[220px] rounded-lg p-2"
-                  style={{ background: '#1f2530', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 14px 30px rgba(0,0,0,0.35)' }}
+                  style={{ background: '#282E33', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
                 >
-                  <div className="text-[10px] font-bold uppercase tracking-wide px-1 pb-1" style={{ color: '#9fadbc' }}>
+                  <div className="text-[10px] font-bold uppercase tracking-wide px-1 pb-1" style={{ color: '#9FADBC' }}>
                     Usuarios online ({visibleUsers.length})
                   </div>
                   <div className="max-h-56 overflow-y-auto pr-1 space-y-1">
                     {visibleUsers.map((u, i) => (
-                      <div key={`${u}-${i}`} className="flex items-center gap-2 px-1.5 py-1 rounded-md" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                        <span className="w-2 h-2 rounded-full bg-green-400" />
-                        <span className="text-xs truncate" style={{ color: '#dfe1e6' }} title={u}>{u}</span>
+                      <div key={`${u}-${i}`} className="flex items-center gap-2 px-1.5 py-1 rounded" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        <span className="w-2 h-2 rounded-full" style={{ background: '#4BCE97' }} />
+                        <span className="text-xs truncate" style={{ color: '#B6C2CF' }} title={u}>{u}</span>
                       </div>
                     ))}
                   </div>
@@ -605,34 +630,8 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             </AnimatePresence>
           </div>
 
-          <button
-            className="trello-board-chip"
-            type="button"
-            onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Link copiado!', 'ok') }}
-          >
-            <Share2 size={13} />
-            Compartilhar
-          </button>
-
-          <div className={clsx('trello-board-status', isConnected ? 'trello-board-status--ok' : 'trello-board-status--off')} title={isConnected ? 'Conectado ao realtime' : 'Sem conexao'}>
-            <span className="trello-board-status__dot" />
-          </div>
-
-          <button onClick={handleRefresh} className="trello-icon-btn" type="button" title="Atualizar tickets">
-            <RefreshCw size={15} className={clsx(refreshing && 'animate-spin')} />
-          </button>
-
-          <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configuracoes">
-            <Settings size={15} />
-          </button>
-
-          <button onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
-            <Plus size={15} />
-            Criar
-          </button>
-
           <button onClick={onLogout} className="trello-icon-btn trello-icon-btn--danger" type="button" title="Sair">
-            <LogOut size={14} />
+            <LogOut size={16} />
           </button>
         </div>
       </header>
@@ -713,7 +712,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                                 }}
                               />
                               <div className="flex items-center gap-1.5 mt-1.5">
-                                <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#25D066' }}>Adicionar</button>
+                                <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#3b82f6' }}>Adicionar</button>
                                 <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
                               </div>
                             </div>
