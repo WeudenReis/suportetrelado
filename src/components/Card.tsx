@@ -46,10 +46,10 @@ function Card({ ticket, isDragging = false, onCardClick, onEditCover }: CardProp
         style={{ overflow: 'hidden', position: 'relative', marginBottom: 8 }}
       >
         {/* ===== CAPA ===== */}
-        {ticket.cover_image && (
+        {ticket.cover_image_url && (
           <div className="card-cover" style={{ position: 'relative', width: '100%', height: 160, background: '#1d2125', flexShrink: 0 }}>
             <img
-              src={ticket.cover_image}
+              src={ticket.cover_image_url}
               alt=""
               className="card-cover-img"
               loading="lazy"

@@ -76,7 +76,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [dueDate, setDueDate] = useState(ticket.due_date || '')
   const [tags, setTags] = useState<string[]>(ticket.tags || [])
   const [newTag, setNewTag] = useState('')
-  const [coverImage, setCoverImage] = useState(ticket.cover_image || '')
+  const [coverImage, setCoverImage] = useState(ticket.cover_image_url || '')
   const [uploadingCover, setUploadingCover] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
@@ -244,7 +244,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     const att = await uploadAttachment(ticket.id, file, user)
     if (att) {
       setCoverImage(att.file_url)
-      await save({ cover_image: att.file_url })
+      await save({ cover_image_url: att.file_url })
     }
     setUploadingCover(false)
     if (coverInputRef.current) coverInputRef.current.value = ''
@@ -252,7 +252,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   const handleRemoveCover = async () => {
     setCoverImage('')
-    await save({ cover_image: null })
+    await save({ cover_image_url: null })
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
