@@ -347,8 +347,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 await save({ status: next })
                 await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`)
               }}
-              className="rounded-md px-2 py-1 text-xs font-semibold border cursor-pointer"
-              style={{ background: 'rgba(255,255,255,0.05)', color: '#b6c2cf', borderColor: 'rgba(166,197,226,0.16)' }}
+              className="dark-select"
             >
               {(Object.entries(STATUS_MAP) as [TicketStatus, string][]).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>

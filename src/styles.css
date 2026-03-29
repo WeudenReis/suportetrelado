@@ -663,9 +663,40 @@ body {
 .modal-field::placeholder {
   color: var(--text-muted);
 }
-.modal-field option {
-  background: #1d2125;
+.modal-field option,
+.dark-select option {
+  background: #22272b !important;
+  color: #b6c2cf !important;
+}
+.modal-field option:checked,
+.dark-select option:checked {
+  background: #579dff !important;
+  color: #1d2125 !important;
+}
+.dark-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #22272b;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239fadbc' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  border: 1px solid rgba(166,197,226,0.16);
+  border-radius: 4px;
   color: #b6c2cf;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 28px 5px 10px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.dark-select:hover {
+  background-color: #282e33;
+  border-color: rgba(87,157,255,0.4);
+}
+.dark-select:focus {
+  border-color: #579dff;
+  box-shadow: 0 0 0 2px rgba(87,157,255,0.2);
 }
 .modal-field-icon-btn {
   display: flex;
