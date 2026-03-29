@@ -11,7 +11,7 @@ import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles } from '../lib/supabase'
-import { useKanban, COLUMNS } from '../hooks/useKanban'
+import { fetchBoardColumns, insertBoardColumn, BoardColumn } from '../lib/boardColumns'
 import type { Ticket, TicketStatus, UserProfile } from '../lib/supabase'
 
 interface KanbanBoardProps { user: string; onLogout: () => void }
@@ -62,8 +62,8 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [showInstanceModal, setShowInstanceModal] = useState(false)
   const [addingList, setAddingList] = useState(false)
   const [newListName, setNewListName] = useState('')
-  const [customColumns, setCustomColumns] = useState<{ id: string; label: string; accent: string }[]>([])
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => COLUMNS.map(c => c.id))
+  const [columns, setColumns] = useState<BoardColumn[]>([])
+  const [columnOrder, setColumnOrder] = useState<string[]>([])
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -161,30 +161,23 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     return filtered
   }, [tickets, searchQuery])
 
+  // Carregar colunas do Supabase
   useEffect(() => {
-    const nextIds = [
-      ...COLUMNS.map(c => c.id),
-      ...customColumns.map(c => c.id),
-    ]
-    setColumnOrder(prev => {
-      const kept = prev.filter(id => nextIds.includes(id))
-      const missing = nextIds.filter(id => !kept.includes(id))
-      return [...kept, ...missing]
-    })
-  }, [customColumns])
+    const fetchCols = async () => {
+      const cols = await fetchBoardColumns()
+      setColumns(cols)
+      setColumnOrder(cols.map(c => c.id))
+    }
+    fetchCols()
+  }, [])
 
   useEffect(() => {
     const saved = localStorage.getItem(wallpaperStorageKey) || ''
     setWallpaper(saved)
   }, [wallpaperStorageKey])
 
-  const allColumnsById = new Map(
-    [...COLUMNS, ...customColumns.map(c => ({ ...c, color: 'rgba(255,255,255,0.05)' }))]
-      .map(col => [col.id, col])
-  )
-  const allColumns = columnOrder
-    .map(id => allColumnsById.get(id))
-    .filter((col): col is NonNullable<typeof col> => Boolean(col))
+  const allColumnsById = new Map(columns.map(col => [col.id, col]))
+  const allColumns = columnOrder.map(id => allColumnsById.get(id)).filter((col): col is NonNullable<typeof col> => Boolean(col))
   const columnIds = allColumns.map(col => col.id)
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
@@ -832,28 +825,36 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   onChange={e => setNewListName(e.target.value)}
                   placeholder="Nome da lista..."
                   className="instance-modal__input text-sm"
-                  onKeyDown={e => {
+                  onKeyDown={async e => {
                     if (e.key === 'Enter' && newListName.trim()) {
-                      const id = newListName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-                      const accent = ['#579dff', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'][customColumns.length % 5]
-                      setCustomColumns(prev => [...prev, { id: `custom_${id}_${Date.now()}`, label: newListName.trim(), accent }])
-                      setNewListName('')
-                      setAddingList(false)
-                      showToast('Lista adicionada!', 'ok')
+                      try {
+                        const col = await insertBoardColumn(newListName.trim(), columns.length)
+                        setColumns(prev => [...prev, col])
+                        setColumnOrder(prev => [...prev, col.id])
+                        setNewListName('')
+                        setAddingList(false)
+                        showToast('Lista adicionada!', 'ok')
+                      } catch (err: any) {
+                        showToast(err?.message || 'Erro ao criar lista', 'err')
+                      }
                     }
                     if (e.key === 'Escape') { setAddingList(false); setNewListName('') }
                   }}
                 />
                 <div className="flex items-center gap-1.5 mt-2">
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!newListName.trim()) return
-                      const id = newListName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-                      const accent = ['#579dff', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'][customColumns.length % 5]
-                      setCustomColumns(prev => [...prev, { id: `custom_${id}_${Date.now()}`, label: newListName.trim(), accent }])
-                      setNewListName('')
-                      setAddingList(false)
-                      showToast('Lista adicionada!', 'ok')
+                      try {
+                        const col = await insertBoardColumn(newListName.trim(), columns.length)
+                        setColumns(prev => [...prev, col])
+                        setColumnOrder(prev => [...prev, col.id])
+                        setNewListName('')
+                        setAddingList(false)
+                        showToast('Lista adicionada!', 'ok')
+                      } catch (err: any) {
+                        showToast(err?.message || 'Erro ao criar lista', 'err')
+                      }
                     }}
                     className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white"
                     style={{ background: '#579dff' }}

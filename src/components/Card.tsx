@@ -135,8 +135,30 @@ function Card({ card, onClick, onUpdate, onArchive }: CardProps) {
 
         {/* Tag de prioridade */}
         {card.priority && !isEditing && (
-          <span className={`${styles.tag} ${styles[card.priority.toLowerCase().replace('é','e')]}`}>
-            {card.priority}
+          <span className={
+            `${styles.tag} ` +
+            styles[
+              (() => {
+                // Normalizar prioridade conforme bug report
+                const p = card.priority;
+                const map = {
+                  'alta': 'Alta', 'Alta': 'Alta',
+                  'media': 'Média', 'média': 'Média', 'Média': 'Média', 'Media': 'Média',
+                  'baixa': 'Baixa', 'Baixa': 'Baixa',
+                };
+                return map[p] ?? p;
+              })()
+            ]
+          }>
+            {(() => {
+              const p = card.priority;
+              const map = {
+                'alta': 'Alta', 'Alta': 'Alta',
+                'media': 'Média', 'média': 'Média', 'Média': 'Média', 'Media': 'Média',
+                'baixa': 'Baixa', 'Baixa': 'Baixa',
+              };
+              return map[p] ?? p;
+            })()}
           </span>
         )}
 
