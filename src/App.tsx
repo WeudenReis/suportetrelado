@@ -16,7 +16,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [plannerCollapsed, setPlannerCollapsed] = useState(false)
-  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'switch'>('board')
+  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board'>('board')
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
 
   useEffect(() => {
@@ -58,26 +58,12 @@ export default function App() {
   }
 
   const renderView = () => {
-    switch (activeTab) {
-      case 'switch':
-        return (
-          <motion.div key="switch" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}
-            className="flex-1 flex items-center justify-center mesh-bg min-h-0">
-            <div className="text-center">
-              <div className="text-4xl mb-3">📋</div>
-              <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Mudar de Quadros</h2>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Você possui 1 quadro: Suporte chatPro</p>
-            </div>
-          </motion.div>
-        )
-      default:
-        return (
-          <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-            className="flex-1 flex flex-col min-h-0">
-            <KanbanBoard user={user!} onLogout={handleLogout} />
-          </motion.div>
-        )
-    }
+    return (
+      <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+        className="flex-1 flex flex-col min-h-0">
+        <KanbanBoard user={user!} onLogout={handleLogout} />
+      </motion.div>
+    )
   }
 
   return (

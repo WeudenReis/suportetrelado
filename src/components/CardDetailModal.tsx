@@ -4,7 +4,7 @@ import gsap from 'gsap'
 import {
   X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
   ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
-  AlignLeft, CreditCard, Paperclip
+  AlignLeft, CreditCard, Paperclip, Check, User, Calendar
 } from 'lucide-react'
 import {
   supabase, updateTicket, deleteTicket,
@@ -57,6 +57,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [linkSessao, setLinkSessao] = useState(ticket.link_sessao || '')
   const [observacao, setObservacao] = useState(ticket.observacao || '')
   const [saving, setSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const savingRef = useRef(false)
 
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
@@ -158,17 +160,23 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   }, [onClose])
 
   const save = useCallback(async (updates: Partial<Ticket>) => {
+    if (savingRef.current) return
+    savingRef.current = true
     setSaving(true)
     try {
       const updated = await updateTicket(ticket.id, updates)
       onUpdate(updated)
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
       console.error(err)
     }
     setSaving(false)
+    savingRef.current = false
   }, [ticket.id, onUpdate])
 
   const handleSaveAll = async () => {
+    if (savingRef.current) return
     const updates: Partial<Ticket> = {}
     if (title.trim() && title.trim() !== ticket.title) updates.title = title.trim()
     if (description !== (ticket.description || '')) updates.description = description
@@ -369,6 +377,19 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           <button onClick={() => setShowDatePicker(p => !p)} className="elite-action-chip" style={showDatePicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Datas</button>
           <button onClick={() => { const item = prompt('Item do checklist:'); if (item?.trim()) { setObservacao(prev => prev ? prev + '\n☐ ' + item.trim() : '☐ ' + item.trim()); save({ observacao: observacao ? observacao + '\n☐ ' + item.trim() : '☐ ' + item.trim() }) } }} className="elite-action-chip">Checklist</button>
           <button onClick={() => memberRef.current?.focus()} className="elite-action-chip">Membros</button>
+        </div>
+
+        {/* ── Creation info ── */}
+        <div className="flex items-center gap-3 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#596773' }}>
+            <User size={12} />
+            <span>Criado por <strong style={{ color: '#8c9bab' }}>{ticket.assignee || 'Desconhecido'}</strong></span>
+          </div>
+          <span style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.08)' }} />
+          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#596773' }}>
+            <Calendar size={12} />
+            <span>{new Date(ticket.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })} às {new Date(ticket.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
         </div>
 
         {/* ── Tri-column body ── */}
@@ -606,10 +627,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
         {/* ── Footer with glass effect ── */}
         <div className="elite-modal__footer">
-          <button onClick={handleSaveAll} disabled={!hasPendingChanges() || saving}
+          <button onClick={handleSaveAll} disabled={(!hasPendingChanges() && !saveSuccess) || saving}
             className="px-4 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
-            style={{ background: 'rgba(96,165,250,0.18)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.24)' }}>
-            {saving ? 'Salvando...' : 'Salvar'}
+            style={saveSuccess
+              ? { background: 'rgba(75,206,151,0.18)', color: '#4bce97', border: '1px solid rgba(75,206,151,0.24)' }
+              : { background: 'rgba(96,165,250,0.18)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.24)' }
+            }>
+            {saving ? 'Salvando...' : saveSuccess ? <><Check size={12} className="inline mr-1" />Salvo!</> : 'Salvar'}
           </button>
           <button onClick={handleDelete}
             className="px-4 py-2 rounded-lg text-xs font-semibold transition-colors"

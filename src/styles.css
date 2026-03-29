@@ -195,7 +195,7 @@ body {
   flex-direction: column;
   background: #101204;
   border-radius: 12px;
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - 140px);
   padding-bottom: 0;
   border: none;
   box-shadow: none;
@@ -604,7 +604,8 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 16px;
+  padding: 4px 16px;
+  height: 48px;
   border-radius: 12px 12px 0 0;
   background: #1d2125;
   border: 1px solid rgba(166,197,226,0.12);
@@ -617,8 +618,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 8px 18px 6px;
+  gap: 1px;
+  padding: 6px 18px 8px;
   border-radius: 8px;
   border: none;
   background: none;
@@ -629,12 +630,13 @@ body {
 .bottom-nav__item:hover {
   background: rgba(255, 255, 255, 0.06);
 }
-.bottom-nav__indicator {
+.bottom-nav__item--active::after {
+  content: '';
   position: absolute;
   bottom: 2px;
   left: 50%;
   transform: translateX(-50%);
-  width: 20px;
+  width: 24px;
   height: 2px;
   border-radius: 1px;
   background: #579dff;
