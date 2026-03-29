@@ -10,7 +10,7 @@ import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
-import { supabase, updateTicket, insertActivityLog } from '../lib/supabase'
+import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog } from '../lib/supabase'
 import { useKanban, COLUMNS } from '../hooks/useKanban'
 import type { Ticket, TicketStatus } from '../lib/supabase'
 
@@ -476,7 +476,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     flexDirection: 'column',
     flex: 1,
     minHeight: 0,
-    background: '#010d1a',
+    background: '#1D2125',
   }
 
   const boardSurfaceStyle: React.CSSProperties = wallpaper
@@ -485,7 +485,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         : wallpaper.startsWith('#') || wallpaper.startsWith('rgb') || wallpaper.startsWith('hsl')
             ? { backgroundColor: wallpaper }
             : { background: wallpaper })
-    : { backgroundColor: '#010409' }
+    : { backgroundColor: '#1D2125' }
 
   return (
     <div className="board-wrapper" style={boardWrapperStyle}>

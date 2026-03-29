@@ -286,9 +286,9 @@ body {
   display: flex;
   height: 100vh;
   overflow: hidden;
-  background: #010409;
-  padding: var(--float-gap);
-  gap: var(--float-gap);
+  background: #1D2125;
+  padding: 0;
+  gap: 0;
 }
 .app-layout__main {
   flex: 1;
@@ -297,7 +297,7 @@ body {
   min-width: 0;
   min-height: 0;
   position: relative;
-  gap: var(--float-gap);
+  gap: 0;
   overflow: hidden;
 }
 
@@ -349,14 +349,17 @@ body {
   height: 48px;
   padding: 0 16px;
   z-index: 40;
-  background: #1D2125;
+  background: rgba(29, 33, 37, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: none;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
   border-radius: 0;
   box-shadow: none;
   gap: 8px;
   flex-shrink: 0;
   min-width: 0;
+  width: 100%;
   overflow: visible;
   transition: background 0.2s ease;
 }
@@ -551,14 +554,12 @@ body {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  padding: 8px;
+  padding: 12px 8px 8px;
   overflow: hidden;
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  box-shadow: var(--float-shadow);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   position: relative;
   isolation: isolate;
   background-clip: padding-box;
@@ -571,6 +572,7 @@ body {
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-gutter: stable;
+  padding-top: 4px;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   position: relative;
@@ -1108,7 +1110,7 @@ body {
   }
 
   .app-layout {
-    padding: var(--float-gap);
+    padding: 0;
   }
 
   .board-header {
@@ -1158,7 +1160,7 @@ body {
   }
 
   .board-main {
-    padding: 12px;
+    padding: 8px 6px;
   }
 
   .board-columns {
