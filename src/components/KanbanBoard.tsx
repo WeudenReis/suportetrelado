@@ -776,7 +776,12 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                                       {activeTicket && overCardId === ticket.id && activeTicket.id !== ticket.id && (
                                         <div className="dnd-drop-indicator" />
                                       )}
-                                      <Card ticket={ticket} onCardClick={handleCardClick} />
+                                      <Card
+                                        card={ticket}
+                                        onClick={() => handleCardClick(ticket)}
+                                        onUpdate={handleTicketUpdate}
+                                        onArchive={(id) => setTickets(prev => prev.filter(t => t.id !== id))}
+                                      />
                                     </div>
                                   ))}
                               </SortableContext>

@@ -71,6 +71,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
   const { data, error } = await supabase
     .from('tickets')
     .select('*')
+    .eq('is_archived', false)
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []) as Ticket[]

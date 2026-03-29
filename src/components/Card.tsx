@@ -1,148 +1,215 @@
-import { memo } from 'react'
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { Clock, AlertCircle, AlignLeft, User, Calendar, Pencil } from 'lucide-react'
-import { clsx } from 'clsx'
-import type { Ticket } from '../lib/supabase'
+
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Archive, Pencil, Check } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import styles from './Card.module.css';
+import type { Card as CardType } from '@/types';
 
 interface CardProps {
-  ticket: Ticket
-  isDragging?: boolean
-  onCardClick?: (ticket: Ticket) => void
-  onEditCover?: (e: React.MouseEvent) => void
+  card: CardType;
+  onClick: () => void;
+  onUpdate: (updated: CardType) => void;
+  onArchive: (cardId: string) => void;
 }
 
-const TWO_HOURS = 2 * 60 * 60 * 1000
+function Card({ card, onClick, onUpdate, onArchive }: CardProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(card.title);
+  const [isHovered, setIsHovered] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-function timeAgo(updatedAt: string) {
-  const ms = Date.now() - new Date(updatedAt).getTime()
-  const mins = Math.floor(ms / 60000)
-  const hrs = Math.floor(mins / 60)
-  const days = Math.floor(hrs / 24)
-  const isStale = ms > TWO_HOURS
-  const label = days > 0 ? `${days}d` : hrs > 0 ? `${hrs}h` : mins > 0 ? `${mins}min` : 'agora'
-  return { label, isStale }
-}
+  // Focar no input ao entrar em modo de edição
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
 
-const PRIO_COLOR: Record<string, string> = { high: '#ef5c48', medium: '#f5a623', low: '#4bce97' }
-const PRIO_LABEL: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
+  // ── Toggle completo/incompleto ──────────────────────────
+  const handleToggleComplete = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();   // não abre o modal
 
-function Card({ ticket, isDragging = false, onCardClick, onEditCover }: CardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging: sorting } = useSortable({
-    id: ticket.id,
-    data: { type: 'ticket', ticket },
-  })
-  const style = { transform: CSS.Transform.toString(transform), transition }
-  const { label: time, isStale } = timeAgo(ticket.updated_at)
+    const newValue = !card.is_completed;
 
-  const createdDate = new Date(ticket.created_at)
-  const createdLabel = createdDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + ', ' + createdDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    // Atualizar estado local imediatamente (otimista)
+    onUpdate({ ...card, is_completed: newValue });
+
+    // Persistir no banco
+    const { error } = await supabase
+      .from('tickets')
+      .update({
+        is_completed: newValue,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', card.id);
+
+    if (error) {
+      console.error('Erro ao atualizar status:', error);
+      // Reverter se falhar
+      onUpdate({ ...card, is_completed: card.is_completed });
+    }
+  }, [card, onUpdate]);
+
+  // ── Abrir edição inline ─────────────────────────────────
+  const handleEditClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditTitle(card.title);
+    setIsEditing(true);
+  }, [card.title]);
+
+  // ── Salvar título editado ───────────────────────────────
+  const handleSaveTitle = useCallback(async () => {
+    const trimmed = editTitle.trim();
+    if (!trimmed || trimmed === card.title) {
+      setIsEditing(false);
+      setEditTitle(card.title);
+      return;
+    }
+
+    setIsEditing(false);
+    onUpdate({ ...card, title: trimmed });
+
+    const { error } = await supabase
+      .from('tickets')
+      .update({ title: trimmed, updated_at: new Date().toISOString() })
+      .eq('id', card.id);
+
+    if (error) {
+      console.error('Erro ao salvar título:', error);
+      onUpdate({ ...card, title: card.title }); // reverter
+    }
+  }, [editTitle, card, onUpdate]);
+
+  // Enter salva, Escape cancela
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveTitle();
+    }
+    if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditTitle(card.title);
+    }
+  };
+
+  // ── Arquivar ────────────────────────────────────────────
+  const handleArchive = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    onArchive(card.id);   // remover do estado local imediatamente
+
+    const { error } = await supabase
+      .from('tickets')
+      .update({ is_archived: true, updated_at: new Date().toISOString() })
+      .eq('id', card.id);
+
+    if (error) {
+      console.error('Erro ao arquivar:', error);
+      // Se falhar, o card deveria voltar — depende de como onArchive é implementado
+    }
+  }, [card.id, onArchive]);
+
+  // ── Clique no card (abre modal apenas se não estiver editando) ──
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (isEditing) return;
+    onClick();
+  };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <div
-        onClick={e => { if (!sorting && onCardClick) { e.stopPropagation(); onCardClick(ticket) } }}
-        className={clsx('trello-card group', isStale && 'trello-card--stale', isDragging && 'trello-card--drag')}
-        style={{ overflow: 'hidden', position: 'relative', marginBottom: 8 }}
-      >
-        {/* ===== CAPA ===== */}
-        {ticket.cover_image_url && (
-          <div className="card-cover" style={{ position: 'relative', width: '100%', height: 160, background: '#1d2125', flexShrink: 0 }}>
-            <img
-              src={ticket.cover_image_url}
-              alt=""
-              className="card-cover-img"
-              loading="lazy"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }}
-            />
-            {/* Botão editar capa — para ao clicar para não abrir o modal */}
-            <button
-              className="card-cover-edit-btn"
-              onClick={e => { e.stopPropagation(); onEditCover?.(e) }}
-              title="Editar capa"
-              type="button"
-              style={{ position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 4, background: 'rgba(23,43,77,0.75)', border: 'none', color: '#b6c2cf', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.15s, background 0.15s', backdropFilter: 'blur(4px)' }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-              onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
-            >
-              <Pencil size={13} />
-            </button>
-          </div>
+    <div
+      className={`${styles.card} ${card.is_completed ? styles.cardCompleted : ''}`}
+      onClick={handleCardClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* ── CAPA ─────────────────────────── */}
+      {card.cover_image_url && (
+        <div className={styles.cover}>
+          <img src={card.cover_image_url} alt="" className={styles.coverImg} loading="lazy" />
+        </div>
+      )}
+
+      {/* ── CORPO ────────────────────────── */}
+      <div className={styles.body}>
+
+        {/* Tag de prioridade */}
+        {card.priority && !isEditing && (
+          <span className={`${styles.tag} ${styles[card.priority.toLowerCase().replace('é','e')]}`}>
+            {card.priority}
+          </span>
         )}
 
-        {/* ===== CORPO ===== */}
-        <div className="flex flex-wrap gap-1 mb-2">
-          <span
-            className="h-4 px-2 rounded-sm text-[10px] font-bold leading-[16px] cursor-pointer hover:h-5 hover:leading-[20px] transition-all inline-flex items-center text-white"
-            style={{ background: PRIO_COLOR[ticket.priority] }}
-            title={`Prioridade: ${PRIO_LABEL[ticket.priority]}`}
+        {/* ── LINHA DO TÍTULO + AÇÕES ─────── */}
+        <div className={styles.titleRow}>
+
+          {/* Botão de check (esquerda) — só no hover ou se concluído */}
+          <button
+            className={`${styles.checkBtn} ${card.is_completed ? styles.checkBtnDone : ''} ${isHovered || card.is_completed ? styles.checkBtnVisible : ''}`}
+            onClick={handleToggleComplete}
+            title={card.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
+            type="button"
           >
-            {PRIO_LABEL[ticket.priority]}
-          </span>
-          {ticket.tags?.slice(0, 4).map((tag, i) => (
-            <span
-              key={tag}
-              className="h-4 px-2 rounded-sm text-[10px] font-bold leading-[16px] cursor-pointer hover:h-5 hover:leading-[20px] transition-all inline-flex items-center text-white"
-              style={{ background: `hsl(${(tag.charCodeAt(0) * 47 + i * 80) % 360}, 55%, 45%)` }}
-              title={tag}
-            >
-              {tag}
-            </span>
-          ))}
+            {card.is_completed && <Check size={11} strokeWidth={3} />}
+          </button>
+
+          {/* Título ou input de edição */}
+          {isEditing ? (
+            <textarea
+              ref={inputRef}
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={handleSaveTitle}
+              className={styles.titleInput}
+              rows={2}
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <p className={`${styles.title} ${card.is_completed ? styles.titleDone : ''}`}>
+              {card.title}
+            </p>
+          )}
+
+          {/* Botões de ação (direita) — só no hover */}
+          {!isEditing && (
+            <div className={`${styles.actions} ${isHovered ? styles.actionsVisible : ''}`}>
+              <button
+                className={styles.actionBtn}
+                onClick={handleArchive}
+                title="Arquivar cartão"
+                type="button"
+              >
+                <Archive size={13} />
+              </button>
+              <button
+                className={styles.actionBtn}
+                onClick={handleEditClick}
+                title="Editar título"
+                type="button"
+              >
+                <Pencil size={13} />
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Title */}
-        <p className="text-[13.5px] font-medium leading-snug line-clamp-3" style={{ color: '#b6c2cf' }}>
-          {ticket.title}
-        </p>
-
-        {/* Description preview */}
-        {ticket.description && (
-          <p className="text-xs leading-relaxed line-clamp-2 mt-1" style={{ color: 'var(--text-muted)' }}>
-            {ticket.description}
+        {/* Descrição resumida */}
+        {card.description && !isEditing && (
+          <p className={styles.description}>
+            {card.description.slice(0, 80)}{card.description.length > 80 ? '…' : ''}
           </p>
         )}
 
-        {/* Badges row */}
-        <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{ color: '#8c9bab' }}>
-          {/* Time since update */}
-          <span className={clsx('inline-flex items-center gap-1 rounded px-1 py-0.5', isStale && 'text-red-400')}>
-            {isStale ? <AlertCircle size={12} className="animate-pulse" /> : <Clock size={12} />}
-            {time}
-          </span>
-
-          {/* Creation date */}
-          <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 opacity-70">
-            <Calendar size={10} />
-            {createdLabel}
-          </span>
-
-          {/* Description indicator */}
-          {ticket.description && <AlignLeft size={12} className="opacity-50" />}
-
-          <span className="flex-1" />
-
-          {/* Assignee */}
-          {ticket.assignee ? (
-            <span
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0"
-              style={{ background: `hsl(${ticket.assignee.charCodeAt(0) * 37 % 360}, 50%, 42%)` }}
-              title={ticket.assignee}
-            >
-              {ticket.assignee.charAt(0).toUpperCase()}
-            </span>
-          ) : (
-            <span
-              className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity shrink-0"
-              style={{ border: '1.5px dashed var(--text-muted)' }}
-            >
-              <User size={10} />
-            </span>
-          )}
-        </div>
+        {/* Footer */}
+        {!isEditing && (
+          <div className={styles.footer}>
+            {/* badges de data, anexos, etc */}
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }
 
-export default memo(Card)
+export default Card;
