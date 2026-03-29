@@ -27,7 +27,7 @@ export default function BottomNav({ active, onChange }: BottomNavProps) {
               key={tab.id}
               onClick={() => onChange(tab.id)}
               className="bottom-nav__item"
-              style={{ color: isActive ? '#60a5fa' : 'var(--text-muted)' }}
+              style={{ color: isActive ? '#579dff' : '#8c9bab' }}
             >
               <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
               <span className="text-[11px] font-medium mt-0.5">{tab.label}</span>

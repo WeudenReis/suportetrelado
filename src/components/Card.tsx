@@ -23,7 +23,7 @@ function timeAgo(updatedAt: string) {
   return { label, isStale }
 }
 
-const PRIO_COLOR: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' }
+const PRIO_COLOR: Record<string, string> = { high: '#ef5c48', medium: '#f5a623', low: '#4bce97' }
 const PRIO_LABEL: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
 
 function Card({ ticket, isDragging = false, onCardClick }: CardProps) {
@@ -72,7 +72,7 @@ function Card({ ticket, isDragging = false, onCardClick }: CardProps) {
         </div>
 
         {/* Title */}
-        <p className="text-[13.5px] font-medium leading-snug line-clamp-3" style={{ color: 'var(--text-primary)' }}>
+        <p className="text-[13.5px] font-medium leading-snug line-clamp-3" style={{ color: '#b6c2cf' }}>
           {ticket.title}
         </p>
 
@@ -84,7 +84,7 @@ function Card({ ticket, isDragging = false, onCardClick }: CardProps) {
         )}
 
         {/* Badges row */}
-        <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{ color: '#8c9bab' }}>
           {/* Time since update */}
           <span className={clsx('inline-flex items-center gap-1 rounded px-1 py-0.5', isStale && 'text-red-400')}>
             {isStale ? <AlertCircle size={12} className="animate-pulse" /> : <Clock size={12} />}

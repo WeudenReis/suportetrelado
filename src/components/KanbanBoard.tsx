@@ -476,7 +476,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     flexDirection: 'column',
     flex: 1,
     minHeight: 0,
-    background: '#1D2125',
+    background: '#1d2125',
   }
 
   const boardSurfaceStyle: React.CSSProperties = wallpaper
@@ -485,7 +485,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         : wallpaper.startsWith('#') || wallpaper.startsWith('rgb') || wallpaper.startsWith('hsl')
             ? { backgroundColor: wallpaper }
             : { background: wallpaper })
-    : { backgroundColor: '#1D2125' }
+    : { background: 'linear-gradient(135deg, #0c1317, #1a2a35)' }
 
   return (
     <div className="board-wrapper" style={boardWrapperStyle}>
@@ -494,7 +494,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
         {toast && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-xl text-sm font-semibold shadow-xl"
-            style={{ background: toast.type === 'ok' ? '#3b82f6' : '#ef4444', color: '#fff' }}>
+            style={{ background: toast.type === 'ok' ? '#579dff' : '#ef5c48', color: '#fff' }}>
             {toast.msg}
           </motion.div>
         )}
@@ -612,7 +612,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   exit={{ opacity: 0, y: 6 }}
                   transition={{ duration: 0.14 }}
                   className="absolute right-0 top-[120%] z-50 min-w-[220px] rounded-lg p-2"
-                  style={{ background: '#282E33', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
+                  style={{ background: '#282E33', border: '1px solid rgba(166,197,226,0.12)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
                 >
                   <div className="text-[10px] font-bold uppercase tracking-wide px-1 pb-1" style={{ color: '#9FADBC' }}>
                     Usuarios online ({visibleUsers.length})
@@ -712,7 +712,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                                 }}
                               />
                               <div className="flex items-center gap-1.5 mt-1.5">
-                                <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#3b82f6' }}>Adicionar</button>
+                                <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#579dff' }}>Adicionar</button>
                                 <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
                               </div>
                             </div>
@@ -741,7 +741,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   onKeyDown={e => {
                     if (e.key === 'Enter' && newListName.trim()) {
                       const id = newListName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-                      const accent = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'][customColumns.length % 5]
+                      const accent = ['#579dff', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'][customColumns.length % 5]
                       setCustomColumns(prev => [...prev, { id: `custom_${id}_${Date.now()}`, label: newListName.trim(), accent }])
                       setNewListName('')
                       setAddingList(false)
@@ -755,14 +755,14 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                     onClick={() => {
                       if (!newListName.trim()) return
                       const id = newListName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-                      const accent = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'][customColumns.length % 5]
+                      const accent = ['#579dff', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'][customColumns.length % 5]
                       setCustomColumns(prev => [...prev, { id: `custom_${id}_${Date.now()}`, label: newListName.trim(), accent }])
                       setNewListName('')
                       setAddingList(false)
                       showToast('Lista adicionada!', 'ok')
                     }}
                     className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white"
-                    style={{ background: '#3b82f6' }}
+                    style={{ background: '#579dff' }}
                   >Adicionar lista</button>
                   <button onClick={() => { setAddingList(false); setNewListName('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
                 </div>
@@ -806,7 +806,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
               className="glass-card rounded-2xl w-full max-w-md overflow-hidden"
             >
               {/* Modal header */}
-              <div className="px-6 pt-5 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15,23,42,0.40)' }}>
+              <div className="px-6 pt-5 pb-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)', background: '#1d2125' }}>
                 <h2 className="font-bold text-lg text-white">Novo Ticket</h2>
                 <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-slate-400 hover:text-white"><X size={16} /></button>
               </div>
@@ -814,24 +814,24 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
               {/* Modal body */}
               <div className="px-6 py-5 space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto modal-scroll">
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Título *</label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9fadbc' }}>Título *</label>
                   <input autoFocus placeholder="Título do ticket..." value={newTicket.title} onChange={e => setNewTicket(p => ({ ...p, title: e.target.value }))} className="instance-modal__input" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Cliente</label>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9fadbc' }}>Cliente</label>
                     <input placeholder="Nome do cliente..." value={newTicket.cliente} onChange={e => setNewTicket(p => ({ ...p, cliente: e.target.value }))} className="instance-modal__input" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Código da Instância</label>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9fadbc' }}>Código da Instância</label>
                     <input placeholder="Ex: inst-001..." value={newTicket.instancia} onChange={e => setNewTicket(p => ({ ...p, instancia: e.target.value }))} className="instance-modal__input" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Prioridade</label>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9fadbc' }}>Prioridade</label>
                     <select value={newTicket.priority} onChange={e => setNewTicket(p => ({ ...p, priority: e.target.value as Ticket['priority'] }))} className="instance-modal__input">
                       <option value="low">Baixa</option>
                       <option value="medium">Média</option>
@@ -839,7 +839,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Coluna</label>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9fadbc' }}>Coluna</label>
                     <select value={newTicket.status} onChange={e => setNewTicket(p => ({ ...p, status: e.target.value as TicketStatus }))} className="instance-modal__input">
                       {allColumns.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                     </select>
@@ -847,15 +847,15 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#94a3b8' }}>Descrição</label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9fadbc' }}>Descrição</label>
                   <textarea placeholder="Descreva o problema em detalhes..." value={newTicket.description} onChange={e => setNewTicket(p => ({ ...p, description: e.target.value }))} rows={3} className="instance-modal__input resize-none" />
                 </div>
               </div>
 
               {/* Modal footer */}
-              <div className="px-6 py-4 flex gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15,23,42,0.30)' }}>
+              <div className="px-6 py-4 flex gap-3" style={{ borderTop: '1px solid var(--border-subtle)', background: '#1d2125' }}>
                 <button onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancelar</button>
-                <button onClick={handleAddTicket} disabled={!newTicket.title.trim()} className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-40" style={{ background: '#3b82f6' }}>
+                <button onClick={handleAddTicket} disabled={!newTicket.title.trim()} className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-40" style={{ background: '#579dff' }}>
                   <Plus size={15} className="inline mr-1" />Criar Ticket
                 </button>
               </div>
@@ -871,7 +871,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             <motion.div initial={{ x: 320 }} animate={{ x: 0 }} exit={{ x: 320 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="w-80 h-full overflow-y-auto p-6" style={{ background: theme.bgSecondary, borderLeft: '1px solid ' + theme.borderSubtle }}>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-bold text-lg" style={{ color: theme.textPrimary, fontFamily: "'Space Grotesk', sans-serif" }}>Aparência</h2>
+                <h2 className="font-bold text-lg" style={{ color: theme.textPrimary }}>Aparência</h2>
                 <button onClick={() => setShowSettings(false)} className="p-1.5 rounded-lg transition-colors" style={{ color: theme.textMuted }}>
                   <X size={16} />
                 </button>
@@ -927,7 +927,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                 <button
                   onClick={() => wallpaperFileInputRef.current?.click()}
                   className="w-full py-2.5 rounded-lg text-xs font-semibold transition-colors mb-2"
-                  style={{ background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa' }}
+                  style={{ background: 'rgba(87,157,255,0.10)', border: '1px solid rgba(87,157,255,0.2)', color: '#579dff' }}
                 >
                   Importar imagem do computador (quadro)
                 </button>

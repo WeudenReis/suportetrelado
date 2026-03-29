@@ -40,7 +40,7 @@ function timeAgo(dateStr: string): string {
   return 'ha pouco'
 }
 
-const avatarPalette = ['#3b82f6', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#ec4899']
+const avatarPalette = ['#579dff', '#6366f1', '#f5a623', '#ef5c48', '#06b6d4', '#8b5cf6', '#ec4899']
 function avatarColor(name: string) {
   return avatarPalette[name.charCodeAt(0) % avatarPalette.length]
 }
@@ -306,7 +306,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           <div className="relative w-full h-[100px] overflow-hidden flex-shrink-0" style={{ background: '#010d1a' }}>
             <img src={coverImage} alt="" className="w-full h-full object-cover" />
             <div className="absolute bottom-2 right-2 flex gap-1">
-              <button onClick={() => coverInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#c7d2fe' }}>Alterar capa</button>
+              <button onClick={() => coverInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#b6c2cf' }}>Alterar capa</button>
               <button onClick={handleRemoveCover} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#f87171' }}>Remover</button>
             </div>
           </div>
@@ -316,15 +316,15 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         {/* ── Top bar ── */}
         <div className="elite-modal__topbar">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <CreditCard size={18} style={{ color: '#6b7fa3' }} />
+            <CreditCard size={18} style={{ color: '#596773' }} />
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
               onBlur={handleTitleBlur}
               className="bg-transparent border-none outline-none text-base leading-tight font-bold w-full"
-              style={{ color: '#e0e7ff' }}
+              style={{ color: '#b6c2cf' }}
             />
-            <span className="text-xs whitespace-nowrap" style={{ color: '#6b7fa3' }}>
+            <span className="text-xs whitespace-nowrap" style={{ color: '#596773' }}>
               {STATUS_MAP[status]}
             </span>
           </div>
@@ -340,22 +340,22 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`)
               }}
               className="rounded-md px-2 py-1 text-xs font-semibold border cursor-pointer"
-              style={{ background: 'rgba(255,255,255,0.05)', color: '#c7d2fe', borderColor: 'rgba(255,255,255,0.12)' }}
+              style={{ background: 'rgba(255,255,255,0.05)', color: '#b6c2cf', borderColor: 'rgba(166,197,226,0.16)' }}
             >
               {(Object.entries(STATUS_MAP) as [TicketStatus, string][]).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>
-            <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#6b7fa3' }} title="Adicionar imagem ou video"><ImageIcon size={15} /></button>
-            <button onClick={(e) => { e.stopPropagation(); setShowMoreMenu(prev => !prev) }} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#6b7fa3' }} title="Mais opcoes"><MoreHorizontal size={16} /></button>
-            <button onClick={handleClose} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#6b7fa3' }}><X size={18} /></button>
+            <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Adicionar imagem ou video"><ImageIcon size={15} /></button>
+            <button onClick={(e) => { e.stopPropagation(); setShowMoreMenu(prev => !prev) }} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Mais opcoes"><MoreHorizontal size={16} /></button>
+            <button onClick={handleClose} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }}><X size={18} /></button>
 
             {showMoreMenu && (
-              <div className="absolute right-10 top-10 w-44 rounded-lg overflow-hidden z-20" style={{ background: 'rgba(0,0,50,0.95)', border: '1px solid rgba(255,255,255,0.10)', boxShadow: '0 16px 34px rgba(0,0,30,0.5)' }} onClick={(e) => e.stopPropagation()}>
-                <button onClick={async () => { setShowMoreMenu(false); await handleShare() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#c7d2fe' }}>Compartilhar</button>
-                <button onClick={async () => { setShowMoreMenu(false); await handleSaveAll() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#c7d2fe' }}>Salvar agora</button>
+              <div className="absolute right-10 top-10 w-44 rounded-lg overflow-hidden z-20" style={{ background: '#282e33', border: '1px solid rgba(166,197,226,0.16)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }} onClick={(e) => e.stopPropagation()}>
+                <button onClick={async () => { setShowMoreMenu(false); await handleShare() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#b6c2cf' }}>Compartilhar</button>
+                <button onClick={async () => { setShowMoreMenu(false); await handleSaveAll() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#b6c2cf' }}>Salvar agora</button>
                 <button onClick={async () => { setShowMoreMenu(false); await handleDelete() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-red-500/20 transition-colors" style={{ color: '#f87171' }}>Excluir cartao</button>
-                <button onClick={() => { setShowMoreMenu(false); handleClose() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#6b7fa3' }}>Fechar</button>
+                <button onClick={() => { setShowMoreMenu(false); handleClose() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#596773' }}>Fechar</button>
               </div>
             )}
           </div>
@@ -365,8 +365,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         <div className="flex items-center gap-1.5 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <button onClick={() => fileInputRef.current?.click()} className="elite-action-chip">+ Adicionar</button>
           {!coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
-          <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(96,165,250,0.5)', color: '#60a5fa' } : {}}>Etiquetas</button>
-          <button onClick={() => setShowDatePicker(p => !p)} className="elite-action-chip" style={showDatePicker ? { borderColor: 'rgba(96,165,250,0.5)', color: '#60a5fa' } : {}}>Datas</button>
+          <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
+          <button onClick={() => setShowDatePicker(p => !p)} className="elite-action-chip" style={showDatePicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Datas</button>
           <button onClick={() => { const item = prompt('Item do checklist:'); if (item?.trim()) { setObservacao(prev => prev ? prev + '\n☐ ' + item.trim() : '☐ ' + item.trim()); save({ observacao: observacao ? observacao + '\n☐ ' + item.trim() : '☐ ' + item.trim() }) } }} className="elite-action-chip">Checklist</button>
           <button onClick={() => memberRef.current?.focus()} className="elite-action-chip">Membros</button>
         </div>
@@ -377,8 +377,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           <div className="elite-modal__col-left">
             {/* Labels picker */}
             {showLabelPicker && (
-              <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: 'rgba(0,0,40,0.50)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="text-xs font-semibold mb-1" style={{ color: '#6b7fa3' }}>Etiquetas</div>
+              <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
+                <div className="text-xs font-semibold mb-1" style={{ color: '#596773' }}>Etiquetas</div>
                 <div className="flex flex-wrap gap-1.5">
                   {tags.map((tag, i) => (
                     <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-white cursor-pointer hover:opacity-80"
@@ -392,17 +392,17 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   <input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Nova etiqueta..." className="modal-field flex-1 text-xs"
                     onKeyDown={e => { if (e.key === 'Enter' && newTag.trim()) { const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next }) } }} />
                   <button onClick={() => { if (newTag.trim()) { const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next }) } }}
-                    className="px-3 py-1 rounded-md text-xs font-semibold" style={{ background: 'rgba(96,165,250,0.18)', color: '#60a5fa' }}>Adicionar</button>
+                    className="px-3 py-1 rounded-md text-xs font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Adicionar</button>
                 </div>
               </div>
             )}
 
             {/* Date picker */}
             {showDatePicker && (
-              <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: 'rgba(0,0,40,0.50)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="text-xs font-semibold mb-1" style={{ color: '#6b7fa3' }}>Data de entrega</div>
+              <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
+                <div className="text-xs font-semibold mb-1" style={{ color: '#596773' }}>Data de entrega</div>
                 <input type="date" value={dueDate} onChange={e => { setDueDate(e.target.value); save({ due_date: e.target.value || null } as any) }} className="modal-field text-sm" />
-                {dueDate && <div className="text-xs" style={{ color: '#6b7fa3' }}>Entrega: {new Date(dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>}
+                {dueDate && <div className="text-xs" style={{ color: '#596773' }}>Entrega: {new Date(dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>}
               </div>
             )}
 
@@ -433,40 +433,40 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
             {/* Attachments */}
             <section className="mt-3">
-              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#e0e7ff' }}>
-                <Paperclip size={14} style={{ color: '#6b7fa3' }} />
+              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
+                <Paperclip size={14} style={{ color: '#596773' }} />
                 Anexos
               </div>
               <div className="space-y-2">
                 {attachments.length > 0 && (
                   <div className="grid grid-cols-2 gap-2">
                     {attachments.map(att => (
-                      <div key={att.id} className="group relative rounded-lg overflow-hidden" style={{ background: 'rgba(0,0,40,0.50)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div key={att.id} className="group relative rounded-lg overflow-hidden" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
                         {att.file_type === 'image' ? (
                           <a href={att.file_url} target="_blank" rel="noreferrer"><img src={att.file_url} alt={att.file_name} className="w-full h-16 object-cover" /></a>
                         ) : att.file_type === 'video' ? (
-                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16"><Video size={18} style={{ color: '#6b7fa3' }} /></a>
+                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16"><Video size={18} style={{ color: '#596773' }} /></a>
                         ) : (
-                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16"><FileText size={18} style={{ color: '#6b7fa3' }} /></a>
+                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16"><FileText size={18} style={{ color: '#596773' }} /></a>
                         )}
                         <div className="px-2 py-1 flex items-center justify-between">
-                          <span className="text-[9px] truncate" style={{ color: '#6b7fa3' }}>{att.file_name}</span>
+                          <span className="text-[9px] truncate" style={{ color: '#596773' }}>{att.file_name}</span>
                           <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <a href={att.file_url} download target="_blank" rel="noreferrer" className="p-0.5 rounded hover:bg-white/10"><Download size={10} style={{ color: '#6b7fa3' }} /></a>
+                            <a href={att.file_url} download target="_blank" rel="noreferrer" className="p-0.5 rounded hover:bg-white/10"><Download size={10} style={{ color: '#596773' }} /></a>
                             <button onClick={() => handleDeleteAttachment(att)} className="p-0.5 rounded hover:bg-red-500/20"><Trash2 size={10} className="text-red-400" /></button>
                           </div>
                         </div>
                       </div>
                     ))}
                     {uploading && (
-                      <div className="flex items-center justify-center h-16 rounded-lg" style={{ background: 'rgba(0,0,40,0.50)', border: '2px dashed rgba(255,255,255,0.08)' }}>
-                        <Loader2 size={16} className="animate-spin" style={{ color: '#60a5fa' }} />
+                      <div className="flex items-center justify-center h-16 rounded-lg" style={{ background: '#22272b', border: '2px dashed rgba(166,197,226,0.12)' }}>
+                        <Loader2 size={16} className="animate-spin" style={{ color: '#579dff' }} />
                       </div>
                     )}
                   </div>
                 )}
                 <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.10)', color: '#6b7fa3' }}>
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(166,197,226,0.12)', color: '#596773' }}>
                   <ImageIcon size={14} /> Adicionar Foto ou Video
                 </button>
               </div>
@@ -490,8 +490,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             </div>
 
             <section>
-              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#e0e7ff' }}>
-                <AlignLeft size={14} style={{ color: '#6b7fa3' }} />
+              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
+                <AlignLeft size={14} style={{ color: '#596773' }} />
                 Descricao
               </div>
               <textarea
@@ -499,14 +499,14 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 onChange={e => setDescription(e.target.value)}
                 onBlur={saveOnBlur}
                 className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: 'rgba(0,0,40,0.50)', color: '#c7d2fe', border: '1px solid rgba(255,255,255,0.10)', minHeight: 60 }}
+                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 60 }}
                 placeholder="Adicione uma descricao mais detalhada..."
               />
             </section>
 
             <section className="mt-3">
-              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#e0e7ff' }}>
-                <Paperclip size={14} style={{ color: '#6b7fa3' }} />
+              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
+                <Paperclip size={14} style={{ color: '#596773' }} />
                 Observacao
               </div>
               <textarea
@@ -514,7 +514,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 onChange={e => setObservacao(e.target.value)}
                 onBlur={saveOnBlur}
                 className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: 'rgba(0,0,40,0.50)', color: '#c7d2fe', border: '1px solid rgba(255,255,255,0.10)', minHeight: 80 }}
+                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 80 }}
                 rows={4}
                 placeholder="Notas adicionais"
               />
@@ -524,12 +524,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           {/* ═══ RIGHT: Timeline / Activity ═══ */}
           <div className="elite-modal__col-right">
             <div className="flex items-center justify-between mb-2 flex-shrink-0">
-              <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#e0e7ff' }}>
-                <MessageSquare size={14} style={{ color: '#6b7fa3' }} />
+              <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#b6c2cf' }}>
+                <MessageSquare size={14} style={{ color: '#596773' }} />
                 Timeline
               </div>
               <button onClick={() => setShowActivities(!showActivities)} className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
-                style={{ background: showActivities ? 'rgba(255,255,255,0.06)' : 'rgba(96,165,250,0.12)', color: showActivities ? '#c7d2fe' : '#60a5fa' }}>
+                style={{ background: showActivities ? 'rgba(255,255,255,0.06)' : 'rgba(87,157,255,0.12)', color: showActivities ? '#b6c2cf' : '#579dff' }}>
                 {showActivities ? 'Ocultar' : 'Mostrar'} atividade
               </button>
             </div>
@@ -571,25 +571,25 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   <Avatar name={item.user} size={24} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-semibold" style={{ color: '#c7d2fe' }}>
+                      <span className="text-[12px] font-semibold" style={{ color: '#b6c2cf' }}>
                         {item.user.includes('@') ? item.user.split('@')[0] : item.user}
                       </span>
-                      <span className="text-[10px]" style={{ color: '#4b5e7a' }}>{timeAgo(item.time)}</span>
+                      <span className="text-[10px]" style={{ color: '#596773' }}>{timeAgo(item.time)}</span>
                     </div>
                     {item.type === 'comment' ? (
                       <>
-                        <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: 'rgba(0,0,40,0.50)', color: '#c7d2fe', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.08)' }}>
                           {item.text}
                         </div>
                         {item.user === user && (
-                          <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#4b5e7a' }}>
+                          <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#596773' }}>
                             <Trash2 size={9} /> Excluir
                           </button>
                         )}
                       </>
                     ) : (
-                      <div className="mt-0.5 text-[12px] flex items-center gap-1.5" style={{ color: '#6b7fa3' }}>
-                        <ArrowRight size={10} style={{ color: '#60a5fa' }} />
+                      <div className="mt-0.5 text-[12px] flex items-center gap-1.5" style={{ color: '#596773' }}>
+                        <ArrowRight size={10} style={{ color: '#579dff' }} />
                         {item.text}
                       </div>
                     )}
@@ -597,7 +597,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 </div>
               ))}
               {feedItems.length === 0 && (
-                <div className="text-center py-6 text-[12px]" style={{ color: '#4b5e7a' }}>Nenhuma atividade ainda.</div>
+                <div className="text-center py-6 text-[12px]" style={{ color: '#596773' }}>Nenhuma atividade ainda.</div>
               )}
               <div ref={commentsEndRef} />
             </div>
@@ -636,7 +636,7 @@ function Avatar({ name, size = 32 }: { name: string; size?: number }) {
 function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="relative">
-      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#6b7fa3' }}>
+      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#596773' }}>
         {label}
       </label>
       {children}

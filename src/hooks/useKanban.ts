@@ -4,10 +4,10 @@ import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog }
 import type { Ticket, TicketStatus } from '../lib/supabase'
 
 export const COLUMNS: { id: TicketStatus; label: string; color: string; accent: string }[] = [
-  { id: 'backlog',      label: 'Backlog',           color: 'rgba(209,209,213,0.08)', accent: '#7dd3fc' },
-  { id: 'in_progress',  label: 'Em Progresso',      color: 'rgba(59,130,246,0.10)',  accent: '#60a5fa' },
-  { id: 'waiting_devs', label: 'Aguardando Devs',   color: 'rgba(245,158,11,0.10)',  accent: '#fbbf24' },
-  { id: 'resolved',     label: 'Resolvido',         color: 'rgba(34,197,94,0.10)',   accent: '#4ade80' },
+  { id: 'backlog',      label: 'Backlog',           color: 'rgba(87,157,255,0.08)',  accent: '#579dff' },
+  { id: 'in_progress',  label: 'Em Progresso',      color: 'rgba(87,157,255,0.08)',  accent: '#579dff' },
+  { id: 'waiting_devs', label: 'Aguardando Devs',   color: 'rgba(245,166,35,0.08)',  accent: '#f5a623' },
+  { id: 'resolved',     label: 'Resolvido',         color: 'rgba(75,206,151,0.08)',  accent: '#4bce97' },
 ]
 
 export interface CustomColumn {
