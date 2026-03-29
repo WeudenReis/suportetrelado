@@ -8,7 +8,7 @@ import PlannerView from './components/PlannerView'
 import Sidebar from './components/Sidebar'
 import PlannerSidebar from './components/PlannerSidebar'
 import BottomNav from './components/BottomNav'
-import { fetchTickets } from './lib/supabase'
+import { fetchTickets, upsertUserProfile, updateLastSeen } from './lib/supabase'
 import type { Ticket } from './lib/supabase'
 
 export default function App() {
@@ -32,6 +32,14 @@ export default function App() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Track user profile and update last_seen_at periodically
+  useEffect(() => {
+    if (!user) return
+    upsertUserProfile(user)
+    const interval = setInterval(() => updateLastSeen(user), 2 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [user])
 
   // Load tickets for planner view
   useEffect(() => {

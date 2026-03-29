@@ -4,15 +4,15 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyb
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2 } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
-import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog } from '../lib/supabase'
+import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles } from '../lib/supabase'
 import { useKanban, COLUMNS } from '../hooks/useKanban'
-import type { Ticket, TicketStatus } from '../lib/supabase'
+import type { Ticket, TicketStatus, UserProfile } from '../lib/supabase'
 
 interface KanbanBoardProps { user: string; onLogout: () => void }
 
@@ -52,7 +52,8 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
-  const [showOnlineUsers, setShowOnlineUsers] = useState(false)
+  const [showMembersPanel, setShowMembersPanel] = useState(false)
+  const [allMembers, setAllMembers] = useState<UserProfile[]>([])
   const [wallpaper, setWallpaper] = useState<string>('')
   const [wallpaperInput, setWallpaperInput] = useState('')
   const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
@@ -127,6 +128,18 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
     return () => { supabase.removeChannel(presenceChannel) }
   }, [user])
+
+  // --- Fetch all members ---
+  useEffect(() => {
+    fetchUserProfiles().then(setAllMembers)
+    const ch = supabase
+      .channel('user_profiles_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
+        fetchUserProfiles().then(setAllMembers)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [])
 
   // --- Toast helper ---
   function showToast(msg: string, type: 'ok' | 'err') {
@@ -576,56 +589,132 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
           <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
 
-          <div
-            className="relative flex items-center"
-            onMouseEnter={() => setShowOnlineUsers(true)}
-            onMouseLeave={() => setShowOnlineUsers(false)}
-          >
-            <div className="flex -space-x-1.5 cursor-default">
-              {visibleUsers.slice(0, 5).map((u, i) => (
+          {/* Online avatars (presence-based) */}
+          <div className="flex -space-x-1.5 cursor-default">
+            {visibleUsers.slice(0, 5).map((u, i) => {
+              const member = allMembers.find(m => m.email === u)
+              const color = member?.avatar_color || ['#579DFF', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5]
+              return (
                 <div key={u} className="relative" style={{ zIndex: 10 - i }}>
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                    style={{ background: ['#579DFF', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5], border: '2px solid #1D2125' }}
+                    style={{ background: color, border: '2px solid #1D2125' }}
                     title={u}
                   >
-                    {u.slice(0, 2).toUpperCase()}
+                    {(member?.name || u).slice(0, 2).toUpperCase()}
                   </div>
                   <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2" style={{ background: '#4BCE97', borderColor: '#1D2125' }} />
                 </div>
-              ))}
-              {visibleUsers.length > 5 && (
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
-                  style={{ background: '#22272B', color: '#9FADBC', border: '2px solid #1D2125' }}
-                >
-                  +{visibleUsers.length - 5}
-                </div>
-              )}
-            </div>
+              )
+            })}
+            {visibleUsers.length > 5 && (
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
+                style={{ background: '#22272B', color: '#9FADBC', border: '2px solid #1D2125' }}
+              >
+                +{visibleUsers.length - 5}
+              </div>
+            )}
+          </div>
+
+          {/* Members button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMembersPanel(p => !p)}
+              className="trello-icon-btn"
+              type="button"
+              title="Ver membros"
+            >
+              <Users size={16} />
+            </button>
 
             <AnimatePresence>
-              {showOnlineUsers && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 6 }}
-                  transition={{ duration: 0.14 }}
-                  className="absolute right-0 top-[120%] z-50 min-w-[220px] rounded-lg p-2"
-                  style={{ background: '#282E33', border: '1px solid rgba(166,197,226,0.12)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
-                >
-                  <div className="text-[10px] font-bold uppercase tracking-wide px-1 pb-1" style={{ color: '#9FADBC' }}>
-                    Usuarios online ({visibleUsers.length})
-                  </div>
-                  <div className="max-h-56 overflow-y-auto pr-1 space-y-1">
-                    {visibleUsers.map((u, i) => (
-                      <div key={`${u}-${i}`} className="flex items-center gap-2 px-1.5 py-1 rounded" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                        <span className="w-2 h-2 rounded-full" style={{ background: '#4BCE97' }} />
-                        <span className="text-xs truncate" style={{ color: '#B6C2CF' }} title={u}>{u}</span>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
+              {showMembersPanel && (
+                <>
+                  <div className="fixed inset-0 z-[98]" onClick={() => setShowMembersPanel(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    transition={{ duration: 0.14 }}
+                    className="members-panel"
+                  >
+                    <div className="members-panel__header">
+                      <span className="members-panel__title">Membros</span>
+                      <span className="members-panel__count">{allMembers.length}</span>
+                    </div>
+
+                    {/* Online section */}
+                    {(() => {
+                      const onlineMembers = allMembers.filter(m => onlineUsers.includes(m.email))
+                      const offlineMembers = allMembers.filter(m => !onlineUsers.includes(m.email))
+                      const formatLastSeen = (iso: string) => {
+                        const diff = Date.now() - new Date(iso).getTime()
+                        const mins = Math.floor(diff / 60000)
+                        const hrs = Math.floor(diff / 3600000)
+                        const days = Math.floor(diff / 86400000)
+                        if (mins < 1) return 'agora'
+                        if (mins < 60) return `há ${mins}min`
+                        if (hrs < 24) return `há ${hrs}h`
+                        if (days === 1) return 'ontem'
+                        return `há ${days} dias`
+                      }
+                      return (
+                        <div className="members-panel__body">
+                          {onlineMembers.length > 0 && (
+                            <div className="members-panel__section">
+                              <p className="members-panel__section-label">
+                                <span className="members-panel__dot members-panel__dot--online" />
+                                Online ({onlineMembers.length})
+                              </p>
+                              {onlineMembers.map(m => (
+                                <div key={m.id} className="members-panel__row">
+                                  <div className="members-panel__avatar-wrap">
+                                    <div className="members-panel__avatar" style={{ background: m.avatar_color }}>
+                                      {m.name.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <span className="members-panel__status members-panel__status--online" />
+                                  </div>
+                                  <div className="members-panel__info">
+                                    <span className="members-panel__name">{m.name}</span>
+                                    <span className="members-panel__seen">online</span>
+                                  </div>
+                                  {m.role === 'admin' && <span className="members-panel__badge">Admin</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {offlineMembers.length > 0 && (
+                            <div className="members-panel__section">
+                              <p className="members-panel__section-label">
+                                <span className="members-panel__dot members-panel__dot--offline" />
+                                Offline ({offlineMembers.length})
+                              </p>
+                              {offlineMembers.map(m => (
+                                <div key={m.id} className="members-panel__row">
+                                  <div className="members-panel__avatar-wrap">
+                                    <div className="members-panel__avatar" style={{ background: m.avatar_color, opacity: 0.6 }}>
+                                      {m.name.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <span className="members-panel__status members-panel__status--offline" />
+                                  </div>
+                                  <div className="members-panel__info">
+                                    <span className="members-panel__name" style={{ opacity: 0.7 }}>{m.name}</span>
+                                    <span className="members-panel__seen">{formatLastSeen(m.last_seen_at)}</span>
+                                  </div>
+                                  {m.role === 'admin' && <span className="members-panel__badge">Admin</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {allMembers.length === 0 && (
+                            <div className="text-center py-6 text-[12px]" style={{ color: '#596773' }}>Nenhum membro registrado.</div>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </motion.div>
+                </>
               )}
             </AnimatePresence>
           </div>

@@ -210,3 +210,45 @@ export async function insertActivityLog(cardId: string, userName: string, action
   if (error) { console.warn('Failed to insert activity:', error.message); return null }
   return data as ActivityLog
 }
+
+// --- User Profiles ---
+export interface UserProfile {
+  id: string
+  email: string
+  name: string
+  avatar_color: string
+  role: string
+  last_seen_at: string
+  created_at: string
+}
+
+const AVATAR_COLORS = ['#579dff', '#4bce97', '#f5a623', '#ef5c48', '#a259ff', '#20c997', '#6366f1', '#ec4899']
+
+export async function upsertUserProfile(email: string): Promise<void> {
+  const name = email.includes('@') ? email.split('@')[0] : email
+  const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
+  const { error } = await supabase
+    .from('user_profiles')
+    .upsert(
+      { email, name, avatar_color: color, last_seen_at: new Date().toISOString() },
+      { onConflict: 'email' }
+    )
+  if (error) console.warn('upsertUserProfile:', error.message)
+}
+
+export async function updateLastSeen(email: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq('email', email)
+  if (error) console.warn('updateLastSeen:', error.message)
+}
+
+export async function fetchUserProfiles(): Promise<UserProfile[]> {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .order('last_seen_at', { ascending: false })
+  if (error) { console.warn('user_profiles table may not exist:', error.message); return [] }
+  return (data ?? []) as UserProfile[]
+}
