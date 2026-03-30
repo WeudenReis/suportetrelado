@@ -303,12 +303,23 @@ export async function markAllNotificationsRead(email: string): Promise<void> {
   await supabase.from('notifications').update({ is_read: true }).eq('recipient_email', email).eq('is_read', false)
 }
 
-export function extractMentions(text: string): string[] {
-  const regex = /@([\w.+-]+@[\w.-]+\.\w+)/g
-  const mentions: string[] = []
+export function extractMentionNames(text: string): string[] {
+  const regex = /@(\w+)/g
+  const names: string[] = []
   let match: RegExpExecArray | null
   while ((match = regex.exec(text)) !== null) {
-    mentions.push(match[1])
+    names.push(match[1].toLowerCase())
   }
-  return mentions
+  return [...new Set(names)]
+}
+
+export async function resolveMentionsToEmails(names: string[]): Promise<string[]> {
+  if (names.length === 0) return []
+  const profiles = await fetchUserProfiles()
+  const emails: string[] = []
+  for (const name of names) {
+    const match = profiles.find(p => p.name.toLowerCase() === name || p.email.split('@')[0].toLowerCase() === name)
+    if (match) emails.push(match.email)
+  }
+  return emails
 }

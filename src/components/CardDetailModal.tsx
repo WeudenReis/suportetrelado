@@ -11,7 +11,7 @@ import {
   fetchComments, insertComment, deleteComment,
   fetchAttachments, uploadAttachment, deleteAttachment,
   fetchActivityLog, insertActivityLog,
-  extractMentions, insertNotification
+  extractMentionNames, resolveMentionsToEmails, insertNotification
 } from '../lib/supabase'
 import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog } from '../lib/supabase'
 
@@ -256,18 +256,21 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     setSendingComment(false)
     commentRef.current?.focus()
 
-    // Detect @ mentions and create notifications
-    const mentions = extractMentions(commentText)
-    for (const email of mentions) {
-      if (email.toLowerCase() !== user.toLowerCase()) {
-        insertNotification({
-          recipient_email: email,
-          sender_name: user,
-          type: 'mention',
-          ticket_id: ticket.id,
-          ticket_title: ticket.title,
-          message: `mencionou você: "${commentText.length > 80 ? commentText.slice(0, 80) + '…' : commentText}"`,
-        })
+    // Detect @nome mentions and create notifications
+    const mentionNames = extractMentionNames(commentText)
+    if (mentionNames.length > 0) {
+      const emails = await resolveMentionsToEmails(mentionNames)
+      for (const email of emails) {
+        if (email.toLowerCase() !== user.toLowerCase()) {
+          insertNotification({
+            recipient_email: email,
+            sender_name: user,
+            type: 'mention',
+            ticket_id: ticket.id,
+            ticket_title: ticket.title,
+            message: `mencionou você: "${commentText.length > 80 ? commentText.slice(0, 80) + '…' : commentText}"`,
+          })
+        }
       }
     }
   }
