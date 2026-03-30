@@ -11,7 +11,7 @@ import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
-import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles } from '../lib/supabase'
+import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../hooks/useKanban'
 import type { Ticket, TicketStatus, UserProfile } from '../lib/supabase'
@@ -661,7 +661,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             <span className="trello-board-chip__title">Suporte chatPro</span>
           </button>
 
-          {(import.meta.env.DEV || String(import.meta.env.VITE_SUPABASE_URL || '').includes('vbxzeyweurzrwppdiluo')) && (
+          {isDevEnvironment && (
             <span style={{
               background: '#f97316',
               color: '#fff',

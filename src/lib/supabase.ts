@@ -1,15 +1,21 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Production: VITE_SUPABASE_URL existe (scope Production) → usa prod
-// Preview: VITE_SUPABASE_URL não existe → cai no _DEV (scope All/Preview)
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL_DEV) as string
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY_DEV) as string
+// URLs e chaves fixas — VITE_SUPABASE_URL no Vercel determina o ambiente
+// Production: VITE_SUPABASE_URL = PROD_URL → usa prod
+// Preview/Dev: VITE_SUPABASE_URL ausente ou diferente → usa dev
+const PROD_URL = 'https://qacrxpfoamarslxskcyb.supabase.co'
+const PROD_KEY = 'sb_publishable_Qc_kigRTle0uzM6LAsLHbQ_XuBHWJV3'
+const DEV_URL = 'https://vbxzeyweurzrwppdiluo.supabase.co'
+const DEV_KEY = 'sb_publishable_03VCMlD83Jf9fsXJB97Ccw_QEYH_4Ps'
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('⚠️ VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não configuradas!')
-}
+const envUrl = String((import.meta as any).env?.VITE_SUPABASE_URL || '')
+const isProd = envUrl === PROD_URL
+
+const supabaseUrl = isProd ? PROD_URL : DEV_URL
+const supabaseAnonKey = isProd ? PROD_KEY : DEV_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const isDevEnvironment = !isProd
 
 export type TicketStatus = 'backlog' | 'in_progress' | 'waiting_devs' | 'resolved'
 export type TicketPriority = 'low' | 'medium' | 'high'
