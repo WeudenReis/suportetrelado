@@ -100,6 +100,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [showActivities, setShowActivities] = useState(false)
+  const [showComments, setShowComments] = useState(false)
   const [showLabelPicker, setShowLabelPicker] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [dueDate, setDueDate] = useState(ticket.due_date || '')
@@ -754,15 +755,22 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#b6c2cf' }}>
                 <MessageSquare size={14} style={{ color: '#596773' }} />
                 Timeline
+                {comments.length > 0 && <span className="text-[10px] font-normal" style={{ color: '#596773' }}>({comments.length})</span>}
               </div>
-              <button onClick={() => setShowActivities(!showActivities)} className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
-                style={{ background: showActivities ? 'rgba(255,255,255,0.06)' : 'rgba(87,157,255,0.12)', color: showActivities ? '#b6c2cf' : '#579dff' }}>
-                {showActivities ? 'Ocultar' : 'Mostrar'} atividade
-              </button>
+              <div className="flex gap-1">
+                <button onClick={() => setShowComments(!showComments)} className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
+                  style={{ background: showComments ? 'rgba(87,157,255,0.12)' : 'rgba(255,255,255,0.06)', color: showComments ? '#579dff' : '#b6c2cf' }}>
+                  {showComments ? 'Ocultar' : 'Mostrar'} comentarios
+                </button>
+                <button onClick={() => setShowActivities(!showActivities)} className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
+                  style={{ background: showActivities ? 'rgba(87,157,255,0.12)' : 'rgba(255,255,255,0.06)', color: showActivities ? '#579dff' : '#b6c2cf' }}>
+                  {showActivities ? 'Ocultar' : 'Mostrar'} atividade
+                </button>
+              </div>
             </div>
 
-            {/* Comment input */}
-            <div className="flex gap-2 mb-3 flex-shrink-0">
+            {/* Comment input + feed — only when showComments is true */}
+            {showComments && <div className="flex gap-2 mb-3 flex-shrink-0">
               <Avatar name={user} size={28} />
               <div className="flex-1 relative">
                 <textarea
@@ -835,45 +843,54 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   )}
                 </AnimatePresence>
               </div>
-            </div>
+            </div>}
 
             {/* Feed */}
-            <div className="elite-modal__feed">
-              {feedItems.map(item => (
-                <div key={item.id} className="flex gap-2 group">
-                  <Avatar name={item.user} size={24} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-semibold" style={{ color: '#b6c2cf' }}>
-                        {item.user.includes('@') ? item.user.split('@')[0] : item.user}
-                      </span>
-                      <span className="text-[10px]" style={{ color: '#596773' }}>{timeAgo(item.time)}</span>
-                    </div>
-                    {item.type === 'comment' ? (
-                      <>
-                        <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.08)' }}>
-                          {renderCommentText(item.text)}
-                        </div>
-                        {item.user === user && (
+            {showComments && (
+              <div className="elite-modal__feed">
+                {feedItems.map(item => (
+                  <div key={item.id} className="flex gap-2 group">
+                    <Avatar name={item.user} size={24} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-semibold" style={{ color: '#b6c2cf' }}>
+                          {item.user.includes('@') ? item.user.split('@')[0] : item.user}
+                        </span>
+                        <span className="text-[10px]" style={{ color: '#596773' }}>{timeAgo(item.time)}</span>
+                      </div>
+                      {item.type === 'comment' ? (
+                        <>
+                          <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.08)' }}>
+                            {renderCommentText(item.text)}
+                          </div>
                           <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#596773' }}>
                             <Trash2 size={9} /> Excluir
                           </button>
-                        )}
-                      </>
-                    ) : (
-                      <div className="mt-0.5 text-[12px] flex items-center gap-1.5" style={{ color: '#596773' }}>
-                        <ArrowRight size={10} style={{ color: '#579dff' }} />
-                        {item.text}
-                      </div>
-                    )}
+                        </>
+                      ) : (
+                        <div className="mt-0.5 text-[12px] flex items-center gap-1.5" style={{ color: '#596773' }}>
+                          <ArrowRight size={10} style={{ color: '#579dff' }} />
+                          {item.text}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {feedItems.length === 0 && (
-                <div className="text-center py-6 text-[12px]" style={{ color: '#596773' }}>Nenhuma atividade ainda.</div>
-              )}
-              <div ref={commentsEndRef} />
-            </div>
+                ))}
+                {feedItems.length === 0 && (
+                  <div className="text-center py-6 text-[12px]" style={{ color: '#596773' }}>Nenhuma atividade ainda.</div>
+                )}
+                <div ref={commentsEndRef} />
+              </div>
+            )}
+
+            {!showComments && comments.length > 0 && (
+              <div className="flex-1 flex items-center justify-center">
+                <button onClick={() => setShowComments(true)} className="text-[11px] px-3 py-2 rounded-lg transition-colors hover:bg-white/5" style={{ color: '#596773', border: '1px dashed rgba(166,197,226,0.12)' }}>
+                  <MessageSquare size={14} className="inline mr-1.5" style={{ verticalAlign: '-2px' }} />
+                  {comments.length} comentario{comments.length !== 1 ? 's' : ''}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
