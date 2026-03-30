@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback, forwardRef } from 'react';
 import { Archive, Pencil, Check, Clock, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { parseTag } from './CardDetailModal';
 import styles from './Card.module.css';
 import type { Card as CardType } from '@/types';
 
@@ -189,6 +190,20 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
               ? 'MÉDIA'
               : 'BAIXA'}
           </span>
+        )}
+
+        {/* Etiquetas/tags */}
+        {card.tags && card.tags.length > 0 && !isEditing && (
+          <div className={styles.tagsRow}>
+            {card.tags.map((raw: string) => {
+              const { name, color } = parseTag(raw);
+              return (
+                <span key={raw} className={styles.cardTag} style={{ background: color }}>
+                  {name}
+                </span>
+              );
+            })}
+          </div>
         )}
 
         {/* ── LINHA DO TÍTULO + AÇÕES ─────── */}

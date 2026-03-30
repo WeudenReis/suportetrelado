@@ -191,6 +191,27 @@
 .baixa,
 .low     { background: #4bce97; color: #1d2125; }
 
+.tagsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.cardTag {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .footer {
   display: flex;
   align-items: center;

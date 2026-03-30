@@ -8,5 +8,6 @@ export interface Card {
   is_archived?: boolean;
   created_at?: string;
   assignee?: string | null;
+  tags?: string[] | null;
   // ...outros campos existentes...
 }

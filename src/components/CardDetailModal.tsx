@@ -45,6 +45,18 @@ function avatarColor(name: string) {
   return avatarPalette[name.charCodeAt(0) % avatarPalette.length]
 }
 
+const TAG_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
+
+/** Parse tag stored as "name|#color" or legacy plain "name" */
+export function parseTag(raw: string): { name: string; color: string } {
+  const idx = raw.lastIndexOf('|')
+  if (idx > 0 && raw[idx + 1] === '#') {
+    return { name: raw.slice(0, idx), color: raw.slice(idx + 1) }
+  }
+  // Legacy: auto-generate color
+  return { name: raw, color: `hsl(${(raw.charCodeAt(0) * 47) % 360}, 55%, 45%)` }
+}
+
 export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete }: CardDetailModalProps) {
   const [title, setTitle] = useState(ticket.title)
   const [description, setDescription] = useState(ticket.description || '')
@@ -76,6 +88,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [dueDate, setDueDate] = useState(ticket.due_date || '')
   const [tags, setTags] = useState<string[]>(ticket.tags || [])
   const [newTag, setNewTag] = useState('')
+  const [selectedTagColor, setSelectedTagColor] = useState('#579dff')
   const [coverImage, setCoverImage] = useState(ticket.cover_image_url || '')
   const [uploadingCover, setUploadingCover] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
@@ -112,6 +125,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     setLinkRetaguarda(ticket.link_retaguarda || '')
     setLinkSessao(ticket.link_sessao || '')
     setObservacao(ticket.observacao || '')
+    setTags(ticket.tags || [])
   }, [ticket])
 
   useEffect(() => {
@@ -159,12 +173,15 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     tl.to(overlayRef.current, { opacity: 0, duration: 0.18, ease: 'power2.in' }, '-=0.12')
   }, [onClose])
 
-  const save = useCallback(async (updates: Partial<Ticket>) => {
+  const saveQueue = useRef<Partial<Ticket>[]>([])
+  const processQueue = useCallback(async () => {
     if (savingRef.current) return
+    const next = saveQueue.current.shift()
+    if (!next) return
     savingRef.current = true
     setSaving(true)
     try {
-      const updated = await updateTicket(ticket.id, updates)
+      const updated = await updateTicket(ticket.id, next)
       onUpdate(updated)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
@@ -173,7 +190,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     }
     setSaving(false)
     savingRef.current = false
+    if (saveQueue.current.length > 0) processQueue()
   }, [ticket.id, onUpdate])
+
+  const save = useCallback(async (updates: Partial<Ticket>) => {
+    saveQueue.current.push(updates)
+    processQueue()
+  }, [processQueue])
 
   const handleSaveAll = async () => {
     if (savingRef.current) return
@@ -400,18 +423,30 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
                 <div className="text-xs font-semibold mb-1" style={{ color: '#596773' }}>Etiquetas</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {tags.map((tag, i) => (
-                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-white cursor-pointer hover:opacity-80"
-                      style={{ background: `hsl(${(tag.charCodeAt(0) * 47 + i * 80) % 360}, 55%, 45%)` }}
-                      onClick={() => { const next = tags.filter(t => t !== tag); setTags(next); save({ tags: next }) }}
-                      title="Clique para remover"
-                    >{tag} ×</span>
+                  {tags.map((raw) => {
+                    const { name, color } = parseTag(raw);
+                    return (
+                      <span key={raw} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-white cursor-pointer hover:opacity-80"
+                        style={{ background: color }}
+                        onClick={() => { const next = tags.filter(t => t !== raw); setTags(next); save({ tags: next }) }}
+                        title="Clique para remover"
+                      >{name} ×</span>
+                    );
+                  })}
+                </div>
+                {/* Color picker */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <div className="text-[10px] w-full" style={{ color: '#596773' }}>Cor da etiqueta:</div>
+                  {TAG_COLORS.map(c => (
+                    <button key={c} onClick={() => setSelectedTagColor(c)}
+                      className="rounded-full transition-all" title={c}
+                      style={{ width: 22, height: 22, background: c, border: selectedTagColor === c ? '2px solid #fff' : '2px solid transparent', transform: selectedTagColor === c ? 'scale(1.15)' : 'scale(1)' }} />
                   ))}
                 </div>
                 <div className="flex gap-2">
                   <input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Nova etiqueta..." className="modal-field flex-1 text-xs"
-                    onKeyDown={e => { if (e.key === 'Enter' && newTag.trim()) { const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next }) } }} />
-                  <button onClick={() => { if (newTag.trim()) { const next = [...tags, newTag.trim()]; setTags(next); setNewTag(''); save({ tags: next }) } }}
+                    onKeyDown={e => { if (e.key === 'Enter' && newTag.trim()) { const encoded = `${newTag.trim()}|${selectedTagColor}`; const next = [...tags, encoded]; setTags(next); setNewTag(''); save({ tags: next }) } }} />
+                  <button onClick={() => { if (newTag.trim()) { const encoded = `${newTag.trim()}|${selectedTagColor}`; const next = [...tags, encoded]; setTags(next); setNewTag(''); save({ tags: next }) } }}
                     className="px-3 py-1 rounded-md text-xs font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Adicionar</button>
                 </div>
               </div>
