@@ -137,28 +137,17 @@ function Card({ card, onClick, onUpdate, onArchive }: CardProps) {
         {card.priority && !isEditing && (
           <span className={
             `${styles.tag} ` +
-            styles[
-              (() => {
-                // Normalizar prioridade conforme bug report
-                const p = card.priority;
-                const map = {
-                  'alta': 'Alta', 'Alta': 'Alta',
-                  'media': 'Média', 'média': 'Média', 'Média': 'Média', 'Media': 'Média',
-                  'baixa': 'Baixa', 'Baixa': 'Baixa',
-                };
-                return map[p] ?? p;
-              })()
-            ]
+            (card.priority === 'high' || card.priority === 'alta' || card.priority === 'Alta'
+              ? styles.high
+              : card.priority === 'medium' || card.priority === 'media' || card.priority === 'média' || card.priority === 'Média' || card.priority === 'Media'
+              ? styles.medium
+              : styles.low)
           }>
-            {(() => {
-              const p = card.priority;
-              const map = {
-                'alta': 'Alta', 'Alta': 'Alta',
-                'media': 'Média', 'média': 'Média', 'Média': 'Média', 'Media': 'Média',
-                'baixa': 'Baixa', 'Baixa': 'Baixa',
-              };
-              return map[p] ?? p;
-            })()}
+            {card.priority === 'high' || card.priority === 'alta' || card.priority === 'Alta'
+              ? 'ALTA'
+              : card.priority === 'medium' || card.priority === 'media' || card.priority === 'média' || card.priority === 'Média' || card.priority === 'Media'
+              ? 'MÉDIA'
+              : 'BAIXA'}
           </span>
         )}
 

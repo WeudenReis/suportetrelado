@@ -160,26 +160,30 @@
 /* Tag de prioridade */
 .tag {
   display: inline-block;
-  border-radius: 3px;
-  padding: 2px 8px;
+  border-radius: 4px;
+  padding: 4px 10px;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   margin-bottom: 6px;
+  line-height: 1;
 }
 
 /* Todas as variações de nome que podem vir do banco */
 .Alta,
-.alta    { background: #ef5c48; color: #fff; }
+.alta,
+.high    { background: #ef5c48; color: #fff; }
 
 .Média,
 .Media,
 .média,
-.media   { background: #f5a623; color: #1d2125; }
+.media,
+.medium  { background: #e2b203; color: #1d2125; }
 
 .Baixa,
-.baixa   { background: #4bce97; color: #1d2125; }
+.baixa,
+.low     { background: #4bce97; color: #1d2125; }
 
 .footer {
   display: flex;

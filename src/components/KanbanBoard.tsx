@@ -17,6 +17,18 @@ import type { Ticket, TicketStatus, UserProfile } from '../lib/supabase'
 
 interface KanbanBoardProps { user: string; onLogout: () => void }
 
+function buildFallbackColumns(): BoardColumn[] {
+  return COLUMNS.map((c, i) => ({
+    id: c.id,
+    title: c.label,
+    position: i,
+    dot_color: c.accent,
+    is_archived: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }))
+}
+
 function DroppableColumn({ id, children, isOver }: { id: string; children: React.ReactNode; isOver: boolean }) {
   const { setNodeRef } = useDroppable({ id })
   return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
@@ -170,29 +182,13 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
           setColumnOrder(cols.map(c => c.id))
         } else {
           // Fallback: usar colunas legadas
-          const fallback: BoardColumn[] = COLUMNS.map((c, i) => ({
-            id: c.id,
-            title: c.label,
-            position: i,
-            dot_color: c.accent,
-            is_archived: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }))
+          const fallback = buildFallbackColumns()
           setColumns(fallback)
           setColumnOrder(fallback.map(c => c.id))
         }
       } catch {
         // Fallback em caso de erro (tabela não existe)
-        const fallback: BoardColumn[] = COLUMNS.map((c, i) => ({
-          id: c.id,
-          title: c.label,
-          position: i,
-          dot_color: c.accent,
-          is_archived: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }))
+        const fallback = buildFallbackColumns()
         setColumns(fallback)
         setColumnOrder(fallback.map(c => c.id))
       }
@@ -294,8 +290,8 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     const ticket = tickets.find(t => t.id === active.id)
     if (!ticket || ticket.status === targetStatus) return
 
-    const fromLabel = COLUMNS.find(c => c.id === ticket.status)?.label || ticket.status
-    const toLabel = COLUMNS.find(c => c.id === targetStatus)?.label || targetStatus
+    const fromLabel = allColumnsById.get(ticket.status)?.title || ticket.status
+    const toLabel = allColumnsById.get(targetStatus)?.title || targetStatus
 
     // Optimistic update with ordering preservation.
     setTickets(prev => {
@@ -320,7 +316,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       return withoutActive
     })
 
-    const canPersistStatus = COLUMNS.some(c => c.id === targetStatus)
+    const canPersistStatus = allColumnsById.has(targetStatus)
     if (!canPersistStatus) {
       insertActivityLog(active.id as string, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
       return
@@ -768,14 +764,14 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                         <>
                           {/* Column header (drag handle) */}
                           <div className="trello-col__head cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
-                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.accent, boxShadow: `0 0 6px ${col.accent}44` }} />
-                            <span className="flex-1 truncate">{col.label}</span>
-                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.accent}15`, color: col.accent }}>{colTickets.length}</span>
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.dot_color, boxShadow: `0 0 6px ${col.dot_color}44` }} />
+                            <span className="flex-1 truncate">{col.title}</span>
+                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.dot_color}15`, color: col.dot_color }}>{colTickets.length}</span>
                             <button
                               onClick={(event) => {
                                 event.stopPropagation()
-                                if (colTickets.length > 0 && !confirm(`A lista "${col.label}" tem ${colTickets.length} cartão(s). Excluir mesmo assim?`)) return
-                                if (colTickets.length === 0 && !confirm(`Excluir a lista "${col.label}"?`)) return
+                                if (colTickets.length > 0 && !confirm(`A lista "${col.title}" tem ${colTickets.length} cartão(s). Excluir mesmo assim?`)) return
+                                if (colTickets.length === 0 && !confirm(`Excluir a lista "${col.title}"?`)) return
                                 if (customColumns.some(cc => cc.id === col.id)) {
                                   setCustomColumns(prev => prev.filter(cc => cc.id !== col.id))
                                 }
