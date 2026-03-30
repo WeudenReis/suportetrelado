@@ -6,7 +6,6 @@ import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
 import InboxView from './components/InboxView'
 import PlannerView from './components/PlannerView'
-import Sidebar from './components/Sidebar'
 import PlannerSidebar from './components/PlannerSidebar'
 import BottomNav from './components/BottomNav'
 import { fetchTickets, upsertUserProfile, updateLastSeen } from './lib/supabase'
@@ -15,7 +14,6 @@ import type { Ticket } from './lib/supabase'
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [plannerCollapsed, setPlannerCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board'>('board')
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
@@ -89,9 +87,6 @@ export default function App() {
         <Login onLogin={handleLogin} />
       ) : (
         <div className="app-layout">
-          {activeTab === 'inbox' && (
-            <Sidebar user={user} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
-          )}
           {activeTab === 'planner' && (
             <PlannerSidebar tickets={plannerTickets} collapsed={plannerCollapsed} onToggle={() => setPlannerCollapsed(p => !p)} />
           )}
