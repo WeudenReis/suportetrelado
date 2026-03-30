@@ -160,12 +160,42 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     return filtered
   }, [tickets, searchQuery])
 
-  // Carregar colunas do Supabase
+  // Carregar colunas do Supabase (com fallback para COLUMNS legadas)
   useEffect(() => {
     const fetchCols = async () => {
-      const cols = await fetchBoardColumns()
-      setColumns(cols)
-      setColumnOrder(cols.map(c => c.id))
+      try {
+        const cols = await fetchBoardColumns()
+        if (cols.length > 0) {
+          setColumns(cols)
+          setColumnOrder(cols.map(c => c.id))
+        } else {
+          // Fallback: usar colunas legadas
+          const fallback: BoardColumn[] = COLUMNS.map((c, i) => ({
+            id: c.id,
+            title: c.label,
+            position: i,
+            dot_color: c.accent,
+            is_archived: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }))
+          setColumns(fallback)
+          setColumnOrder(fallback.map(c => c.id))
+        }
+      } catch {
+        // Fallback em caso de erro (tabela não existe)
+        const fallback: BoardColumn[] = COLUMNS.map((c, i) => ({
+          id: c.id,
+          title: c.label,
+          position: i,
+          dot_color: c.accent,
+          is_archived: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }))
+        setColumns(fallback)
+        setColumnOrder(fallback.map(c => c.id))
+      }
     }
     fetchCols()
   }, [])
