@@ -450,7 +450,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
     setRefreshing(false)
   }
 
-  const staleCount = tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 2 * 60 * 60 * 1000 && t.status !== 'resolved').length
+  const staleCount = tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 12 * 60 * 60 * 1000 && t.status !== 'resolved').length
   const visibleUsers = onlineUsers.length > 0 ? onlineUsers : [user]
 
   const handleCardClick = useCallback((ticket: Ticket) => {
@@ -705,7 +705,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
               className="trello-alert-chip"
             >
               <span className="trello-alert-chip__dot" />
-              {staleCount} sem resposta +2h
+              {staleCount} sem resposta +12h
             </motion.div>
           )}
         </div>

@@ -4,7 +4,8 @@ import gsap from 'gsap'
 import {
   X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
   ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
-  AlignLeft, CreditCard, Paperclip, Check, User, Calendar
+  AlignLeft, CreditCard, Paperclip, Check, User, Calendar,
+  CheckSquare, Square, Plus
 } from 'lucide-react'
 import {
   supabase, updateTicket, deleteTicket,
@@ -98,7 +99,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
-  const [showActivities, setShowActivities] = useState(true)
+  const [showActivities, setShowActivities] = useState(false)
   const [showLabelPicker, setShowLabelPicker] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [dueDate, setDueDate] = useState(ticket.due_date || '')
@@ -108,6 +109,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [coverImage, setCoverImage] = useState(ticket.cover_image_url || '')
   const [uploadingCover, setUploadingCover] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
+
+  // Checklist state — auto-show if observacao already has checklist items
+  const [showChecklist, setShowChecklist] = useState(() => /^[☐☑]/m.test(ticket.observacao || ''))
+  const [newChecklistItem, setNewChecklistItem] = useState('')
+  const checklistInputRef = useRef<HTMLInputElement>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
@@ -481,7 +487,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           {!coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
           <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
           <button onClick={() => setShowDatePicker(p => !p)} className="elite-action-chip" style={showDatePicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Datas</button>
-          <button onClick={() => { const item = prompt('Item do checklist:'); if (item?.trim()) { setObservacao(prev => prev ? prev + '\n☐ ' + item.trim() : '☐ ' + item.trim()); save({ observacao: observacao ? observacao + '\n☐ ' + item.trim() : '☐ ' + item.trim() }) } }} className="elite-action-chip">Checklist</button>
+          <button onClick={() => setShowChecklist(p => !p)} className="elite-action-chip" style={showChecklist ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Checklist</button>
           <button onClick={() => memberRef.current?.focus()} className="elite-action-chip">Membros</button>
         </div>
 
@@ -642,6 +648,83 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 placeholder="Adicione uma descricao mais detalhada..."
               />
             </section>
+
+            {/* Checklist */}
+            {showChecklist && (() => {
+              const lines = observacao.split('\n')
+              const checkItems = lines
+                .map((line, idx) => ({ idx, text: line.replace(/^[☐☑]\s*/, ''), checked: line.startsWith('☑'), isCheck: line.startsWith('☐') || line.startsWith('☑') }))
+                .filter(i => i.isCheck)
+              const doneCount = checkItems.filter(i => i.checked).length
+              const totalCount = checkItems.length
+              const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
+
+              const toggleItem = (lineIdx: number) => {
+                const updated = lines.map((line, i) => {
+                  if (i !== lineIdx) return line
+                  return line.startsWith('☐') ? line.replace('☐', '☑') : line.replace('☑', '☐')
+                }).join('\n')
+                setObservacao(updated)
+                save({ observacao: updated })
+              }
+
+              const removeItem = (lineIdx: number) => {
+                const updated = lines.filter((_, i) => i !== lineIdx).join('\n')
+                setObservacao(updated)
+                save({ observacao: updated })
+              }
+
+              const addItem = () => {
+                if (!newChecklistItem.trim()) return
+                const item = '☐ ' + newChecklistItem.trim()
+                const updated = observacao ? observacao + '\n' + item : item
+                setObservacao(updated)
+                save({ observacao: updated })
+                setNewChecklistItem('')
+                checklistInputRef.current?.focus()
+              }
+
+              return (
+                <section className="mt-3">
+                  <div className="flex items-center gap-2 mb-2 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
+                    <CheckSquare size={14} style={{ color: '#596773' }} />
+                    Checklist
+                    {totalCount > 0 && <span className="ml-auto text-[10px] font-normal" style={{ color: '#596773' }}>{doneCount}/{totalCount}</span>}
+                  </div>
+                  {totalCount > 0 && (
+                    <div className="rounded-full overflow-hidden mb-2" style={{ height: 4, background: 'rgba(255,255,255,0.06)' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#22c55e' : '#579dff', transition: 'width 0.3s ease' }} />
+                    </div>
+                  )}
+                  <div className="space-y-1 mb-2">
+                    {checkItems.map(item => (
+                      <div key={item.idx} className="flex items-center gap-2 group rounded-md px-2 py-1.5 transition-colors hover:bg-white/5" style={{ cursor: 'pointer' }}>
+                        <button onClick={() => toggleItem(item.idx)} className="flex-shrink-0" style={{ color: item.checked ? '#22c55e' : '#596773' }}>
+                          {item.checked ? <CheckSquare size={16} /> : <Square size={16} />}
+                        </button>
+                        <span className="flex-1 text-sm" style={{ color: item.checked ? '#596773' : '#b6c2cf', textDecoration: item.checked ? 'line-through' : 'none' }}>{item.text}</span>
+                        <button onClick={() => removeItem(item.idx)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-500/20">
+                          <Trash2 size={12} className="text-red-400" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input
+                      ref={checklistInputRef}
+                      value={newChecklistItem}
+                      onChange={e => setNewChecklistItem(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addItem() }}
+                      placeholder="Adicionar item..."
+                      className="modal-field flex-1 text-xs"
+                    />
+                    <button onClick={addItem} className="px-2 py-1 rounded-md transition-colors hover:bg-white/10" style={{ color: '#579dff' }}>
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </section>
+              )
+            })()}
 
             <section className="mt-3">
               <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
