@@ -308,7 +308,7 @@ export async function markAllNotificationsRead(email: string): Promise<void> {
 }
 
 export function extractMentionNames(text: string): string[] {
-  const regex = /@(\w+)/g
+  const regex = /@([\w\u00C0-\u024F]+)/g
   const names: string[] = []
   let match: RegExpExecArray | null
   while ((match = regex.exec(text)) !== null) {
@@ -321,8 +321,13 @@ export async function resolveMentionsToEmails(names: string[]): Promise<string[]
   if (names.length === 0) return []
   const profiles = await fetchUserProfiles()
   const emails: string[] = []
+  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   for (const name of names) {
-    const match = profiles.find(p => p.name.toLowerCase() === name || p.email.split('@')[0].toLowerCase() === name)
+    const n = normalize(name)
+    const match = profiles.find(p =>
+      normalize(p.name) === n ||
+      normalize(p.email.split('@')[0]) === n
+    )
     if (match) emails.push(match.email)
   }
   return emails

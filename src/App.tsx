@@ -4,7 +4,7 @@ import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
-import InboxView from './components/InboxView'
+import InboxSidebar from './components/InboxView'
 import PlannerView from './components/PlannerView'
 import PlannerSidebar from './components/PlannerSidebar'
 import BottomNav from './components/BottomNav'
@@ -17,7 +17,8 @@ export default function App() {
   const [plannerCollapsed, setPlannerCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board'>('board')
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
-
+  const [openTicketId, setOpenTicketId] = useState<string | null>(null)
+  const [inboxCollapsed, setInboxCollapsed] = useState(false)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null)
@@ -65,18 +66,10 @@ export default function App() {
   }
 
   const renderView = () => {
-    if (activeTab === 'inbox') {
-      return (
-        <motion.div key="inbox" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-          className="flex-1 flex flex-col min-h-0">
-          <InboxView user={user!} />
-        </motion.div>
-      )
-    }
     return (
-      <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+      <motion.div key="board" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
         className="flex-1 flex flex-col min-h-0">
-        <KanbanBoard user={user!} onLogout={handleLogout} />
+        <KanbanBoard user={user!} onLogout={handleLogout} openTicketId={openTicketId} />
       </motion.div>
     )
   }
@@ -87,6 +80,16 @@ export default function App() {
         <Login onLogin={handleLogin} />
       ) : (
         <div className="app-layout">
+          {activeTab === 'inbox' && (
+            <InboxSidebar
+              user={user!}
+              collapsed={inboxCollapsed}
+              onToggle={() => setInboxCollapsed(p => !p)}
+              onOpenTicket={(ticketId) => {
+                setOpenTicketId(ticketId)
+              }}
+            />
+          )}
           {activeTab === 'planner' && (
             <PlannerSidebar tickets={plannerTickets} collapsed={plannerCollapsed} onToggle={() => setPlannerCollapsed(p => !p)} />
           )}

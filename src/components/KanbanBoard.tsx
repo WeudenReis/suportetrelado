@@ -16,7 +16,7 @@ import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardCo
 import { COLUMNS } from '../hooks/useKanban'
 import type { Ticket, TicketStatus, UserProfile } from '../lib/supabase'
 
-interface KanbanBoardProps { user: string; onLogout: () => void }
+interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null }
 
 function buildFallbackColumns(): BoardColumn[] {
   return COLUMNS.map((c, i) => ({
@@ -94,7 +94,7 @@ function SortableBoardColumn({ id, children }: { id: string; children: (drag: { 
   )
 }
 
-export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
+export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null)
@@ -172,6 +172,13 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
     return () => { supabase.removeChannel(channel) }
   }, [loadTickets])
+
+  // Open a specific ticket when openTicketId is set (e.g. from Inbox notification)
+  useEffect(() => {
+    if (!openTicketId || tickets.length === 0) return
+    const found = tickets.find(t => t.id === openTicketId)
+    if (found) setSelectedTicket(found)
+  }, [openTicketId, tickets])
 
   // --- Presence tracking ---
   useEffect(() => {
@@ -575,8 +582,13 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   // ── Scroll lateral segurando o fundo do board ──
   const handleBoardMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
-    // Só ativa se clicar no fundo do scroller/board (não em cards ou listas)
-    if (target !== scrollerRef.current && !target.classList.contains('board-columns') && !target.classList.contains('board-main__scroller')) return
+    // Só ativa se clicar no fundo do scroller/board (não em cards, colunas ou botões)
+    const isBoard = target === scrollerRef.current
+      || target.classList.contains('board-columns')
+      || target.classList.contains('board-main__scroller')
+      || target.classList.contains('board-main')
+      || target.closest('.board-main__scroller') === scrollerRef.current && !target.closest('.trello-col')
+    if (!isBoard) return
     boardDragRef.current.isDragging = true
     boardDragRef.current.startX = e.pageX - (scrollerRef.current?.offsetLeft ?? 0)
     boardDragRef.current.scrollLeft = scrollerRef.current?.scrollLeft ?? 0

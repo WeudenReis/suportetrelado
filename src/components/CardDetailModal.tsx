@@ -11,9 +11,10 @@ import {
   fetchComments, insertComment, deleteComment,
   fetchAttachments, uploadAttachment, deleteAttachment,
   fetchActivityLog, insertActivityLog,
-  extractMentionNames, resolveMentionsToEmails, insertNotification
+  extractMentionNames, resolveMentionsToEmails, insertNotification,
+  fetchUserProfiles
 } from '../lib/supabase'
-import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog } from '../lib/supabase'
+import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog, UserProfile } from '../lib/supabase'
 
 interface CardDetailModalProps {
   ticket: Ticket
@@ -44,6 +45,15 @@ function timeAgo(dateStr: string): string {
 const avatarPalette = ['#579dff', '#6366f1', '#f5a623', '#ef5c48', '#06b6d4', '#8b5cf6', '#ec4899']
 function avatarColor(name: string) {
   return avatarPalette[name.charCodeAt(0) % avatarPalette.length]
+}
+
+function renderCommentText(text: string): React.ReactNode {
+  const parts = text.split(/(@[\w\u00C0-\u024F]+)/g)
+  return parts.map((part, i) =>
+    /^@[\w\u00C0-\u024F]+$/.test(part)
+      ? <span key={i} className="mention-highlight">{part}</span>
+      : part
+  )
 }
 
 const TAG_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
@@ -99,6 +109,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const commentsEndRef = useRef<HTMLDivElement>(null)
   const memberRef = useRef<HTMLInputElement>(null)
 
+  // Mention autocomplete state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionIndex, setMentionIndex] = useState(0)
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([])
+  const mentionStartPos = useRef<number>(0)
+
   // GSAP refs
   const overlayRef = useRef<HTMLDivElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
@@ -134,6 +150,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     fetchAttachments(ticket.id).then(setAttachments)
     fetchActivityLog(ticket.id).then(setActivities)
   }, [ticket.id])
+
+  // Load user profiles for mention autocomplete
+  useEffect(() => {
+    fetchUserProfiles().then(setAllUsers)
+  }, [])
 
   useEffect(() => {
     const ch = supabase
@@ -246,6 +267,31 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     }
   }
 
+  // Mention autocomplete helpers
+  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const filteredMentionUsers = mentionQuery !== null
+    ? allUsers.filter(u => {
+        const q = normalize(mentionQuery)
+        return (normalize(u.name).includes(q) || normalize(u.email.split('@')[0]).includes(q)) && u.email.toLowerCase() !== user.toLowerCase()
+      }).slice(0, 6)
+    : []
+
+  const applyMention = (profile: UserProfile) => {
+    const before = newComment.slice(0, mentionStartPos.current)
+    const after = newComment.slice(commentRef.current?.selectionStart ?? mentionStartPos.current + (mentionQuery?.length ?? 0) + 1)
+    const inserted = `@${profile.name} `
+    setNewComment(before + inserted + after)
+    setMentionQuery(null)
+    setTimeout(() => {
+      if (commentRef.current) {
+        const pos = before.length + inserted.length
+        commentRef.current.selectionStart = pos
+        commentRef.current.selectionEnd = pos
+        commentRef.current.focus()
+      }
+    }, 0)
+  }
+
   const handleSendComment = async () => {
     if (!newComment.trim()) return
     setSendingComment(true)
@@ -259,12 +305,18 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     // Detect @nome mentions and create notifications
     const mentionNames = extractMentionNames(commentText)
     if (mentionNames.length > 0) {
+      // Resolve sender display name from Google session
+      const { data: { session } } = await supabase.auth.getSession()
+      const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
+      const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
+      const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+
       const emails = await resolveMentionsToEmails(mentionNames)
       for (const email of emails) {
         if (email.toLowerCase() !== user.toLowerCase()) {
           insertNotification({
             recipient_email: email,
-            sender_name: user,
+            sender_name: senderDisplayName,
             type: 'mention',
             ticket_id: ticket.id,
             ticket_title: ticket.title,
@@ -612,18 +664,64 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             {/* Comment input */}
             <div className="flex gap-2 mb-3 flex-shrink-0">
               <Avatar name={user} size={28} />
-              <div className="flex-1">
+              <div className="flex-1 relative">
                 <textarea
                   ref={commentRef}
                   value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value
+                    setNewComment(val)
+                    // Detect @ mention trigger
+                    const pos = e.target.selectionStart
+                    const textBefore = val.slice(0, pos)
+                    const atMatch = textBefore.match(/@([\w\u00C0-\u024F]*)$/)
+                    if (atMatch) {
+                      mentionStartPos.current = pos - atMatch[0].length
+                      setMentionQuery(atMatch[1].toLowerCase())
+                      setMentionIndex(0)
+                    } else {
+                      setMentionQuery(null)
+                    }
+                  }}
                   onFocus={() => setCommentFocused(true)}
-                  onBlur={() => !newComment.trim() && setCommentFocused(false)}
-                  placeholder="Escrever um comentario..."
+                  onBlur={() => {
+                    if (!newComment.trim()) setCommentFocused(false)
+                    setTimeout(() => setMentionQuery(null), 150)
+                  }}
+                  placeholder="Escrever um comentario... Use @ para mencionar"
                   rows={commentFocused ? 3 : 1}
                   className="modal-field resize-none transition-all text-[13px]"
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment() } }}
+                  onKeyDown={e => {
+                    if (mentionQuery !== null && filteredMentionUsers.length > 0) {
+                      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, filteredMentionUsers.length - 1)); return }
+                      if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); return }
+                      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); applyMention(filteredMentionUsers[mentionIndex]); return }
+                      if (e.key === 'Escape') { setMentionQuery(null); return }
+                    }
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment() }
+                  }}
                 />
+                {/* Mention autocomplete dropdown */}
+                {mentionQuery !== null && filteredMentionUsers.length > 0 && (
+                  <div className="mention-dropdown">
+                    {filteredMentionUsers.map((u, i) => (
+                      <div
+                        key={u.email}
+                        className={`mention-dropdown__item ${i === mentionIndex ? 'mention-dropdown__item--active' : ''}`}
+                        onMouseDown={e => { e.preventDefault(); applyMention(u) }}
+                        onMouseEnter={() => setMentionIndex(i)}
+                      >
+                        <div className="mention-dropdown__avatar" style={{ background: u.avatar_color }}>
+                          {u.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="mention-dropdown__info">
+                          <span className="mention-dropdown__name">{u.name}</span>
+                          <span className="mention-dropdown__email">{u.email}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <AnimatePresence>
                   {(commentFocused || newComment.trim()) && (
                     <div className="flex justify-end mt-1.5">
@@ -654,7 +752,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                     {item.type === 'comment' ? (
                       <>
                         <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.08)' }}>
-                          {item.text}
+                          {renderCommentText(item.text)}
                         </div>
                         {item.user === user && (
                           <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#596773' }}>
