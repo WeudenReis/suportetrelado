@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Em Preview (branch dev) o Vercel usa as variáveis _DEV; em Production usa as normais
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL_DEV || import.meta.env.VITE_SUPABASE_URL) as string
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY_DEV || import.meta.env.VITE_SUPABASE_ANON_KEY) as string
+// Production: VITE_SUPABASE_URL existe (scope Production) → usa prod
+// Preview: VITE_SUPABASE_URL não existe → cai no _DEV (scope All/Preview)
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL_DEV) as string
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY_DEV) as string
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('⚠️ VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não configuradas!')
