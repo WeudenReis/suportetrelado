@@ -238,7 +238,11 @@ export interface UserProfile {
 const AVATAR_COLORS = ['#579dff', '#4bce97', '#f5a623', '#ef5c48', '#a259ff', '#20c997', '#6366f1', '#ec4899']
 
 export async function upsertUserProfile(email: string): Promise<void> {
-  const name = email.includes('@') ? email.split('@')[0] : email
+  // Tenta pegar o nome real do Google
+  const { data: { session } } = await supabase.auth.getSession()
+  const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
+  const firstName = fullName ? fullName.split(' ')[0] : (email.includes('@') ? email.split('@')[0] : email)
+  const name = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
   const { error } = await supabase
     .from('user_profiles')
