@@ -489,7 +489,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
           <button onClick={() => setShowDatePicker(p => !p)} className="elite-action-chip" style={showDatePicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Datas</button>
           <button onClick={() => setShowChecklist(p => !p)} className="elite-action-chip" style={showChecklist ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Checklist</button>
-          <button onClick={() => memberRef.current?.focus()} className="elite-action-chip">Membros</button>
+          <button onClick={() => memberRef.current?.focus()} className="elite-action-chip">Membro</button>
         </div>
 
         {/* ── Creation info ── */}
@@ -630,7 +630,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   <option value="high">Alta</option>
                 </select>
               </FieldGroup>
-              <FieldGroup label="Membro responsavel">
+              <FieldGroup label="Responsavel">
                 <input ref={memberRef} value={assignee} onChange={e => setAssignee(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Responsavel" />
               </FieldGroup>
             </div>
