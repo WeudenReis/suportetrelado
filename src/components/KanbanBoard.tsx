@@ -12,7 +12,7 @@ import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
 import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles } from '../lib/supabase'
-import { fetchBoardColumns, insertBoardColumn, BoardColumn } from '../lib/boardColumns'
+import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../hooks/useKanban'
 import type { Ticket, TicketStatus, UserProfile } from '../lib/supabase'
 
@@ -122,10 +122,15 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [newListName, setNewListName] = useState('')
   const [columns, setColumns] = useState<BoardColumn[]>([])
   const [columnOrder, setColumnOrder] = useState<string[]>([])
+  const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
+  const [editingColumnTitle, setEditingColumnTitle] = useState('')
+  const [colorPickerColumnId, setColorPickerColumnId] = useState<string | null>(null)
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
   const dragOriginalStatusRef = useRef<string | null>(null)
+  const scrollerRef = useRef<HTMLDivElement | null>(null)
+  const boardDragRef = useRef({ isDragging: false, startX: 0, scrollLeft: 0 })
 
   const wallpaperStorageKey = `chatpro-wallpaper:${user.toLowerCase()}`
 
@@ -567,6 +572,55 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     { label: 'Vinho', value: '#6b1f2a' },
   ]
 
+  // ── Scroll lateral segurando o fundo do board ──
+  const handleBoardMouseDown = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    // Só ativa se clicar no fundo do scroller/board (não em cards ou listas)
+    if (target !== scrollerRef.current && !target.classList.contains('board-columns') && !target.classList.contains('board-main__scroller')) return
+    boardDragRef.current.isDragging = true
+    boardDragRef.current.startX = e.pageX - (scrollerRef.current?.offsetLeft ?? 0)
+    boardDragRef.current.scrollLeft = scrollerRef.current?.scrollLeft ?? 0
+    if (scrollerRef.current) scrollerRef.current.style.cursor = 'grabbing'
+  }, [])
+
+  const handleBoardMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!boardDragRef.current.isDragging || !scrollerRef.current) return
+    e.preventDefault()
+    const x = e.pageX - scrollerRef.current.offsetLeft
+    const walk = (x - boardDragRef.current.startX) * 1.5
+    scrollerRef.current.scrollLeft = boardDragRef.current.scrollLeft - walk
+  }, [])
+
+  const stopBoardDrag = useCallback(() => {
+    boardDragRef.current.isDragging = false
+    if (scrollerRef.current) scrollerRef.current.style.cursor = ''
+  }, [])
+
+  // ── Cores disponíveis para dot das colunas ──
+  const COL_COLORS = ['#579dff', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4', '#22c55e', '#ec4899', '#a855f7', '#f97316', '#64748b']
+
+  const handleSaveColumnTitle = useCallback(async (colId: string, newTitle: string) => {
+    const trimmed = newTitle.trim()
+    if (!trimmed) { setEditingColumnId(null); return }
+    setColumns(prev => prev.map(c => c.id === colId ? { ...c, title: trimmed } : c))
+    setEditingColumnId(null)
+    try {
+      await updateBoardColumn(colId, { title: trimmed })
+    } catch {
+      showToast('Erro ao renomear lista', 'err')
+    }
+  }, [])
+
+  const handleSaveColumnColor = useCallback(async (colId: string, color: string) => {
+    setColumns(prev => prev.map(c => c.id === colId ? { ...c, dot_color: color } : c))
+    setColorPickerColumnId(null)
+    try {
+      await updateBoardColumn(colId, { dot_color: color })
+    } catch {
+      showToast('Erro ao mudar cor da lista', 'err')
+    }
+  }, [])
+
   const boardWrapperStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
@@ -836,7 +890,14 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
       {/* Board */}
       <main className="board-main" style={boardSurfaceStyle}>
-        <div className="board-main__scroller">
+        <div
+          ref={scrollerRef}
+          className="board-main__scroller"
+          onMouseDown={handleBoardMouseDown}
+          onMouseMove={handleBoardMouseMove}
+          onMouseUp={stopBoardDrag}
+          onMouseLeave={stopBoardDrag}
+        >
         {loading ? (
           <div className="flex items-center justify-center h-64 gap-3 text-slate-400">
             <Loader2 size={24} className="animate-spin" />
@@ -855,18 +916,64 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                         <>
                           {/* Column header (drag handle) */}
                           <div className="trello-col__head cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
-                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.dot_color, boxShadow: `0 0 6px ${col.dot_color}44` }} />
-                            <span className="flex-1 truncate">{col.title}</span>
+                            {/* Dot - click para trocar cor */}
+                            <div className="relative flex-shrink-0">
+                              <button
+                                type="button"
+                                className="w-2 h-2 rounded-full flex-shrink-0 border-0 p-0 cursor-pointer"
+                                style={{ background: col.dot_color, boxShadow: `0 0 6px ${col.dot_color}44` }}
+                                onClick={e => { e.stopPropagation(); setColorPickerColumnId(prev => prev === col.id ? null : col.id) }}
+                                title="Mudar cor"
+                              />
+                              {colorPickerColumnId === col.id && (
+                                <>
+                                  <div className="fixed inset-0 z-[99]" onClick={() => setColorPickerColumnId(null)} />
+                                  <div className="col-color-picker" onClick={e => e.stopPropagation()}>
+                                    {COL_COLORS.map(c => (
+                                      <button
+                                        key={c}
+                                        type="button"
+                                        className="col-color-picker__swatch"
+                                        style={{ background: c, outline: c === col.dot_color ? '2px solid #fff' : 'none' }}
+                                        onClick={e => { e.stopPropagation(); handleSaveColumnColor(col.id, c) }}
+                                      />
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            {/* Title - duplo clique para editar */}
+                            {editingColumnId === col.id ? (
+                              <input
+                                autoFocus
+                                className="col-title-input flex-1"
+                                value={editingColumnTitle}
+                                onChange={e => setEditingColumnTitle(e.target.value)}
+                                onBlur={() => handleSaveColumnTitle(col.id, editingColumnTitle)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleSaveColumnTitle(col.id, editingColumnTitle)
+                                  if (e.key === 'Escape') setEditingColumnId(null)
+                                }}
+                                onClick={e => e.stopPropagation()}
+                                onMouseDown={e => e.stopPropagation()}
+                                onPointerDown={e => e.stopPropagation()}
+                              />
+                            ) : (
+                              <span
+                                className="flex-1 truncate"
+                                onDoubleClick={e => { e.stopPropagation(); setEditingColumnId(col.id); setEditingColumnTitle(col.title) }}
+                              >{col.title}</span>
+                            )}
                             <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.dot_color}15`, color: col.dot_color }}>{colTickets.length}</span>
                             <button
                               onClick={(event) => {
                                 event.stopPropagation()
                                 if (colTickets.length > 0 && !confirm(`A lista "${col.title}" tem ${colTickets.length} cartão(s). Excluir mesmo assim?`)) return
                                 if (colTickets.length === 0 && !confirm(`Excluir a lista "${col.title}"?`)) return
-                                if (customColumns.some(cc => cc.id === col.id)) {
-                                  setCustomColumns(prev => prev.filter(cc => cc.id !== col.id))
-                                }
+                                setColumns(prev => prev.filter(cc => cc.id !== col.id))
+                                setColumnOrder(prev => prev.filter(id => id !== col.id))
                                 setTickets(prev => prev.filter(t => t.status !== col.id))
+                                archiveBoardColumn(col.id).catch(() => {})
                                 showToast('Lista excluída', 'ok')
                               }}
                               className="p-1 rounded hover:bg-red-500/20 transition-colors ml-1 opacity-0 group-hover:opacity-100"

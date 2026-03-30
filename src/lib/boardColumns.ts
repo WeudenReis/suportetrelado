@@ -37,6 +37,14 @@ export async function insertBoardColumn(title: string, position: number, dot_col
   return data as BoardColumn
 }
 
+export async function updateBoardColumn(id: string, updates: Partial<Pick<BoardColumn, 'title' | 'dot_color' | 'position'>>): Promise<void> {
+  const { error } = await supabase
+    .from('board_columns')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function archiveBoardColumn(id: string): Promise<void> {
   const { error } = await supabase
     .from('board_columns')
