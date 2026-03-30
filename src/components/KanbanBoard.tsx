@@ -661,7 +661,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             <span className="trello-board-chip__title">Suporte chatPro</span>
           </button>
 
-          {(import.meta.env.DEV || !!import.meta.env.VITE_SUPABASE_URL_DEV) && (
+          {(import.meta.env.DEV || String(import.meta.env.VITE_SUPABASE_URL || '').includes('vbxzeyweurzrwppdiluo')) && (
             <span style={{
               background: '#f97316',
               color: '#fff',
