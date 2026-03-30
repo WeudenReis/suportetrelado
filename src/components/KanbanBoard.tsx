@@ -929,10 +929,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                           {/* Column header (drag handle) */}
                           <div className="trello-col__head cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
                             {/* Dot - click para trocar cor */}
-                            <div className="relative flex-shrink-0">
+                            <div className="relative flex-shrink-0" onPointerDown={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
                               <button
                                 type="button"
-                                className="w-2 h-2 rounded-full flex-shrink-0 border-0 p-0 cursor-pointer"
+                                className="w-3.5 h-3.5 rounded-full flex-shrink-0 border-0 p-0 cursor-pointer hover:scale-125 transition-transform"
                                 style={{ background: col.dot_color, boxShadow: `0 0 6px ${col.dot_color}44` }}
                                 onClick={e => { e.stopPropagation(); setColorPickerColumnId(prev => prev === col.id ? null : col.id) }}
                                 title="Mudar cor"
@@ -940,7 +940,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                               {colorPickerColumnId === col.id && (
                                 <>
                                   <div className="fixed inset-0 z-[99]" onClick={() => setColorPickerColumnId(null)} />
-                                  <div className="col-color-picker" onClick={e => e.stopPropagation()}>
+                                  <div className="col-color-picker" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
                                     {COL_COLORS.map(c => (
                                       <button
                                         key={c}

@@ -272,8 +272,10 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const filteredMentionUsers = mentionQuery !== null
     ? allUsers.filter(u => {
         const q = normalize(mentionQuery)
-        return (normalize(u.name).includes(q) || normalize(u.email.split('@')[0]).includes(q)) && u.email.toLowerCase() !== user.toLowerCase()
-      }).slice(0, 6)
+        if (u.email.toLowerCase() === user.toLowerCase()) return false
+        if (!q) return true // show all when just "@"
+        return normalize(u.name).includes(q) || normalize(u.email.split('@')[0]).includes(q)
+      })
     : []
 
   const applyMention = (profile: UserProfile) => {
