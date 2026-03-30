@@ -607,6 +607,20 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             <span className="trello-board-chip__title">Suporte chatPro</span>
           </button>
 
+          {import.meta.env.DEV && (
+            <span style={{
+              background: '#f97316',
+              color: '#fff',
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: 4,
+              letterSpacing: '0.05em',
+              lineHeight: '18px',
+              flexShrink: 0,
+            }}>DEV</span>
+          )}
+
           <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
 
           <button
