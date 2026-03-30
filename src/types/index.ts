@@ -6,5 +6,7 @@ export interface Card {
   cover_image_url?: string;
   is_completed?: boolean;
   is_archived?: boolean;
+  created_at?: string;
+  assignee?: string | null;
   // ...outros campos existentes...
 }

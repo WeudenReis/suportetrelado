@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect, useCallback, forwardRef } from 'react';
-import { Archive, Pencil, Check } from 'lucide-react';
+import { Archive, Pencil, Check, Clock, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import styles from './Card.module.css';
 import type { Card as CardType } from '@/types';
@@ -12,6 +12,43 @@ interface CardProps {
   onArchive: (cardId: string) => void;
   isDragging?: boolean;
   style?: React.CSSProperties;
+}
+
+/** Calcula tempo decorrido e retorna {label, isOverdue} */
+function getElapsedInfo(createdAt?: string): { label: string; isOverdue: boolean } | null {
+  if (!createdAt) return null;
+  const now = Date.now();
+  const created = new Date(createdAt).getTime();
+  const diffMs = now - created;
+  const diffMin = Math.floor(diffMs / 60_000);
+  const diffH = Math.floor(diffMs / 3_600_000);
+  const diffD = Math.floor(diffMs / 86_400_000);
+
+  let label: string;
+  if (diffMin < 60) label = `${Math.max(diffMin, 1)}m`;
+  else if (diffH < 24) label = `${diffH}h`;
+  else label = `${diffD}d`;
+
+  // Considerar "atrasado" se passou de 2 horas
+  return { label, isOverdue: diffH >= 2 };
+}
+
+/** Formata data para exibição curta */
+function formatDate(createdAt?: string): string | null {
+  if (!createdAt) return null;
+  const d = new Date(createdAt);
+  const day = d.getDate();
+  const months = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+  const month = months[d.getMonth()];
+  const hours = d.getHours().toString().padStart(2, '0');
+  const mins = d.getMinutes().toString().padStart(2, '0');
+  return `${day} de ${month}, ${hours}:${mins}`;
+}
+
+/** Gera cor determinística para avatar a partir do nome */
+function avatarColor(name: string): string {
+  const colors = ['#579dff', '#4bce97', '#f5a623', '#ef5c48', '#a259ff', '#20c997', '#6366f1', '#ec4899'];
+  return colors[name.charCodeAt(0) % colors.length];
 }
 
 function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardProps) {
@@ -218,7 +255,39 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
         {/* Footer */}
         {!isEditing && (
           <div className={styles.footer}>
-            {/* badges de data, anexos, etc */}
+            {/* Tempo decorrido */}
+            {(() => {
+              const elapsed = getElapsedInfo(card.created_at);
+              if (!elapsed) return null;
+              return (
+                <span className={`${styles.footerBadge} ${elapsed.isOverdue ? styles.footerOverdue : ''}`}>
+                  <Clock size={12} />
+                  {elapsed.label}
+                </span>
+              );
+            })()}
+
+            {/* Data de criação */}
+            {card.created_at && (
+              <span className={styles.footerBadge}>
+                <Calendar size={12} />
+                {formatDate(card.created_at)}
+              </span>
+            )}
+
+            {/* Spacer para empurrar avatar para a direita */}
+            <span style={{ flex: 1 }} />
+
+            {/* Avatar do responsável */}
+            {card.assignee && (
+              <span
+                className={styles.avatar}
+                style={{ background: avatarColor(card.assignee) }}
+                title={card.assignee}
+              >
+                {card.assignee.charAt(0).toUpperCase()}
+              </span>
+            )}
           </div>
         )}
       </div>

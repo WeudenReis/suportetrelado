@@ -196,6 +196,36 @@
   align-items: center;
   gap: 8px;
   margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.footerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: #8c9bab;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.footerOverdue {
+  color: #ef5c48;
+  font-weight: 600;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
 }
 
 .description {
