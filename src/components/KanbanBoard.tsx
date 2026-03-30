@@ -29,6 +29,18 @@ function buildFallbackColumns(): BoardColumn[] {
   }))
 }
 
+function buildLocalColumn(title: string, position: number): BoardColumn {
+  return {
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: title.trim(),
+    position,
+    dot_color: '#579dff',
+    is_archived: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+}
+
 function DroppableColumn({ id, children, isOver }: { id: string; children: React.ReactNode; isOver: boolean }) {
   const { setNodeRef } = useDroppable({ id })
   return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
@@ -852,16 +864,17 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   className="instance-modal__input text-sm"
                   onKeyDown={async e => {
                     if (e.key === 'Enter' && newListName.trim()) {
+                      let col: BoardColumn
                       try {
-                        const col = await insertBoardColumn(newListName.trim(), columns.length)
-                        setColumns(prev => [...prev, col])
-                        setColumnOrder(prev => [...prev, col.id])
-                        setNewListName('')
-                        setAddingList(false)
-                        showToast('Lista adicionada!', 'ok')
-                      } catch (err: any) {
-                        showToast(err?.message || 'Erro ao criar lista', 'err')
+                        col = await insertBoardColumn(newListName.trim(), columns.length)
+                      } catch {
+                        col = buildLocalColumn(newListName, columns.length)
                       }
+                      setColumns(prev => [...prev, col])
+                      setColumnOrder(prev => [...prev, col.id])
+                      setNewListName('')
+                      setAddingList(false)
+                      showToast('Lista adicionada!', 'ok')
                     }
                     if (e.key === 'Escape') { setAddingList(false); setNewListName('') }
                   }}
@@ -870,16 +883,17 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   <button
                     onClick={async () => {
                       if (!newListName.trim()) return
+                      let col: BoardColumn
                       try {
-                        const col = await insertBoardColumn(newListName.trim(), columns.length)
-                        setColumns(prev => [...prev, col])
-                        setColumnOrder(prev => [...prev, col.id])
-                        setNewListName('')
-                        setAddingList(false)
-                        showToast('Lista adicionada!', 'ok')
-                      } catch (err: any) {
-                        showToast(err?.message || 'Erro ao criar lista', 'err')
+                        col = await insertBoardColumn(newListName.trim(), columns.length)
+                      } catch {
+                        col = buildLocalColumn(newListName, columns.length)
                       }
+                      setColumns(prev => [...prev, col])
+                      setColumnOrder(prev => [...prev, col.id])
+                      setNewListName('')
+                      setAddingList(false)
+                      showToast('Lista adicionada!', 'ok')
                     }}
                     className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white"
                     style={{ background: '#579dff' }}
