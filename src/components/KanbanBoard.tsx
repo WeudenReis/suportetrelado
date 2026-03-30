@@ -4,12 +4,13 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyb
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
+import { ArchivedPanel } from './ArchivedPanel'
 import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../hooks/useKanban'
@@ -83,6 +84,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [inlineTitle, setInlineTitle] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [showInstanceModal, setShowInstanceModal] = useState(false)
+  const [showArchivedPanel, setShowArchivedPanel] = useState(false)
   const [addingList, setAddingList] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [columns, setColumns] = useState<BoardColumn[]>([])
@@ -749,11 +751,23 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             </AnimatePresence>
           </div>
 
+          <button onClick={() => setShowArchivedPanel(true)} className="trello-icon-btn" type="button" title="Itens arquivados">
+            <Archive size={16} />
+          </button>
+
           <button onClick={onLogout} className="trello-icon-btn trello-icon-btn--danger" type="button" title="Sair">
             <LogOut size={16} />
           </button>
         </div>
       </header>
+
+      {/* Painel de arquivados */}
+      {showArchivedPanel && (
+        <ArchivedPanel
+          onClose={() => setShowArchivedPanel(false)}
+          onRestore={() => { loadTickets(); setShowArchivedPanel(false) }}
+        />
+      )}
 
       {/* Board */}
       <main className="board-main" style={boardSurfaceStyle}>
