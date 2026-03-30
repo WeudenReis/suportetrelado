@@ -10,7 +10,8 @@ import {
   supabase, updateTicket, deleteTicket,
   fetchComments, insertComment, deleteComment,
   fetchAttachments, uploadAttachment, deleteAttachment,
-  fetchActivityLog, insertActivityLog
+  fetchActivityLog, insertActivityLog,
+  extractMentions, insertNotification
 } from '../lib/supabase'
 import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog } from '../lib/supabase'
 
@@ -248,11 +249,27 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const handleSendComment = async () => {
     if (!newComment.trim()) return
     setSendingComment(true)
-    const c = await insertComment(ticket.id, user, newComment.trim())
+    const commentText = newComment.trim()
+    const c = await insertComment(ticket.id, user, commentText)
     if (c) setComments(prev => [...prev, c])
     setNewComment('')
     setSendingComment(false)
     commentRef.current?.focus()
+
+    // Detect @ mentions and create notifications
+    const mentions = extractMentions(commentText)
+    for (const email of mentions) {
+      if (email.toLowerCase() !== user.toLowerCase()) {
+        insertNotification({
+          recipient_email: email,
+          sender_name: user,
+          type: 'mention',
+          ticket_id: ticket.id,
+          ticket_title: ticket.title,
+          message: `mencionou você: "${commentText.length > 80 ? commentText.slice(0, 80) + '…' : commentText}"`,
+        })
+      }
+    }
   }
 
   const handleDeleteComment = async (id: string) => {

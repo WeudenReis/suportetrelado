@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
+import InboxView from './components/InboxView'
 import PlannerView from './components/PlannerView'
 import Sidebar from './components/Sidebar'
 import PlannerSidebar from './components/PlannerSidebar'
@@ -66,6 +67,14 @@ export default function App() {
   }
 
   const renderView = () => {
+    if (activeTab === 'inbox') {
+      return (
+        <motion.div key="inbox" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+          className="flex-1 flex flex-col min-h-0">
+          <InboxView user={user!} />
+        </motion.div>
+      )
+    }
     return (
       <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
         className="flex-1 flex flex-col min-h-0">

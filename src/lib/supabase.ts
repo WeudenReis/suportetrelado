@@ -265,3 +265,50 @@ export async function fetchUserProfiles(): Promise<UserProfile[]> {
   if (error) { console.warn('user_profiles table may not exist:', error.message); return [] }
   return (data ?? []) as UserProfile[]
 }
+
+// --- Notifications ---
+export interface Notification {
+  id: string
+  recipient_email: string
+  sender_name: string
+  type: 'mention' | 'assignment' | 'move' | 'comment'
+  ticket_id: string | null
+  ticket_title: string
+  message: string
+  is_read: boolean
+  created_at: string
+}
+
+export async function fetchNotifications(email: string): Promise<Notification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('recipient_email', email)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) { console.warn('notifications table may not exist:', error.message); return [] }
+  return (data ?? []) as Notification[]
+}
+
+export async function insertNotification(notif: Omit<Notification, 'id' | 'is_read' | 'created_at'>): Promise<void> {
+  const { error } = await supabase.from('notifications').insert(notif)
+  if (error) console.warn('insertNotification:', error.message)
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+}
+
+export async function markAllNotificationsRead(email: string): Promise<void> {
+  await supabase.from('notifications').update({ is_read: true }).eq('recipient_email', email).eq('is_read', false)
+}
+
+export function extractMentions(text: string): string[] {
+  const regex = /@([\w.+-]+@[\w.-]+\.\w+)/g
+  const mentions: string[] = []
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
+    mentions.push(match[1])
+  }
+  return mentions
+}

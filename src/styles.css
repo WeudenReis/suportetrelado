@@ -433,6 +433,190 @@ body {
 }
 
 /* =========================================
+   InboxView — Caixa de Entrada
+   ========================================= */
+.inbox-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-app);
+}
+.inbox-view__header {
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.inbox-view__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+.inbox-view__title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+.inbox-view__badge {
+  background: #ef5c48;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+.inbox-view__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.inbox-view__tabs {
+  display: flex;
+  gap: 4px;
+}
+.inbox-view__tab {
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.inbox-view__tab:hover {
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.06);
+}
+.inbox-view__tab--active {
+  color: #579dff;
+  background: rgba(87,157,255,0.12);
+}
+.inbox-view__mark-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.12s;
+}
+.inbox-view__mark-all:hover {
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.06);
+}
+.inbox-view__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px 80px;
+}
+.inbox-view__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 64px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Inbox item */
+.inbox-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.12s;
+  margin-bottom: 2px;
+}
+.inbox-item:hover {
+  background: rgba(255,255,255,0.04);
+}
+.inbox-item--unread {
+  background: rgba(87,157,255,0.06);
+}
+.inbox-item--unread:hover {
+  background: rgba(87,157,255,0.10);
+}
+.inbox-item__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.inbox-item__content {
+  flex: 1;
+  min-width: 0;
+}
+.inbox-item__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.inbox-item__sender {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.inbox-item__type {
+  font-size: 11px;
+  font-weight: 500;
+}
+.inbox-item__message {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.inbox-item__ticket {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: inline-block;
+}
+.inbox-item__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.inbox-item__time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.inbox-item__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #579dff;
+}
+
+/* =========================================
    Sidebar — Floating Container
    ========================================= */
 .sidebar-root {
