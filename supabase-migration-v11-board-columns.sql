@@ -22,12 +22,9 @@ CREATE POLICY "board_columns_delete" ON board_columns FOR DELETE TO authenticate
 -- Habilitar realtime
 ALTER PUBLICATION supabase_realtime ADD TABLE board_columns;
 
--- Inserir colunas padrão
-INSERT INTO board_columns (id, title, position, dot_color, is_archived) VALUES
-  (gen_random_uuid(), 'Backlog',          0, '#579dff', false),
-  (gen_random_uuid(), 'Em Progresso',     1, '#579dff', false),
-  (gen_random_uuid(), 'Aguardando Devs',  2, '#f5a623', false),
-  (gen_random_uuid(), 'Resolvido',        3, '#4bce97', false);
+-- IMPORTANTE: Os IDs devem corresponder aos valores de "status" usados na tabela tickets.
+-- A coluna tickets.status armazena o ID da coluna (ex: 'backlog', 'in_progress', etc.)
+-- Por isso usamos TEXT como ID e não UUID.
 
 -- Confirmar
 SELECT id, title, position, dot_color FROM board_columns ORDER BY position;

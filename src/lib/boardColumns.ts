@@ -21,9 +21,11 @@ export async function fetchBoardColumns(): Promise<BoardColumn[]> {
 }
 
 export async function insertBoardColumn(title: string, position: number, dot_color = '#579dff'): Promise<BoardColumn> {
+  const id = title.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now()
   const { data, error } = await supabase
     .from('board_columns')
     .insert({
+      id,
       title: title.trim(),
       position,
       dot_color,
