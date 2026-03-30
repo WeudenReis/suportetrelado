@@ -12,11 +12,10 @@ import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, BoardColumn } from '../lib/boardColumns'
+import { COLUMNS } from '../hooks/useKanban'
 import type { Ticket, TicketStatus, UserProfile } from '../lib/supabase'
 
 interface KanbanBoardProps { user: string; onLogout: () => void }
-
-const COLUMNS_LEGACY: { id: TicketStatus; label: string; color: string; accent: string }[] = COLUMNS
 
 function DroppableColumn({ id, children, isOver }: { id: string; children: React.ReactNode; isOver: boolean }) {
   const { setNodeRef } = useDroppable({ id })
