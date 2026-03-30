@@ -20,6 +20,12 @@
   border-color: rgba(75, 206, 151, 0.35);
 }
 
+.cardDragging {
+  opacity: 0.5;
+  border: 1px dashed rgba(87, 157, 255, 0.5);
+  background: rgba(87, 157, 255, 0.05);
+}
+
 .cover {
   width: 100%;
   height: 160px;

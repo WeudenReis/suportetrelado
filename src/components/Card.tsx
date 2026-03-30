@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, forwardRef } from 'react';
 import { Archive, Pencil, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import styles from './Card.module.css';
@@ -10,9 +10,11 @@ interface CardProps {
   onClick: () => void;
   onUpdate: (updated: CardType) => void;
   onArchive: (cardId: string) => void;
+  isDragging?: boolean;
+  style?: React.CSSProperties;
 }
 
-function Card({ card, onClick, onUpdate, onArchive }: CardProps) {
+function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
   const [isHovered, setIsHovered] = useState(false);
@@ -118,10 +120,11 @@ function Card({ card, onClick, onUpdate, onArchive }: CardProps) {
 
   return (
     <div
-      className={`${styles.card} ${card.is_completed ? styles.cardCompleted : ''}`}
+      className={`${styles.card} ${card.is_completed ? styles.cardCompleted : ''} ${isDragging ? styles.cardDragging : ''}`}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      style={style}
     >
       {/* ── CAPA ─────────────────────────── */}
       {card.cover_image_url && (

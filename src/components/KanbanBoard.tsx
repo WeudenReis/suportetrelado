@@ -47,6 +47,39 @@ function DroppableColumn({ id, children, isOver }: { id: string; children: React
   return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
 }
 
+function SortableCard({ ticket, onClick, onUpdate, onArchive, isOverCard, activeTicket }: {
+  ticket: any
+  onClick: () => void
+  onUpdate: (u: any) => void
+  onArchive: (id: string) => void
+  isOverCard: boolean
+  activeTicket: any | null
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: ticket.id,
+    data: { type: 'card', ticket },
+  })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
+      {activeTicket && isOverCard && activeTicket.id !== ticket.id && (
+        <div className="dnd-drop-indicator" />
+      )}
+      <Card
+        card={ticket}
+        onClick={onClick}
+        onUpdate={onUpdate}
+        onArchive={onArchive}
+        isDragging={isDragging}
+      />
+    </div>
+  )
+}
+
 function SortableBoardColumn({ id, children }: { id: string; children: (drag: { attributes: Record<string, any>; listeners: Record<string, any>; isDragging: boolean }) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { type: 'column', columnId: id } })
   const style = {
@@ -92,6 +125,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
+  const dragOriginalStatusRef = useRef<string | null>(null)
 
   const wallpaperStorageKey = `chatpro-wallpaper:${user.toLowerCase()}`
 
@@ -237,6 +271,10 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     setActiveTicket(null)
     setOverColumn(null)
     setOverCardId(null)
+    if (dragOriginalStatusRef.current) {
+      dragOriginalStatusRef.current = null
+      loadTickets() // rollback
+    }
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -247,24 +285,61 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     }
 
     const ticket = tickets.find(t => t.id === event.active.id)
-    if (ticket) setActiveTicket(ticket)
+    if (ticket) {
+      setActiveTicket(ticket)
+      dragOriginalStatusRef.current = ticket.status
+    }
   }
 
   function handleDragOver(event: DragOverEvent) {
     if (event.active.data.current?.type === 'column') return
 
-    const overId = event.over?.id as string | undefined
-    if (!overId) { setOverColumn(null); setOverCardId(null); return }
+    const { active, over } = event
+    if (!over) { setOverColumn(null); setOverCardId(null); return }
 
+    const overId = String(over.id)
+    const activeId = String(active.id)
+
+    // Determine which column the over target belongs to
+    let targetColumn: string | undefined
     if (allColumnsById.has(overId)) {
-      setOverColumn(overId)
-      setOverCardId(null)
-      return
+      targetColumn = overId
+    } else {
+      targetColumn = tickets.find(t => t.id === overId)?.status
     }
 
-    const overTicket = tickets.find(t => t.id === overId)
-    setOverColumn(overTicket?.status ?? null)
-    setOverCardId(overId)
+    setOverColumn(targetColumn ?? null)
+    setOverCardId(allColumnsById.has(overId) ? null : overId)
+
+    if (!targetColumn) return
+
+    const activeTicketData = tickets.find(t => t.id === activeId)
+    if (!activeTicketData) return
+
+    // If moving to a different column, update status optimistically during drag
+    if (activeTicketData.status !== targetColumn) {
+      setTickets(prev => {
+        const idx = prev.findIndex(t => t.id === activeId)
+        if (idx < 0) return prev
+        const next = [...prev]
+        next[idx] = { ...next[idx], status: targetColumn as TicketStatus }
+
+        // If hovering over a card, insert near it
+        const overIdx = next.findIndex(t => t.id === overId)
+        if (overIdx >= 0 && overIdx !== idx) {
+          return arrayMove(next, idx, overIdx)
+        }
+        return next
+      })
+    } else if (overId !== activeId && !allColumnsById.has(overId)) {
+      // Same column reordering
+      setTickets(prev => {
+        const oldIndex = prev.findIndex(t => t.id === activeId)
+        const newIndex = prev.findIndex(t => t.id === overId)
+        if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return prev
+        return arrayMove(prev, oldIndex, newIndex)
+      })
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -293,53 +368,29 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     setActiveTicket(null)
     setOverColumn(null)
     setOverCardId(null)
-    if (!over) return
 
-    const overId = String(over.id)
-    const targetStatus = allColumnsById.has(overId)
-      ? overId
-      : tickets.find(t => t.id === overId)?.status
+    const originalStatus = dragOriginalStatusRef.current
+    dragOriginalStatusRef.current = null
 
-    if (!targetStatus) return
-    const ticket = tickets.find(t => t.id === active.id)
-    if (!ticket || ticket.status === targetStatus) return
-
-    const fromLabel = allColumnsById.get(ticket.status)?.title || ticket.status
-    const toLabel = allColumnsById.get(targetStatus)?.title || targetStatus
-
-    // Optimistic update with ordering preservation.
-    setTickets(prev => {
-      const activeId = String(active.id)
-      const activeIndex = prev.findIndex(t => t.id === activeId)
-      if (activeIndex < 0) return prev
-
-      const next = [...prev]
-      const current = next[activeIndex]
-      next[activeIndex] = { ...current, status: targetStatus as TicketStatus }
-
-      const overIndex = next.findIndex(t => t.id === overId)
-
-      if (overIndex >= 0) {
-        return arrayMove(next, activeIndex, overIndex)
-      }
-
-      const withoutActive = next.filter(t => t.id !== activeId)
-      const lastInTarget = withoutActive.reduce((idx, t, i) => (t.status === targetStatus ? i : idx), -1)
-      const insertAt = lastInTarget >= 0 ? lastInTarget + 1 : withoutActive.length
-      withoutActive.splice(insertAt, 0, next[activeIndex])
-      return withoutActive
-    })
-
-    const canPersistStatus = allColumnsById.has(targetStatus)
-    if (!canPersistStatus) {
-      insertActivityLog(active.id as string, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
+    if (!over) {
+      loadTickets() // rollback
       return
     }
 
+    // The ticket's status was already updated in handleDragOver
+    const ticket = tickets.find(t => t.id === active.id)
+    if (!ticket) return
+
+    const newStatus = ticket.status
+    const fromLabel = allColumnsById.get(originalStatus || '')?.title || originalStatus || ''
+    const toLabel = allColumnsById.get(newStatus)?.title || newStatus
+
     // Persist to Supabase
-    updateTicket(active.id as string, { status: targetStatus as TicketStatus })
+    updateTicket(active.id as string, { status: newStatus as TicketStatus })
       .then(() => {
-        insertActivityLog(active.id as string, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
+        if (originalStatus && originalStatus !== newStatus) {
+          insertActivityLog(active.id as string, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
+        }
       })
       .catch(() => {
         showToast('Erro ao mover ticket', 'err')
@@ -816,17 +867,15 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                             <div className="trello-col__cards">
                               <SortableContext items={colTickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
                                   {colTickets.map(ticket => (
-                                    <div key={ticket.id}>
-                                      {activeTicket && overCardId === ticket.id && activeTicket.id !== ticket.id && (
-                                        <div className="dnd-drop-indicator" />
-                                      )}
-                                      <Card
-                                        card={ticket}
-                                        onClick={() => handleCardClick(ticket)}
-                                        onUpdate={handleTicketUpdate}
-                                        onArchive={(id) => setTickets(prev => prev.filter(t => t.id !== id))}
-                                      />
-                                    </div>
+                                    <SortableCard
+                                      key={ticket.id}
+                                      ticket={ticket}
+                                      onClick={() => handleCardClick(ticket)}
+                                      onUpdate={handleTicketUpdate}
+                                      onArchive={(id) => setTickets(prev => prev.filter(t => t.id !== id))}
+                                      isOverCard={overCardId === ticket.id}
+                                      activeTicket={activeTicket}
+                                    />
                                   ))}
                               </SortableContext>
                             </div>
@@ -926,14 +975,19 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             {activeColumnId && allColumnsById.get(activeColumnId) && (
               <div className="trello-col trello-col--drag" style={{ transform: 'rotate(2deg)', opacity: 0.88 }}>
                 <div className="trello-col__head">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: allColumnsById.get(activeColumnId)?.accent }} />
-                  <span className="flex-1 truncate">{allColumnsById.get(activeColumnId)?.label}</span>
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: allColumnsById.get(activeColumnId)?.dot_color }} />
+                  <span className="flex-1 truncate">{allColumnsById.get(activeColumnId)?.title}</span>
                 </div>
               </div>
             )}
             {activeTicket && (
-              <div style={{ transform: 'rotate(5deg)', opacity: 0.92 }}>
-                <Card ticket={activeTicket} isDragging />
+              <div style={{ transform: 'rotate(3deg)', opacity: 0.92 }}>
+                <Card
+                  card={activeTicket}
+                  onClick={() => {}}
+                  onUpdate={() => {}}
+                  onArchive={() => {}}
+                />
               </div>
             )}
           </DragOverlay>
