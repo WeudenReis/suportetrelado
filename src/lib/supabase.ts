@@ -8,7 +8,7 @@ const PROD_KEY = 'sb_publishable_Qc_kigRTle0uzM6LAsLHbQ_XuBHWJV3'
 const DEV_URL = 'https://vbxzeyweurzrwppdiluo.supabase.co'
 const DEV_KEY = 'sb_publishable_03VCMlD83Jf9fsXJB97Ccw_QEYH_4Ps'
 
-const envUrl = String((import.meta as any).env?.VITE_SUPABASE_URL || '')
+const envUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const isProd = envUrl === PROD_URL
 
 const supabaseUrl = isProd ? PROD_URL : DEV_URL
