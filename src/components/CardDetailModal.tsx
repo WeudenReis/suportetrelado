@@ -732,8 +732,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 Observacao
               </div>
               <textarea
-                value={observacao}
-                onChange={e => setObservacao(e.target.value)}
+                value={observacao.split('\n').filter(l => !l.startsWith('☐') && !l.startsWith('☑')).join('\n')}
+                onChange={e => {
+                  const checkLines = observacao.split('\n').filter(l => l.startsWith('☐') || l.startsWith('☑'))
+                  const newNotes = e.target.value
+                  const merged = [...(newNotes ? [newNotes] : []), ...checkLines].join('\n')
+                  setObservacao(merged)
+                }}
                 onBlur={saveOnBlur}
                 className="w-full rounded-md p-3 text-sm resize-y outline-none"
                 style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 80 }}
