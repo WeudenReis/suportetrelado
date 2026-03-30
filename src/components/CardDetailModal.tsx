@@ -438,7 +438,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   <div className="text-[10px] w-full" style={{ color: '#596773' }}>Cor da etiqueta:</div>
                   {TAG_COLORS.map(c => (
-                    <button key={c} onClick={() => setSelectedTagColor(c)}
+                    <button key={c} type="button" onClick={e => { e.stopPropagation(); setSelectedTagColor(c) }}
                       className="rounded-full transition-all" title={c}
                       style={{ width: 22, height: 22, background: c, border: selectedTagColor === c ? '2px solid #fff' : '2px solid transparent', transform: selectedTagColor === c ? 'scale(1.15)' : 'scale(1)' }} />
                   ))}
@@ -446,7 +446,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 <div className="flex gap-2">
                   <input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Nova etiqueta..." className="modal-field flex-1 text-xs"
                     onKeyDown={e => { if (e.key === 'Enter' && newTag.trim()) { const encoded = `${newTag.trim()}|${selectedTagColor}`; const next = [...tags, encoded]; setTags(next); setNewTag(''); save({ tags: next }) } }} />
-                  <button onClick={() => { if (newTag.trim()) { const encoded = `${newTag.trim()}|${selectedTagColor}`; const next = [...tags, encoded]; setTags(next); setNewTag(''); save({ tags: next }) } }}
+                  <button type="button" onClick={() => { if (newTag.trim()) { const encoded = `${newTag.trim()}|${selectedTagColor}`; const next = [...tags, encoded]; setTags(next); setNewTag(''); save({ tags: next }) } }}
                     className="px-3 py-1 rounded-md text-xs font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Adicionar</button>
                 </div>
               </div>
