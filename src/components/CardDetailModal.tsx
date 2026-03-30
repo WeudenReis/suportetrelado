@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import gsap from 'gsap'
 import {
@@ -48,12 +48,17 @@ function avatarColor(name: string) {
 }
 
 function renderCommentText(text: string): React.ReactNode {
-  const parts = text.split(/(@[\w\u00C0-\u024F]+)/g)
-  return parts.map((part, i) =>
-    /^@[\w\u00C0-\u024F]+$/.test(part)
-      ? <span key={i} className="mention-highlight">{part}</span>
-      : part
-  )
+  if (!text) return text
+  try {
+    const parts = text.split(/(@[\w\u00C0-\u024F]+)/g)
+    return parts.map((part, i) =>
+      /^@[\w\u00C0-\u024F]+$/.test(part)
+        ? <span key={i} className="mention-highlight">{part}</span>
+        : part
+    )
+  } catch {
+    return text
+  }
 }
 
 const TAG_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
@@ -298,34 +303,39 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     if (!newComment.trim()) return
     setSendingComment(true)
     const commentText = newComment.trim()
-    const c = await insertComment(ticket.id, user, commentText)
-    if (c) setComments(prev => [...prev, c])
-    setNewComment('')
-    setSendingComment(false)
-    commentRef.current?.focus()
+    setMentionQuery(null)
+    try {
+      const c = await insertComment(ticket.id, user, commentText)
+      if (c) setComments(prev => [...prev, c])
+      setNewComment('')
+      setSendingComment(false)
+      commentRef.current?.focus()
 
-    // Detect @nome mentions and create notifications
-    const mentionNames = extractMentionNames(commentText)
-    if (mentionNames.length > 0) {
-      // Resolve sender display name from Google session
-      const { data: { session } } = await supabase.auth.getSession()
-      const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
-      const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
-      const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+      // Detect @nome mentions and create notifications
+      const mentionNames = extractMentionNames(commentText)
+      if (mentionNames.length > 0) {
+        const { data: { session } } = await supabase.auth.getSession()
+        const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
+        const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
+        const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
 
-      const emails = await resolveMentionsToEmails(mentionNames)
-      for (const email of emails) {
-        if (email.toLowerCase() !== user.toLowerCase()) {
-          insertNotification({
-            recipient_email: email,
-            sender_name: senderDisplayName,
-            type: 'mention',
-            ticket_id: ticket.id,
-            ticket_title: ticket.title,
-            message: `mencionou você: "${commentText.length > 80 ? commentText.slice(0, 80) + '…' : commentText}"`,
-          })
+        const emails = await resolveMentionsToEmails(mentionNames)
+        for (const email of emails) {
+          if (email.toLowerCase() !== user.toLowerCase()) {
+            await insertNotification({
+              recipient_email: email,
+              sender_name: senderDisplayName,
+              type: 'mention',
+              ticket_id: ticket.id,
+              ticket_title: ticket.title,
+              message: `mencionou você: "${commentText.length > 80 ? commentText.slice(0, 80) + '…' : commentText}"`,
+            })
+          }
         }
       }
+    } catch (err) {
+      console.error('handleSendComment error:', err)
+      setSendingComment(false)
     }
   }
 
