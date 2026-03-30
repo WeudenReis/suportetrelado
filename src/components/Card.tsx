@@ -209,6 +209,17 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
         {/* ── LINHA DO TÍTULO + AÇÕES ─────── */}
         <div className={styles.titleRow}>
 
+          {/* Botão de check (esquerda) — só no hover ou se concluído */}
+          <button
+            className={`${styles.checkBtn} ${card.is_completed ? styles.checkBtnDone : ''} ${isHovered || card.is_completed ? styles.checkBtnVisible : ''}`}
+            onClick={handleToggleComplete}
+            onPointerDown={e => e.stopPropagation()}
+            title={card.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
+            type="button"
+          >
+            {card.is_completed && <Check size={11} strokeWidth={3} />}
+          </button>
+
           {/* Título ou input de edição */}
           {isEditing ? (
             <textarea
@@ -230,15 +241,6 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
           {/* Botões de ação (direita) — só no hover */}
           {!isEditing && (
             <div className={`${styles.actions} ${isHovered ? styles.actionsVisible : ''}`}>
-              <button
-                className={`${styles.actionBtn} ${styles.checkActionBtn} ${card.is_completed ? styles.checkActionBtnDone : ''}`}
-                onClick={handleToggleComplete}
-                onPointerDown={e => e.stopPropagation()}
-                title={card.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
-                type="button"
-              >
-                <Check size={13} strokeWidth={card.is_completed ? 3 : 2} />
-              </button>
               <button
                 className={styles.actionBtn}
                 onClick={handleArchive}

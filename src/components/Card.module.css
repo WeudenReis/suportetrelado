@@ -53,15 +53,42 @@
 }
 
 .checkBtn {
-  display: none;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #596773;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  margin-top: 2px;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.12s, transform 0.12s, border-color 0.12s, background 0.12s, color 0.12s;
+  position: relative;
+  z-index: 2;
 }
 
 .checkBtnVisible {
-  display: none;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checkBtn:hover {
+  border-color: #4bce97;
+  background: rgba(75, 206, 151, 0.15);
+  color: #4bce97;
 }
 
 .checkBtnDone {
-  display: none;
+  border-color: #4bce97 !important;
+  background: #4bce97 !important;
+  color: #1d2125 !important;
+  opacity: 1 !important;
+  transform: scale(1) !important;
 }
 
 .title {
@@ -132,22 +159,9 @@
   color: #b6c2cf;
 }
 
-.actionBtn:nth-child(2):hover {
+.actionBtn:nth-child(1):hover {
   background: rgba(239, 92, 72, 0.15);
   color: #ef5c48;
-}
-
-.checkActionBtn {
-  color: #596773;
-}
-
-.checkActionBtn:hover {
-  background: rgba(75, 206, 151, 0.15) !important;
-  color: #4bce97 !important;
-}
-
-.checkActionBtnDone {
-  color: #4bce97;
 }
 
 
