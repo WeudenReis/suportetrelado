@@ -945,7 +945,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                               <button
                                 type="button"
                                 className="w-3.5 h-3.5 rounded-full flex-shrink-0 border-0 p-0 cursor-pointer hover:scale-125 transition-transform"
-                                style={{ background: col.dot_color, boxShadow: `0 0 6px ${col.dot_color}44` }}
+                                style={{ background: '#ffffff', boxShadow: '0 0 6px rgba(255,255,255,0.3)' }}
                                 onClick={e => { e.stopPropagation(); setColorPickerColumnId(prev => prev === col.id ? null : col.id) }}
                                 title="Mudar cor"
                               />
@@ -988,7 +988,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                                 onDoubleClick={e => { e.stopPropagation(); setEditingColumnId(col.id); setEditingColumnTitle(col.title) }}
                               >{col.title}</span>
                             )}
-                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.dot_color}15`, color: col.dot_color }}>{colTickets.length}</span>
+                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.12)', color: '#ffffff' }}>{colTickets.length}</span>
                             <button
                               onClick={(event) => {
                                 event.stopPropagation()
