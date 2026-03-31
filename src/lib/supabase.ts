@@ -80,6 +80,50 @@ export type TicketInsert = {
   observacao?: string | null
 }
 
+// ── Board Labels (etiquetas reutilizáveis) ──
+export interface BoardLabel {
+  id: string
+  name: string
+  color: string
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchBoardLabels(): Promise<BoardLabel[]> {
+  const { data, error } = await supabase
+    .from('board_labels')
+    .select('*')
+    .order('name', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as BoardLabel[]
+}
+
+export async function insertBoardLabel(name: string, color: string): Promise<BoardLabel> {
+  const { data, error } = await supabase
+    .from('board_labels')
+    .insert({ name, color })
+    .select()
+    .single()
+  if (error) throw error
+  return data as BoardLabel
+}
+
+export async function updateBoardLabel(id: string, updates: { name?: string; color?: string }): Promise<void> {
+  const { error } = await supabase
+    .from('board_labels')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteBoardLabel(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('board_labels')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function fetchTickets(): Promise<Ticket[]> {
   const { data, error } = await supabase
     .from('tickets')

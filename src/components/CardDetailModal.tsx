@@ -4,7 +4,7 @@ import {
   X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
   ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
   AlignLeft, CreditCard, Paperclip, Check, User, Calendar,
-  CheckSquare, Square, Plus, Link2
+  CheckSquare, Square, Plus, Link2, Pencil
 } from 'lucide-react'
 import {
   supabase, updateTicket, deleteTicket,
@@ -12,10 +12,11 @@ import {
   fetchAttachments, uploadAttachment, deleteAttachment,
   fetchActivityLog, insertActivityLog,
   extractMentionNames, resolveMentionsToEmails, insertNotification,
-  fetchUserProfiles
+  fetchUserProfiles,
+  fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel
 } from '../lib/supabase'
 import { compressCover, compressThumbnail, compressAttachment } from '../lib/imageUtils'
-import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog, UserProfile } from '../lib/supabase'
+import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
 
 interface CardDetailModalProps {
   ticket: Ticket
@@ -107,6 +108,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [tags, setTags] = useState<string[]>(ticket.tags || [])
   const [newTag, setNewTag] = useState('')
   const [selectedTagColor, setSelectedTagColor] = useState('#579dff')
+  const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
+  const [editingLabelName, setEditingLabelName] = useState('')
+  const [editingLabelColor, setEditingLabelColor] = useState('')
+  const [showCreateLabel, setShowCreateLabel] = useState(false)
   const [coverImage, setCoverImage] = useState(ticket.cover_image_url || '')
   const [uploadingCover, setUploadingCover] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
@@ -167,6 +173,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   useEffect(() => {
     fetchUserProfiles().then(setAllUsers)
   }, [])
+
+  // Load board labels when label picker opens
+  useEffect(() => {
+    if (showLabelPicker) {
+      fetchBoardLabels().then(setBoardLabels).catch(console.error)
+    }
+  }, [showLabelPicker])
 
   useEffect(() => {
     const ch = supabase
@@ -533,35 +546,145 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           <div className="elite-modal__col-left">
             {/* Labels picker */}
             {showLabelPicker && (
-              <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
-                <div className="text-xs font-semibold mb-1" style={{ color: '#596773' }}>Etiquetas</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.map((raw) => {
-                    const { name, color } = parseTag(raw);
-                    return (
-                      <span key={raw} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-white cursor-pointer hover:opacity-80"
-                        style={{ background: color }}
-                        onClick={() => { const next = tags.filter(t => t !== raw); setTags(next); save({ tags: next }) }}
-                        title="Clique para remover"
-                      >{name} ×</span>
-                    );
-                  })}
-                </div>
-                {/* Color picker */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  <div className="text-[10px] w-full" style={{ color: '#596773' }}>Cor da etiqueta:</div>
-                  {TAG_COLORS.map(c => (
-                    <button key={c} type="button" onClick={e => { e.stopPropagation(); setSelectedTagColor(c) }}
-                      className="rounded-full transition-all" title={c}
-                      style={{ width: 22, height: 22, background: c, border: selectedTagColor === c ? '2px solid #fff' : '2px solid transparent', transform: selectedTagColor === c ? 'scale(1.15)' : 'scale(1)' }} />
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Nova etiqueta..." className="modal-field flex-1 text-xs"
-                    onKeyDown={e => { if (e.key === 'Enter' && newTag.trim()) { const encoded = `${newTag.trim()}|${selectedTagColor}`; const next = [...tags, encoded]; setTags(next); setNewTag(''); save({ tags: next }) } }} />
-                  <button type="button" onClick={() => { if (newTag.trim()) { const encoded = `${newTag.trim()}|${selectedTagColor}`; const next = [...tags, encoded]; setTags(next); setNewTag(''); save({ tags: next }) } }}
-                    className="px-3 py-1 rounded-md text-xs font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Adicionar</button>
-                </div>
+              <div className="rounded-lg p-2.5 space-y-2 mb-3" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)', maxHeight: 260, overflowY: 'auto' }}>
+                <div className="text-[11px] font-semibold" style={{ color: '#596773' }}>Etiquetas</div>
+
+                {/* Applied tags inline */}
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {tags.map((raw) => {
+                      const { name, color } = parseTag(raw);
+                      return (
+                        <span key={raw} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold text-white cursor-pointer hover:opacity-75"
+                          style={{ background: color }}
+                          onClick={() => { const next = tags.filter(t => t !== raw); setTags(next); save({ tags: next }) }}
+                          title="Clique para remover"
+                        >{name} ×</span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Board labels list (selectable) */}
+                {boardLabels.length > 0 && !editingLabelId && (
+                  <div className="space-y-0.5">
+                    {boardLabels.map(label => {
+                      const encoded = `${label.name}|${label.color}`;
+                      const isApplied = tags.includes(encoded);
+                      return (
+                        <div key={label.id} className="flex items-center gap-1.5 group">
+                          <button
+                            type="button"
+                            className="flex-1 flex items-center gap-2 px-2 py-1 rounded text-xs font-semibold text-white text-left hover:opacity-85 transition-opacity"
+                            style={{ background: label.color }}
+                            onClick={() => {
+                              const next = isApplied ? tags.filter(t => t !== encoded) : [...tags, encoded];
+                              setTags(next); save({ tags: next });
+                            }}
+                          >
+                            {isApplied && <Check size={12} strokeWidth={3} />}
+                            <span className="flex-1 truncate">{label.name}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
+                            onClick={() => { setEditingLabelId(label.id); setEditingLabelName(label.name); setEditingLabelColor(label.color); setShowCreateLabel(false) }}
+                            title="Editar etiqueta"
+                          >
+                            <Pencil size={11} style={{ color: '#9fadbc' }} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Edit label form */}
+                {editingLabelId && (
+                  <div className="space-y-1.5 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="text-[10px] font-semibold" style={{ color: '#596773' }}>Editar etiqueta</div>
+                    <input value={editingLabelName} onChange={e => setEditingLabelName(e.target.value)} className="modal-field text-xs w-full" placeholder="Nome..." />
+                    <div className="flex flex-wrap gap-1">
+                      {TAG_COLORS.map(c => (
+                        <button key={c} type="button" onClick={() => setEditingLabelColor(c)}
+                          className="rounded-full" style={{ width: 18, height: 18, background: c, border: editingLabelColor === c ? '2px solid #fff' : '2px solid transparent' }} />
+                      ))}
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button type="button" onClick={async () => {
+                        if (!editingLabelName.trim()) return;
+                        await updateBoardLabel(editingLabelId, { name: editingLabelName.trim(), color: editingLabelColor });
+                        // Update tag in card if it was applied
+                        const oldLabel = boardLabels.find(l => l.id === editingLabelId);
+                        if (oldLabel) {
+                          const oldEncoded = `${oldLabel.name}|${oldLabel.color}`;
+                          const newEncoded = `${editingLabelName.trim()}|${editingLabelColor}`;
+                          if (tags.includes(oldEncoded)) {
+                            const next = tags.map(t => t === oldEncoded ? newEncoded : t);
+                            setTags(next); save({ tags: next });
+                          }
+                        }
+                        setBoardLabels(await fetchBoardLabels());
+                        setEditingLabelId(null);
+                      }} className="px-2 py-1 rounded text-[10px] font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Salvar</button>
+                      <button type="button" onClick={async () => {
+                        if (confirm('Excluir esta etiqueta do board?')) {
+                          const oldLabel = boardLabels.find(l => l.id === editingLabelId);
+                          if (oldLabel) {
+                            const encoded = `${oldLabel.name}|${oldLabel.color}`;
+                            if (tags.includes(encoded)) { const next = tags.filter(t => t !== encoded); setTags(next); save({ tags: next }); }
+                          }
+                          await deleteBoardLabel(editingLabelId);
+                          setBoardLabels(await fetchBoardLabels());
+                          setEditingLabelId(null);
+                        }
+                      }} className="px-2 py-1 rounded text-[10px] font-semibold" style={{ background: 'rgba(239,68,68,0.15)', color: '#ef5c48' }}>Excluir</button>
+                      <button type="button" onClick={() => setEditingLabelId(null)} className="px-2 py-1 rounded text-[10px] font-semibold" style={{ color: '#596773' }}>Cancelar</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Create new label */}
+                {!editingLabelId && (
+                  <>
+                    {showCreateLabel ? (
+                      <div className="space-y-1.5 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="flex flex-wrap gap-1">
+                          {TAG_COLORS.map(c => (
+                            <button key={c} type="button" onClick={() => setSelectedTagColor(c)}
+                              className="rounded-full" style={{ width: 18, height: 18, background: c, border: selectedTagColor === c ? '2px solid #fff' : '2px solid transparent' }} />
+                          ))}
+                        </div>
+                        <div className="flex gap-1.5">
+                          <input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Nome da etiqueta..." className="modal-field flex-1 text-xs"
+                            onKeyDown={async e => {
+                              if (e.key === 'Enter' && newTag.trim()) {
+                                const label = await insertBoardLabel(newTag.trim(), selectedTagColor);
+                                const encoded = `${label.name}|${label.color}`;
+                                const next = [...tags, encoded]; setTags(next); save({ tags: next });
+                                setNewTag(''); setShowCreateLabel(false);
+                                setBoardLabels(await fetchBoardLabels());
+                              }
+                            }} />
+                          <button type="button" onClick={async () => {
+                            if (!newTag.trim()) return;
+                            const label = await insertBoardLabel(newTag.trim(), selectedTagColor);
+                            const encoded = `${label.name}|${label.color}`;
+                            const next = [...tags, encoded]; setTags(next); save({ tags: next });
+                            setNewTag(''); setShowCreateLabel(false);
+                            setBoardLabels(await fetchBoardLabels());
+                          }} className="px-2 py-1 rounded text-[10px] font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Criar</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setShowCreateLabel(true)}
+                        className="w-full text-center py-1 rounded text-[10px] font-semibold hover:bg-white/5 transition-colors"
+                        style={{ color: '#9fadbc', border: '1px dashed rgba(166,197,226,0.15)' }}>
+                        + Nova etiqueta
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
