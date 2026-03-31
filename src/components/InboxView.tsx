@@ -93,18 +93,16 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
     <div className="sidebar-root h-full flex-shrink-0 relative z-30 flex" style={{ width: 340 }}>
       <div className="flex flex-col flex-1 overflow-hidden px-3 pt-3 pb-3">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-center justify-between mb-4 px-2 py-3 rounded-xl" style={{ background: 'rgba(87,157,255,0.06)', border: '1px solid rgba(87,157,255,0.10)' }}>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(87,157,255,0.16)' }}>
-              <Inbox size={16} className="text-blue-300" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(87,157,255,0.18)' }}>
+              <Inbox size={17} className="text-blue-300" />
             </div>
             <div className="flex flex-col">
-              <span className="text-base font-bold leading-tight" style={{ color: '#ffffff' }}>Caixa de Entrada</span>
-              {unreadCount > 0 && (
-                <span className="text-[10px] font-medium leading-tight" style={{ color: '#9fadbc' }}>
-                  {unreadCount} não {unreadCount === 1 ? 'lida' : 'lidas'}
-                </span>
-              )}
+              <span className="text-[15px] font-bold leading-tight" style={{ color: '#ffffff' }}>Notificações</span>
+              <span className="text-[10px] font-medium leading-tight mt-0.5" style={{ color: '#9fadbc' }}>
+                {notifications.length === 0 ? 'Nenhuma notificação' : unreadCount > 0 ? `${unreadCount} não ${unreadCount === 1 ? 'lida' : 'lidas'} de ${notifications.length}` : `${notifications.length} ${notifications.length === 1 ? 'notificação' : 'notificações'}`}
+              </span>
             </div>
           </div>
           <button onClick={onToggle} className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: '#9fb0c2' }}>
