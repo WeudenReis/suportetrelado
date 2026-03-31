@@ -752,13 +752,28 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                       return (
                         <button
                           key={u.email}
-                          onClick={() => {
+                          onClick={async () => {
                             const identifier = u.name || u.email
                             let next: string[]
                             if (isAdded) {
                               next = members.filter(m => m !== u.email && m !== u.name)
                             } else {
                               next = [...members, identifier]
+                              // Notificar o membro adicionado
+                              if (u.email.toLowerCase() !== user.toLowerCase()) {
+                                const { data: { session } } = await supabase.auth.getSession()
+                                const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
+                                const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
+                                const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+                                insertNotification({
+                                  recipient_email: u.email,
+                                  sender_name: senderDisplayName,
+                                  type: 'assignment',
+                                  ticket_id: ticket.id,
+                                  ticket_title: ticket.title,
+                                  message: `vinculou você ao cartão "${ticket.title.length > 60 ? ticket.title.slice(0, 60) + '…' : ticket.title}"`,
+                                })
+                              }
                             }
                             setMembers(next)
                             const joined = next.join(', ')
