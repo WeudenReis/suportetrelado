@@ -83,11 +83,12 @@ function SortableCardInner({ ticket, onClick, onUpdate, onArchive, isOverCard, a
 
 const SortableCard = memo(SortableCardInner)
 
-function SortableBoardColumn({ id, children }: { id: string; children: (drag: { attributes: Record<string, any>; listeners: Record<string, any>; isDragging: boolean }) => React.ReactNode }) {
+function SortableBoardColumn({ id, accentColor, children }: { id: string; accentColor?: string; children: (drag: { attributes: Record<string, any>; listeners: Record<string, any>; isDragging: boolean }) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { type: 'column', columnId: id } })
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
+    ...(accentColor ? { '--col-accent': accentColor } as React.CSSProperties : {}),
   }
 
   return (
@@ -934,7 +935,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                 const colTickets = getColumnTickets(col.id)
                 return (
                   <div key={col.id}>
-                    <SortableBoardColumn id={col.id}>
+                    <SortableBoardColumn id={col.id} accentColor={col.dot_color}>
                       {({ attributes, listeners }) => (
                         <>
                           {/* Column header (drag handle) */}

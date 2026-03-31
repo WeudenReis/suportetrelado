@@ -223,7 +223,7 @@ body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: #101204;
+  background: color-mix(in srgb, var(--col-accent, #101204) 12%, #101204);
   border-radius: 12px;
   max-height: calc(100vh - 140px);
   padding-bottom: 0;
