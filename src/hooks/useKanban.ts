@@ -56,14 +56,22 @@ export function useKanban(user: string) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => {
           if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
-          return [...prev, payload.new as Ticket]
+          return [...prev, { ...(payload.new as Ticket), attachment_count: 0 }]
         })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, payload => {
-        setTickets(prev => prev.map(t => t.id === (payload.new as Ticket).id ? (payload.new as Ticket) : t))
+        setTickets(prev => prev.map(t => {
+          if (t.id !== (payload.new as Ticket).id) return t
+          return { ...(payload.new as Ticket), attachment_count: (t as any).attachment_count || 0 }
+        }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => prev.filter(t => t.id !== (payload.old as any).id))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments' }, () => {
+        fetchAttachmentCounts().then(counts => {
+          setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
+        })
       })
       .subscribe((status) => {
         setIsConnected(status === 'SUBSCRIBED')
