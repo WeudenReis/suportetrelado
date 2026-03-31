@@ -621,17 +621,16 @@ body {
    ========================================= */
 .mention-dropdown {
   position: absolute;
-  bottom: 100%;
+  top: 100%;
   left: 0;
   right: 0;
-  margin-bottom: 4px;
+  margin-top: 4px;
   background: #282e33;
   border: 1px solid rgba(166,197,226,0.15);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-  overflow: hidden;
   z-index: 100;
-  max-height: 220px;
+  max-height: 240px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.12) transparent;
