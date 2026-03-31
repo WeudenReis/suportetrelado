@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Inbox, CheckCheck, Clock, AtSign, ArrowRight,
   MessageSquare, UserPlus, ChevronLeft, CheckCircle2,
-  Check, ExternalLink, Ticket
+  Check, ExternalLink, Ticket, Bell, BellOff
 } from 'lucide-react'
 import { useNotificationContext } from './NotificationContext'
 import type { Notification } from '../lib/supabase'
@@ -17,11 +17,23 @@ interface InboxSidebarProps {
 
 type FilterType = 'all' | 'unread' | 'mentions'
 
-const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  mention:    { icon: <AtSign size={14} />,        color: '#3B82F6', label: 'Menção' },
-  assignment: { icon: <UserPlus size={14} />,      color: '#10B981', label: 'Atribuição' },
-  comment:    { icon: <MessageSquare size={14} />, color: '#F59E0B', label: 'Comentário' },
-  move:       { icon: <ArrowRight size={14} />,    color: '#8B5CF6', label: 'Movido' },
+const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bgColor: string; label: string }> = {
+  mention:    { icon: <AtSign size={15} />,        color: '#3B82F6', bgColor: 'rgba(59,130,246,0.12)', label: 'Menção' },
+  assignment: { icon: <UserPlus size={15} />,      color: '#10B981', bgColor: 'rgba(16,185,129,0.12)', label: 'Atribuição' },
+  comment:    { icon: <MessageSquare size={15} />, color: '#F59E0B', bgColor: 'rgba(245,158,11,0.12)', label: 'Comentário' },
+  move:       { icon: <ArrowRight size={15} />,    color: '#8B5CF6', bgColor: 'rgba(139,92,246,0.12)', label: 'Movido' },
+}
+
+const FILTER_ICONS: Record<FilterType, React.ReactNode> = {
+  all:      <Bell size={13} />,
+  unread:   <Inbox size={13} />,
+  mentions: <AtSign size={13} />,
+}
+
+const FILTER_LABELS: Record<FilterType, string> = {
+  all: 'Todas',
+  unread: 'Não lidas',
+  mentions: 'Menções',
 }
 
 function timeAgo(iso: string): string {
@@ -67,20 +79,14 @@ function groupByDate(items: Notification[]): { label: string; items: Notificatio
 }
 
 /* ── Animation variants ── */
-const panelVariants = {
-  hidden: { opacity: 0, x: -20 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.2, ease: 'easeOut' } },
-  exit: { opacity: 0, x: -20, transition: { duration: 0.15 } },
-}
-
 const listVariants = {
-  visible: { transition: { staggerChildren: 0.03 } },
+  visible: { transition: { staggerChildren: 0.04 } },
 }
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-  exit: { opacity: 0, x: -20, transition: { duration: 0.15 } },
+  hidden: { opacity: 0, y: 12, scale: 0.97 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] } },
+  exit: { opacity: 0, x: -30, transition: { duration: 0.2 } },
 }
 
 /* ── Component ── */
@@ -148,32 +154,42 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
   const renderEmpty = () => {
     const states: Record<FilterType, { icon: React.ReactNode; title: string; desc: string }> = {
       all: {
-        icon: <Inbox size={28} strokeWidth={1.2} />,
+        icon: <BellOff size={40} strokeWidth={1.2} />,
         title: 'Nenhuma notificação',
-        desc: 'As notificações aparecerão aqui',
+        desc: 'Quando alguém te mencionar ou vincular a um cartão, a notificação aparecerá aqui.',
       },
       unread: {
-        icon: <CheckCircle2 size={28} strokeWidth={1.5} />,
+        icon: <CheckCircle2 size={40} strokeWidth={1.5} />,
         title: 'Tudo em dia!',
-        desc: 'Nenhuma pendência',
+        desc: 'Você não tem notificações pendentes.',
       },
       mentions: {
-        icon: <AtSign size={28} strokeWidth={1.5} />,
+        icon: <AtSign size={40} strokeWidth={1.5} />,
         title: 'Sem menções',
-        desc: 'Quando alguém te @mencionar, aparecerá aqui',
+        desc: 'Quando alguém te @mencionar em um comentário, aparecerá aqui.',
       },
     }
     const s = states[filter]
     return (
       <motion.div
-        className="inbox-empty"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.25 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '60px 32px', textAlign: 'center', gap: 16,
+        }}
       >
-        <div className="inbox-empty__icon">{s.icon}</div>
-        <p className="inbox-empty__title">{s.title}</p>
-        <p className="inbox-empty__desc">{s.desc}</p>
+        <div style={{
+          width: 80, height: 80, borderRadius: 20,
+          background: 'linear-gradient(135deg, rgba(87,157,255,0.08) 0%, rgba(139,92,246,0.08) 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#596773', marginBottom: 4,
+        }}>
+          {s.icon}
+        </div>
+        <p style={{ fontSize: 15, fontWeight: 700, color: '#b6c2cf', margin: 0 }}>{s.title}</p>
+        <p style={{ fontSize: 12, color: '#596773', margin: 0, maxWidth: 220, lineHeight: 1.5 }}>{s.desc}</p>
       </motion.div>
     )
   }
@@ -181,81 +197,168 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
   return (
     <motion.div
       className="sidebar-root h-full flex-shrink-0 relative z-30 flex"
-      style={{ width: 340 }}
-      variants={panelVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
+      style={{ width: 360 }}
+      initial={{ opacity: 0, x: -24 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
     >
-      <div className="inbox-view">
-        {/* ── Header ── */}
-        <div className="inbox-header">
-          <div className="inbox-header__top">
-            <div className="inbox-header__title-group">
-              <div className="inbox-header__icon-wrap">
-                <Inbox size={17} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+
+        {/* ══════ HEADER COM GRADIENTE ══════ */}
+        <div style={{
+          padding: '20px 20px 0',
+          background: 'linear-gradient(180deg, rgba(87,157,255,0.06) 0%, transparent 100%)',
+        }}>
+          {/* Title row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: 12,
+                background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(59,130,246,0.25)',
+              }}>
+                <Inbox size={18} color="#fff" />
               </div>
-              <h2 className="inbox-header__title">Caixa de Entrada</h2>
+              <div>
+                <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.3px' }}>
+                  Caixa de Entrada
+                </h2>
+                <p style={{ fontSize: 11, color: '#9fadbc', margin: '2px 0 0', fontWeight: 500 }}>
+                  {notifications.length === 0
+                    ? 'Nenhuma notificação'
+                    : unreadCount > 0
+                      ? `${unreadCount} não ${unreadCount === 1 ? 'lida' : 'lidas'} de ${notifications.length}`
+                      : `${notifications.length} ${notifications.length === 1 ? 'notificação' : 'notificações'}`
+                  }
+                </p>
+              </div>
             </div>
-            <div className="inbox-header__right">
-              {unreadCount > 0 && (
-                <span className="inbox-header__count">
-                  <span className="inbox-header__count-dot" />
-                  {unreadCount} não {unreadCount === 1 ? 'lida' : 'lidas'}
-                </span>
-              )}
-              <button onClick={onToggle} className="inbox-header__close" title="Fechar painel">
-                <ChevronLeft size={14} />
-              </button>
-            </div>
+            <button
+              onClick={onToggle}
+              title="Recolher painel"
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: 'none',
+                background: 'rgba(255,255,255,0.06)', color: '#9fadbc', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#9fadbc' }}
+            >
+              <ChevronLeft size={15} />
+            </button>
           </div>
 
-          {/* ── Tabs + Mark all ── */}
-          <div className="inbox-tabs-row">
-            <div className="inbox-tabs">
-              {(['all', 'unread', 'mentions'] as FilterType[]).map(f => (
+          {/* ── Filter tabs (full-width pills) ── */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+            {(['all', 'unread', 'mentions'] as FilterType[]).map(f => {
+              const isActive = filter === f
+              return (
                 <button
                   key={f}
                   type="button"
                   onClick={() => setFilter(f)}
-                  className={`inbox-tabs__btn ${filter === f ? 'inbox-tabs__btn--active' : ''}`}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
+                    background: isActive ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
+                    color: isActive ? '#3B82F6' : '#9fadbc',
+                    boxShadow: isActive ? '0 0 0 1px rgba(59,130,246,0.25)' : 'none',
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#b6c2cf' } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#9fadbc' } }}
                 >
-                  {f === 'all' && 'Todas'}
-                  {f === 'unread' && 'Não lidas'}
-                  {f === 'mentions' && 'Menções'}
+                  {FILTER_ICONS[f]}
+                  {FILTER_LABELS[f]}
+                  {f === 'unread' && unreadCount > 0 && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 6,
+                      background: '#EF4444', color: '#fff', marginLeft: 2,
+                    }}>{unreadCount}</span>
+                  )}
                 </button>
-              ))}
-            </div>
-            {unreadCount > 0 && (
-              <button type="button" onClick={handleMarkAll} className="inbox-mark-all" title="Marcar todas como lidas">
-                <CheckCheck size={12} />
-                Ler todas
-              </button>
-            )}
+              )
+            })}
           </div>
+
+          {/* Mark all read */}
+          {unreadCount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+              <button
+                type="button"
+                onClick={handleMarkAll}
+                title="Marcar todas como lidas"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  fontSize: 11, fontWeight: 600, color: '#3B82F6',
+                  background: 'rgba(59,130,246,0.08)', border: 'none',
+                  padding: '5px 12px', borderRadius: 6, cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.16)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.08)' }}
+              >
+                <CheckCheck size={13} />
+                Marcar todas como lidas
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="inbox-separator" />
+        {/* Separator */}
+        <div style={{ height: 1, background: 'rgba(166,197,226,0.08)', margin: '0 16px' }} />
 
-        {/* ── List ── */}
+        {/* ══════ NOTIFICATION LIST ══════ */}
         <div
           ref={scrollRef}
-          className={`inbox-scroll-container ${scrolled ? 'inbox-scroll-container--scrolled' : ''}`}
+          style={{
+            flex: 1, overflowY: 'auto', padding: '8px 12px 80px',
+            scrollbarWidth: 'thin' as const,
+            scrollbarColor: 'rgba(255,255,255,0.08) transparent',
+          }}
+          className="inbox-scroll"
         >
+          {/* Scroll shadow */}
+          {scrolled && (
+            <div style={{
+              position: 'sticky', top: 0, left: 0, right: 0, height: 20, marginBottom: -20,
+              background: 'linear-gradient(to bottom, rgba(29,33,37,0.95), transparent)',
+              pointerEvents: 'none', zIndex: 5,
+            }} />
+          )}
+
           {loading ? (
-            <div className="inbox-loading">
-              <Clock size={22} className="animate-spin" />
-              <span>Carregando...</span>
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              padding: '64px 0', gap: 12, color: '#596773',
+            }}>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+              >
+                <Clock size={24} />
+              </motion.div>
+              <span style={{ fontSize: 12, fontWeight: 500 }}>Carregando notificações...</span>
             </div>
           ) : filtered.length === 0 ? (
             renderEmpty()
           ) : (
-            <motion.div className="inbox-list" variants={listVariants} initial="hidden" animate="visible">
+            <motion.div variants={listVariants} initial="hidden" animate="visible" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {grouped.map(group => (
-                <div key={group.label} className="inbox-group">
-                  <div className="inbox-group__label">
-                    <span>{group.label}</span>
+                <div key={group.label}>
+                  {/* Date header */}
+                  <div style={{
+                    position: 'sticky', top: 0, zIndex: 4, padding: '10px 8px 6px',
+                    background: 'var(--bg-app, #1d2125)',
+                  }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em',
+                      color: '#596773',
+                    }}>{group.label}</span>
                   </div>
+
                   <AnimatePresence initial={false}>
                     {group.items.map(notif => {
                       const config = TYPE_CONFIG[notif.type] || TYPE_CONFIG.comment
@@ -267,60 +370,136 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
                           exit="exit"
                           layout
                           onClick={() => handleItemClick(notif)}
-                          className={`inbox-item ${isUnread ? 'inbox-item--unread' : 'inbox-item--read'}`}
-                          style={{ borderLeftColor: isUnread ? config.color : 'transparent' }}
+                          className="inbox-notif-card"
+                          style={{
+                            position: 'relative',
+                            display: 'flex', alignItems: 'flex-start', gap: 12,
+                            padding: '14px 14px 14px 16px',
+                            borderRadius: 12, cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            background: isUnread ? 'rgba(59,130,246,0.04)' : 'transparent',
+                            borderLeft: `3px solid ${isUnread ? config.color : 'transparent'}`,
+                            opacity: isUnread ? 1 : 0.6,
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = isUnread ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.04)'
+                            e.currentTarget.style.opacity = '1'
+                            const actions = e.currentTarget.querySelector('.inbox-hover-actions') as HTMLElement
+                            if (actions) { actions.style.opacity = '1'; actions.style.transform = 'translateX(0)' }
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = isUnread ? 'rgba(59,130,246,0.04)' : 'transparent'
+                            e.currentTarget.style.opacity = isUnread ? '1' : '0.6'
+                            const actions = e.currentTarget.querySelector('.inbox-hover-actions') as HTMLElement
+                            if (actions) { actions.style.opacity = '0'; actions.style.transform = 'translateX(4px)' }
+                          }}
                         >
-                          {/* Icon */}
-                          <div
-                            className="inbox-item__icon"
-                            style={{ background: `${config.color}18`, color: config.color }}
-                          >
+                          {/* Type icon */}
+                          <div style={{
+                            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: config.bgColor, color: config.color,
+                          }}>
                             {config.icon}
                           </div>
 
                           {/* Content */}
-                          <div className="inbox-item__content">
-                            <div className="inbox-item__top">
-                              <span className="inbox-item__sender">{notif.sender_name}</span>
-                              <span
-                                className="inbox-item__type"
-                                style={{ background: `${config.color}18`, color: config.color }}
-                              >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                              <span style={{
+                                fontSize: 13, fontWeight: isUnread ? 700 : 600,
+                                color: isUnread ? '#fff' : '#dfe1e6',
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                maxWidth: 130,
+                              }}>
+                                {notif.sender_name}
+                              </span>
+                              <span style={{
+                                fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 10,
+                                background: config.bgColor, color: config.color,
+                                whiteSpace: 'nowrap',
+                              }}>
                                 {config.label}
                               </span>
                             </div>
-                            <p className="inbox-item__message">{notif.message}</p>
+                            <p style={{
+                              fontSize: 12, lineHeight: 1.45, margin: 0,
+                              color: isUnread ? '#b6c2cf' : '#8c9bab',
+                              overflow: 'hidden', textOverflow: 'ellipsis',
+                              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                            }}>{notif.message}</p>
                             {notif.ticket_title && (
-                              <span className="inbox-item__ticket">
+                              <span style={{
+                                fontSize: 10, color: '#596773', marginTop: 4,
+                                display: 'inline-flex', alignItems: 'center', gap: 4,
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                maxWidth: '100%',
+                              }}>
                                 <Ticket size={10} /> {notif.ticket_title}
                               </span>
                             )}
                           </div>
 
-                          {/* Meta */}
-                          <div className="inbox-item__meta">
-                            <span className="inbox-item__time" title={formatFullDate(notif.created_at)}>
+                          {/* Meta (time + dot) */}
+                          <div style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+                            gap: 6, flexShrink: 0, paddingTop: 2,
+                          }}>
+                            <span
+                              title={formatFullDate(notif.created_at)}
+                              style={{ fontSize: 10, color: '#596773', whiteSpace: 'nowrap', cursor: 'default' }}
+                            >
                               {timeAgo(notif.created_at)}
                             </span>
-                            {isUnread && <span className="inbox-item__dot" />}
+                            {isUnread && (
+                              <span style={{
+                                width: 8, height: 8, borderRadius: '50%',
+                                background: config.color,
+                                boxShadow: `0 0 6px ${config.color}50`,
+                                animation: 'inbox-dot-pulse 2s ease-in-out infinite',
+                              }} />
+                            )}
                           </div>
 
                           {/* Hover actions */}
-                          <div className="inbox-item__actions">
+                          <div
+                            className="inbox-hover-actions"
+                            style={{
+                              position: 'absolute', right: 12, top: '50%',
+                              transform: 'translateY(-50%) translateX(4px)',
+                              display: 'flex', gap: 4, opacity: 0,
+                              transition: 'opacity 150ms ease, transform 150ms ease',
+                              pointerEvents: 'auto',
+                            }}
+                          >
                             {isUnread && (
                               <button
-                                className="inbox-item__action-btn"
                                 title="Marcar como lida"
                                 onClick={(e) => handleMarkRead(e, notif.id)}
+                                style={{
+                                  width: 26, height: 26, borderRadius: 7, border: 'none',
+                                  background: 'rgba(16,185,129,0.12)', color: '#10B981',
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.12s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.25)' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.12)' }}
                               >
                                 <Check size={13} />
                               </button>
                             )}
                             {notif.ticket_id && (
                               <button
-                                className="inbox-item__action-btn"
                                 title="Abrir cartão"
                                 onClick={(e) => handleOpen(e, notif)}
+                                style={{
+                                  width: 26, height: 26, borderRadius: 7, border: 'none',
+                                  background: 'rgba(59,130,246,0.12)', color: '#3B82F6',
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.12s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.25)' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.12)' }}
                               >
                                 <ExternalLink size={13} />
                               </button>
