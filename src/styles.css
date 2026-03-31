@@ -83,8 +83,8 @@ body {
   animation: pulseRedBorder 1.5s ease-in-out infinite;
 }
 @keyframes pulseRedBorder {
-  0%, 100% { border-color: rgba(239,68,68,0.9); box-shadow: 0 0 0 0 rgba(239,68,68,0.4), 0 0 12px rgba(239,68,68,0.2); }
-  50%       { border-color: rgba(239,68,68,0.4); box-shadow: 0 0 0 6px rgba(239,68,68,0), 0 0 20px rgba(239,68,68,0.15); }
+  0%, 100% { border-color: rgba(239,68,68,0.9); outline: 2px solid rgba(239,68,68,0.2); outline-offset: 0; }
+  50%       { border-color: rgba(239,68,68,0.4); outline: 2px solid rgba(239,68,68,0); outline-offset: 4px; }
 }
 
 /* Dragging */
@@ -1371,6 +1371,25 @@ body {
 /* =========================================
    Elite Modal — Widescreen Tri-Column
    ========================================= */
+
+/* Modal overlay + content animation */
+.modal-overlay {
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+}
+.modal-overlay--visible {
+  opacity: 1;
+}
+.modal-content {
+  transform: scale(0.95) translateY(20px);
+  opacity: 0;
+  transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+}
+.modal-content--visible {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
 .elite-modal {
   width: 94vw;
   max-width: 1400px;

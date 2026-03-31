@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect, useCallback, forwardRef } from 'react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { Archive, Pencil, Check, Clock, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { parseTag } from './CardDetailModal';
@@ -313,4 +313,4 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
   );
 }
 
-export default Card;
+export default memo(Card);

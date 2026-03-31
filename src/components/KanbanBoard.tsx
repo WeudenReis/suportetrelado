@@ -320,7 +320,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
     if (!over) { setOverColumn(null); setOverCardId(null); return }
 
     const overId = String(over.id)
-    const activeId = String(active.id)
 
     // Determine which column the over target belongs to
     let targetColumn: string | undefined
@@ -332,36 +331,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
 
     setOverColumn(targetColumn ?? null)
     setOverCardId(allColumnsById.has(overId) ? null : overId)
-
-    if (!targetColumn) return
-
-    const activeTicketData = tickets.find(t => t.id === activeId)
-    if (!activeTicketData) return
-
-    // If moving to a different column, update status optimistically during drag
-    if (activeTicketData.status !== targetColumn) {
-      setTickets(prev => {
-        const idx = prev.findIndex(t => t.id === activeId)
-        if (idx < 0) return prev
-        const next = [...prev]
-        next[idx] = { ...next[idx], status: targetColumn as TicketStatus }
-
-        // If hovering over a card, insert near it
-        const overIdx = next.findIndex(t => t.id === overId)
-        if (overIdx >= 0 && overIdx !== idx) {
-          return arrayMove(next, idx, overIdx)
-        }
-        return next
-      })
-    } else if (overId !== activeId && !allColumnsById.has(overId)) {
-      // Same column reordering
-      setTickets(prev => {
-        const oldIndex = prev.findIndex(t => t.id === activeId)
-        const newIndex = prev.findIndex(t => t.id === overId)
-        if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return prev
-        return arrayMove(prev, oldIndex, newIndex)
-      })
-    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -395,23 +364,46 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
     dragOriginalStatusRef.current = null
 
     if (!over) {
-      loadTickets() // rollback
       return
     }
 
-    // The ticket's status was already updated in handleDragOver
-    const ticket = tickets.find(t => t.id === active.id)
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    // Determine the target column
+    let targetColumn: string | undefined
+    if (allColumnsById.has(overId)) {
+      targetColumn = overId
+    } else {
+      targetColumn = tickets.find(t => t.id === overId)?.status
+    }
+    if (!targetColumn) return
+
+    const ticket = tickets.find(t => t.id === activeId)
     if (!ticket) return
 
-    const newStatus = ticket.status
+    // Apply the move in state (only once, on drop)
+    setTickets(prev => {
+      const idx = prev.findIndex(t => t.id === activeId)
+      if (idx < 0) return prev
+      const next = [...prev]
+      next[idx] = { ...next[idx], status: targetColumn as TicketStatus }
+      const overIdx = next.findIndex(t => t.id === overId)
+      if (overIdx >= 0 && overIdx !== idx) {
+        return arrayMove(next, idx, overIdx)
+      }
+      return next
+    })
+
+    const newStatus = targetColumn
     const fromLabel = allColumnsById.get(originalStatus || '')?.title || originalStatus || ''
     const toLabel = allColumnsById.get(newStatus)?.title || newStatus
 
     // Persist to Supabase
-    updateTicket(active.id as string, { status: newStatus as TicketStatus })
+    updateTicket(activeId, { status: newStatus as TicketStatus })
       .then(() => {
         if (originalStatus && originalStatus !== newStatus) {
-          insertActivityLog(active.id as string, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
+          insertActivityLog(activeId, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
         }
       })
       .catch(() => {

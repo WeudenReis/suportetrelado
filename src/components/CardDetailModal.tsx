@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import gsap from 'gsap'
 import {
   X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
   ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
@@ -136,17 +135,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   // GSAP refs
   const overlayRef = useRef<HTMLDivElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
-  // ─── GSAP entrance animation ──────────────────────────────
-  useLayoutEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out' })
-      gsap.fromTo(modalRef.current,
-        { scale: 0.95, autoAlpha: 0, y: 20 },
-        { scale: 1, autoAlpha: 1, y: 0, duration: 0.35, ease: 'power3.out', delay: 0.05 }
-      )
-    })
-    return () => ctx.revert()
+  // ─── CSS entrance animation ──────────────────────────────
+  useEffect(() => {
+    requestAnimationFrame(() => setIsVisible(true))
   }, [])
 
   useEffect(() => {
@@ -208,9 +201,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   }, [])
 
   const handleClose = useCallback(() => {
-    const tl = gsap.timeline({ onComplete: onClose })
-    tl.to(modalRef.current, { scale: 0.95, autoAlpha: 0, y: 20, duration: 0.22, ease: 'power2.in' })
-    tl.to(overlayRef.current, { opacity: 0, duration: 0.18, ease: 'power2.in' }, '-=0.12')
+    setIsVisible(false)
+    setTimeout(onClose, 250)
   }, [onClose])
 
   const saveQueue = useRef<Partial<Ticket>[]>([])
@@ -423,14 +415,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[60] flex items-center justify-center"
-      style={{ background: 'rgba(0,0,10,0.85)', backdropFilter: 'blur(4px)' }}
+      className={`fixed inset-0 z-[60] flex items-center justify-center modal-overlay ${isVisible ? 'modal-overlay--visible' : ''}`}
+      style={{ background: 'rgba(0,0,10,0.85)' }}
       onClick={e => e.target === e.currentTarget && handleClose()}
     >
       <div
         ref={modalRef}
-        className="elite-modal"
-        style={{ visibility: 'hidden' }}
+        className={`elite-modal modal-content ${isVisible ? 'modal-content--visible' : ''}`}
       >
         {/* ── Cover image banner ── */}
         {coverImage && (
