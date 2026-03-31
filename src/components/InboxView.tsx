@@ -18,10 +18,10 @@ interface InboxSidebarProps {
 type FilterType = 'all' | 'unread' | 'mentions'
 
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bgColor: string; label: string }> = {
-  mention:    { icon: <AtSign size={15} />,        color: '#3B82F6', bgColor: 'rgba(59,130,246,0.12)', label: 'Menção' },
-  assignment: { icon: <UserPlus size={15} />,      color: '#10B981', bgColor: 'rgba(16,185,129,0.12)', label: 'Atribuição' },
-  comment:    { icon: <MessageSquare size={15} />, color: '#F59E0B', bgColor: 'rgba(245,158,11,0.12)', label: 'Comentário' },
-  move:       { icon: <ArrowRight size={15} />,    color: '#8B5CF6', bgColor: 'rgba(139,92,246,0.12)', label: 'Movido' },
+  mention:    { icon: <AtSign size={15} />,        color: '#3B82F6', bgColor: 'rgba(59,130,246,0.20)', label: 'Menção' },
+  assignment: { icon: <UserPlus size={15} />,      color: '#10B981', bgColor: 'rgba(16,185,129,0.20)', label: 'Atribuição' },
+  comment:    { icon: <MessageSquare size={15} />, color: '#F59E0B', bgColor: 'rgba(245,158,11,0.20)', label: 'Comentário' },
+  move:       { icon: <ArrowRight size={15} />,    color: '#8B5CF6', bgColor: 'rgba(139,92,246,0.20)', label: 'Movido' },
 }
 
 const FILTER_ICONS: Record<FilterType, React.ReactNode> = {
@@ -207,7 +207,7 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
         {/* ══════ HEADER COM GRADIENTE ══════ */}
         <div style={{
           padding: '20px 20px 0',
-          background: 'linear-gradient(180deg, rgba(87,157,255,0.06) 0%, transparent 100%)',
+          background: 'linear-gradient(180deg, rgba(87,157,255,0.10) 0%, transparent 100%)',
         }}>
           {/* Title row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -263,12 +263,12 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                     padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
                     fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
-                    background: isActive ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
-                    color: isActive ? '#3B82F6' : '#9fadbc',
-                    boxShadow: isActive ? '0 0 0 1px rgba(59,130,246,0.25)' : 'none',
+                    background: isActive ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)',
+                    color: isActive ? '#579dff' : '#b6c2cf',
+                    boxShadow: isActive ? '0 0 0 1px rgba(59,130,246,0.35)' : 'none',
                   }}
-                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#b6c2cf' } }}
-                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#9fadbc' } }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#dfe1e6' } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#b6c2cf' } }}
                 >
                   {FILTER_ICONS[f]}
                   {FILTER_LABELS[f]}
@@ -308,7 +308,7 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
         </div>
 
         {/* Separator */}
-        <div style={{ height: 1, background: 'rgba(166,197,226,0.08)', margin: '0 16px' }} />
+        <div style={{ height: 1, background: 'rgba(166,197,226,0.15)', margin: '0 16px' }} />
 
         {/* ══════ NOTIFICATION LIST ══════ */}
         <div
@@ -355,7 +355,7 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
                   }}>
                     <span style={{
                       fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em',
-                      color: '#596773',
+                      color: '#8c9bab',
                     }}>{group.label}</span>
                   </div>
 
@@ -377,19 +377,19 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
                             padding: '14px 14px 14px 16px',
                             borderRadius: 12, cursor: 'pointer',
                             transition: 'all 0.2s',
-                            background: isUnread ? 'rgba(59,130,246,0.04)' : 'transparent',
+                            background: isUnread ? 'rgba(59,130,246,0.10)' : '#282e33',
                             borderLeft: `3px solid ${isUnread ? config.color : 'transparent'}`,
-                            opacity: isUnread ? 1 : 0.6,
+                            opacity: isUnread ? 1 : 0.75,
                           }}
                           onMouseEnter={e => {
-                            e.currentTarget.style.background = isUnread ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.04)'
+                            e.currentTarget.style.background = isUnread ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.08)'
                             e.currentTarget.style.opacity = '1'
                             const actions = e.currentTarget.querySelector('.inbox-hover-actions') as HTMLElement
                             if (actions) { actions.style.opacity = '1'; actions.style.transform = 'translateX(0)' }
                           }}
                           onMouseLeave={e => {
-                            e.currentTarget.style.background = isUnread ? 'rgba(59,130,246,0.04)' : 'transparent'
-                            e.currentTarget.style.opacity = isUnread ? '1' : '0.6'
+                            e.currentTarget.style.background = isUnread ? 'rgba(59,130,246,0.10)' : '#282e33'
+                            e.currentTarget.style.opacity = isUnread ? '1' : '0.75'
                             const actions = e.currentTarget.querySelector('.inbox-hover-actions') as HTMLElement
                             if (actions) { actions.style.opacity = '0'; actions.style.transform = 'translateX(4px)' }
                           }}
@@ -430,7 +430,7 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
                             }}>{notif.message}</p>
                             {notif.ticket_title && (
                               <span style={{
-                                fontSize: 10, color: '#596773', marginTop: 4,
+                                fontSize: 10, color: '#8c9bab', marginTop: 4,
                                 display: 'inline-flex', alignItems: 'center', gap: 4,
                                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                 maxWidth: '100%',
@@ -447,7 +447,7 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
                           }}>
                             <span
                               title={formatFullDate(notif.created_at)}
-                              style={{ fontSize: 10, color: '#596773', whiteSpace: 'nowrap', cursor: 'default' }}
+                              style={{ fontSize: 10, color: '#8c9bab', whiteSpace: 'nowrap', cursor: 'default' }}
                             >
                               {timeAgo(notif.created_at)}
                             </span>
