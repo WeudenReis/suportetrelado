@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyb
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -132,6 +132,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   const [editingColumnTitle, setEditingColumnTitle] = useState('')
   const [colorPickerColumnId, setColorPickerColumnId] = useState<string | null>(null)
   const [colorPickerPos, setColorPickerPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  const [colMenuView, setColMenuView] = useState<'main' | 'color' | 'sort'>('main')
   const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
   const [showLabelsManager, setShowLabelsManager] = useState(false)
   const [newLabelName, setNewLabelName] = useState('')
@@ -650,6 +651,30 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
     }
   }, [])
 
+  const handleSortColumn = useCallback((colId: string, sortType: 'newest' | 'oldest' | 'alpha' | 'due') => {
+    setTickets(prev => {
+      const colTickets = prev.filter(t => t.status === colId)
+      const rest = prev.filter(t => t.status !== colId)
+      const sorted = [...colTickets].sort((a, b) => {
+        switch (sortType) {
+          case 'newest': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          case 'oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          case 'alpha': return a.title.localeCompare(b.title, 'pt-BR')
+          case 'due': {
+            const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity
+            const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity
+            return aDate - bDate
+          }
+          default: return 0
+        }
+      })
+      sorted.forEach((t, i) => { t.position = i })
+      return [...rest, ...sorted]
+    })
+    setColorPickerColumnId(null)
+    showToast('Lista ordenada', 'ok')
+  }, [])
+
   const boardWrapperStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
@@ -941,46 +966,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                         <>
                           {/* Column header (drag handle) */}
                           <div className="trello-col__head cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
-                            {/* Dot - click para trocar cor */}
-                            <div className="relative flex-shrink-0" onPointerDown={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-                              <button
-                                type="button"
-                                className="w-3.5 h-3.5 rounded-full flex-shrink-0 border-0 p-0 cursor-pointer hover:scale-125 transition-transform"
-                                style={{ background: '#ffffff', boxShadow: '0 0 6px rgba(255,255,255,0.3)' }}
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  if (colorPickerColumnId === col.id) {
-                                    setColorPickerColumnId(null)
-                                  } else {
-                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                    setColorPickerPos({ top: rect.bottom + 6, left: rect.left })
-                                    setColorPickerColumnId(col.id)
-                                  }
-                                }}
-                                title="Mudar cor"
-                              />
-                              {colorPickerColumnId === col.id && (
-                                <>
-                                  <div className="fixed inset-0 z-[199]" onClick={() => setColorPickerColumnId(null)} />
-                                  <div
-                                    className="col-color-picker"
-                                    style={{ top: colorPickerPos.top, left: colorPickerPos.left }}
-                                    onClick={e => e.stopPropagation()}
-                                    onPointerDown={e => e.stopPropagation()}
-                                  >
-                                    {COL_COLORS.map(c => (
-                                      <button
-                                        key={c}
-                                        type="button"
-                                        className="col-color-picker__swatch"
-                                        style={{ background: c, outline: c === col.dot_color ? '2px solid #fff' : 'none' }}
-                                        onClick={e => { e.stopPropagation(); handleSaveColumnColor(col.id, c) }}
-                                      />
-                                    ))}
-                                  </div>
-                                </>
-                              )}
-                            </div>
                             {/* Title - duplo clique para editar */}
                             {editingColumnId === col.id ? (
                               <input
@@ -1004,22 +989,122 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                               >{col.title}</span>
                             )}
                             <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.12)', color: '#ffffff' }}>{colTickets.length}</span>
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                if (colTickets.length > 0 && !confirm(`A lista "${col.title}" tem ${colTickets.length} cartão(s). Excluir mesmo assim?`)) return
-                                if (colTickets.length === 0 && !confirm(`Excluir a lista "${col.title}"?`)) return
-                                setColumns(prev => prev.filter(cc => cc.id !== col.id))
-                                setColumnOrder(prev => prev.filter(id => id !== col.id))
-                                setTickets(prev => prev.filter(t => t.status !== col.id))
-                                archiveBoardColumn(col.id).catch(() => {})
-                                showToast('Lista excluída', 'ok')
-                              }}
-                              className="p-1 rounded hover:bg-red-500/20 transition-colors ml-1 opacity-0 group-hover:opacity-100"
-                              title="Excluir lista"
-                            >
-                              <Trash2 size={12} className="text-red-400" />
-                            </button>
+
+                            {/* 3-dots menu */}
+                            <div className="relative flex-shrink-0" onPointerDown={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="col-dots-btn"
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  if (colorPickerColumnId === col.id) {
+                                    setColorPickerColumnId(null)
+                                  } else {
+                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                    setColorPickerPos({ top: rect.bottom + 6, left: rect.right - 200 })
+                                    setColMenuView('main')
+                                    setColorPickerColumnId(col.id)
+                                  }
+                                }}
+                                title="Opções da lista"
+                              >
+                                <span className="col-dots-btn__dot" />
+                                <span className="col-dots-btn__dot" />
+                                <span className="col-dots-btn__dot" />
+                              </button>
+
+                              {colorPickerColumnId === col.id && (
+                                <>
+                                  <div className="fixed inset-0 z-[199]" onClick={() => setColorPickerColumnId(null)} />
+                                  <div
+                                    className="col-menu"
+                                    style={{ top: colorPickerPos.top, left: colorPickerPos.left }}
+                                    onClick={e => e.stopPropagation()}
+                                    onPointerDown={e => e.stopPropagation()}
+                                  >
+                                    {/* ── Main view ── */}
+                                    {colMenuView === 'main' && (
+                                      <>
+                                        <button className="col-menu__item" onClick={() => setColMenuView('color')}>
+                                          <Palette size={14} />
+                                          <span>Cor da lista</span>
+                                        </button>
+                                        <button className="col-menu__item" onClick={() => setColMenuView('sort')}>
+                                          <ArrowUpDown size={14} />
+                                          <span>Ordenar lista</span>
+                                        </button>
+                                        <div className="col-menu__sep" />
+                                        <button className="col-menu__item" onClick={e => { e.stopPropagation(); setEditingColumnId(col.id); setEditingColumnTitle(col.title); setColorPickerColumnId(null) }}>
+                                          <Pencil size={14} />
+                                          <span>Renomear</span>
+                                        </button>
+                                        <button
+                                          className="col-menu__item col-menu__item--danger"
+                                          onClick={() => {
+                                            setColorPickerColumnId(null)
+                                            if (colTickets.length > 0 && !confirm(`A lista "${col.title}" tem ${colTickets.length} cartão(s). Excluir mesmo assim?`)) return
+                                            if (colTickets.length === 0 && !confirm(`Excluir a lista "${col.title}"?`)) return
+                                            setColumns(prev => prev.filter(cc => cc.id !== col.id))
+                                            setColumnOrder(prev => prev.filter(id => id !== col.id))
+                                            setTickets(prev => prev.filter(t => t.status !== col.id))
+                                            archiveBoardColumn(col.id).catch(() => {})
+                                            showToast('Lista excluída', 'ok')
+                                          }}
+                                        >
+                                          <Trash2 size={14} />
+                                          <span>Excluir lista</span>
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {/* ── Color view ── */}
+                                    {colMenuView === 'color' && (
+                                      <>
+                                        <div className="col-menu__header">
+                                          <button className="col-menu__back" onClick={() => setColMenuView('main')}><ChevronLeft size={16} /></button>
+                                          <span>Cor da lista</span>
+                                          <button className="col-menu__close" onClick={() => setColorPickerColumnId(null)}><X size={14} /></button>
+                                        </div>
+                                        <div className="col-menu__colors">
+                                          {COL_COLORS.map(c => (
+                                            <button
+                                              key={c}
+                                              type="button"
+                                              className="col-color-picker__swatch"
+                                              style={{ background: c, outline: c === col.dot_color ? '2px solid #fff' : 'none' }}
+                                              onClick={e => { e.stopPropagation(); handleSaveColumnColor(col.id, c) }}
+                                            />
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
+
+                                    {/* ── Sort view ── */}
+                                    {colMenuView === 'sort' && (
+                                      <>
+                                        <div className="col-menu__header">
+                                          <button className="col-menu__back" onClick={() => setColMenuView('main')}><ChevronLeft size={16} /></button>
+                                          <span>Ordenar lista</span>
+                                          <button className="col-menu__close" onClick={() => setColorPickerColumnId(null)}><X size={14} /></button>
+                                        </div>
+                                        <button className="col-menu__item" onClick={() => handleSortColumn(col.id, 'newest')}>
+                                          Data de criação (mais recente primeiro)
+                                        </button>
+                                        <button className="col-menu__item" onClick={() => handleSortColumn(col.id, 'oldest')}>
+                                          Data de criação (mais antigo primeiro)
+                                        </button>
+                                        <button className="col-menu__item" onClick={() => handleSortColumn(col.id, 'alpha')}>
+                                          Nome do cartão (ordem alfabética)
+                                        </button>
+                                        <button className="col-menu__item" onClick={() => handleSortColumn(col.id, 'due')}>
+                                          Data de entrega
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
 
                           {/* Cards area */}
