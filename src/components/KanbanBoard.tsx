@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyb
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -680,10 +680,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
       {/* Nav */}
       <header className="board-header">
         <div className="trello-board-header__left">
-          <div className="trello-board-header__badge" aria-hidden>
-            <LayoutGrid size={16} style={{ color: 'rgba(255,255,255,0.8)' }} />
-          </div>
-
           <button className="trello-board-chip trello-board-chip--title" type="button">
             <span className="trello-board-chip__title">Suporte chatPro</span>
           </button>

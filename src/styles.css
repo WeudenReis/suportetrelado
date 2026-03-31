@@ -645,20 +645,6 @@ body {
   display: flex;
   justify-content: center;
 }
-.trello-board-header__badge {
-  width: 32px;
-  height: 32px;
-  border-radius: 3px;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background 0.12s ease;
-}
-.trello-board-header__badge:hover {
-  background: rgba(255,255,255,0.1);
-}
 .trello-board-chip {
   display: inline-flex;
   align-items: center;
