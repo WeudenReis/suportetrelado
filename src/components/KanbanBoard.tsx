@@ -746,7 +746,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
             <Settings size={16} />
           </button>
 
-          <button onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
+          <button onClick={() => { setNewTicket(p => ({ ...p, status: (allColumns[0]?.id || 'backlog') as TicketStatus })); setShowAddModal(true) }} className="trello-create-btn" type="button">
             Criar
           </button>
 
