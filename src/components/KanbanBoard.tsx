@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo, memo } from 'react'
 import { DndContext, DragOverlay, closestCenter, closestCorners, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
@@ -47,9 +47,9 @@ function DroppableColumn({ id, children, isOver }: { id: string; children: React
   return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
 }
 
-function SortableCard({ ticket, onClick, onUpdate, onArchive, isOverCard, activeTicket }: {
+function SortableCardInner({ ticket, onClick, onUpdate, onArchive, isOverCard, activeTicket }: {
   ticket: any
-  onClick: () => void
+  onClick: (ticket: any) => void
   onUpdate: (u: any) => void
   onArchive: (id: string) => void
   isOverCard: boolean
@@ -63,6 +63,7 @@ function SortableCard({ ticket, onClick, onUpdate, onArchive, isOverCard, active
     transform: CSS.Transform.toString(transform),
     transition,
   }
+  const handleClick = useCallback(() => onClick(ticket), [onClick, ticket])
 
   return (
     <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
@@ -71,7 +72,7 @@ function SortableCard({ ticket, onClick, onUpdate, onArchive, isOverCard, active
       )}
       <Card
         card={ticket}
-        onClick={onClick}
+        onClick={handleClick}
         onUpdate={onUpdate}
         onArchive={onArchive}
         isDragging={isDragging}
@@ -79,6 +80,8 @@ function SortableCard({ ticket, onClick, onUpdate, onArchive, isOverCard, active
     </div>
   )
 }
+
+const SortableCard = memo(SortableCardInner)
 
 function SortableBoardColumn({ id, children }: { id: string; children: (drag: { attributes: Record<string, any>; listeners: Record<string, any>; isDragging: boolean }) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { type: 'column', columnId: id } })
@@ -203,13 +206,20 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   // --- Fetch all members ---
   useEffect(() => {
     fetchUserProfiles().then(setAllMembers)
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
     const ch = supabase
       .channel('user_profiles_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
-        fetchUserProfiles().then(setAllMembers)
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => {
+          fetchUserProfiles().then(setAllMembers)
+        }, 30000)
       })
       .subscribe()
-    return () => { supabase.removeChannel(ch) }
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      supabase.removeChannel(ch)
+    }
   }, [])
 
   // --- Toast helper ---
@@ -261,9 +271,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
     setWallpaper(saved)
   }, [wallpaperStorageKey])
 
-  const allColumnsById = new Map(columns.map(col => [col.id, col]))
-  const allColumns = columnOrder.map(id => allColumnsById.get(id)).filter((col): col is NonNullable<typeof col> => Boolean(col))
-  const columnIds = allColumns.map(col => col.id)
+  const allColumnsById = useMemo(() => new Map(columns.map(col => [col.id, col])), [columns])
+  const allColumns = useMemo(() => columnOrder.map(id => allColumnsById.get(id)).filter((col): col is NonNullable<typeof col> => Boolean(col)), [columnOrder, allColumnsById])
+  const columnIds = useMemo(() => allColumns.map(col => col.id), [allColumns])
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
     const dragType = args.active.data.current?.type
@@ -450,22 +460,26 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
     setRefreshing(false)
   }
 
-  const staleCount = tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 12 * 60 * 60 * 1000 && t.status !== 'resolved').length
-  const visibleUsers = onlineUsers.length > 0 ? onlineUsers : [user]
+  const staleCount = useMemo(() => tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 12 * 60 * 60 * 1000 && t.status !== 'resolved').length, [tickets])
+  const visibleUsers = useMemo(() => onlineUsers.length > 0 ? onlineUsers : [user], [onlineUsers, user])
 
   const handleCardClick = useCallback((ticket: Ticket) => {
     setSelectedTicket(ticket)
   }, [])
 
-  const handleTicketUpdate = (updated: Ticket) => {
+  const handleTicketUpdate = useCallback((updated: Ticket) => {
     setTickets(prev => prev.map(t => t.id === updated.id ? updated : t))
     setSelectedTicket(updated)
-  }
+  }, [])
 
-  const handleTicketDelete = (id: string) => {
+  const handleTicketDelete = useCallback((id: string) => {
     setTickets(prev => prev.filter(t => t.id !== id))
     setSelectedTicket(null)
-  }
+  }, [])
+
+  const handleTicketArchive = useCallback((id: string) => {
+    setTickets(prev => prev.filter(t => t.id !== id))
+  }, [])
 
   const applyWallpaper = (url: string) => {
     setWallpaper(url)
@@ -1003,9 +1017,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                                     <SortableCard
                                       key={ticket.id}
                                       ticket={ticket}
-                                      onClick={() => handleCardClick(ticket)}
+                                      onClick={handleCardClick}
                                       onUpdate={handleTicketUpdate}
-                                      onArchive={(id) => setTickets(prev => prev.filter(t => t.id !== id))}
+                                      onArchive={handleTicketArchive}
                                       isOverCard={overCardId === ticket.id}
                                       activeTicket={activeTicket}
                                     />

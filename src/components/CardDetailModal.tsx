@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import gsap from 'gsap'
 import {
@@ -415,16 +415,16 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     handleClose()
   }
 
-  const feedItems = [
+  const feedItems = useMemo(() => [
     ...comments.map(c => ({ type: 'comment' as const, id: c.id, user: c.user_name, text: c.content, time: c.created_at })),
     ...(showActivities ? activities.map(a => ({ type: 'activity' as const, id: a.id, user: a.user_name, text: a.action_text, time: a.created_at })) : []),
-  ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+  ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()), [comments, activities, showActivities])
 
   return (
     <div
       ref={overlayRef}
       className="fixed inset-0 z-[60] flex items-center justify-center"
-      style={{ background: 'rgba(0,0,10,0.75)', backdropFilter: 'blur(10px)' }}
+      style={{ background: 'rgba(0,0,10,0.85)', backdropFilter: 'blur(4px)' }}
       onClick={e => e.target === e.currentTarget && handleClose()}
     >
       <div
