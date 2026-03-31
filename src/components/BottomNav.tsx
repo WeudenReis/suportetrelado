@@ -1,4 +1,5 @@
 import { Inbox, Calendar, LayoutGrid } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNotificationContext } from './NotificationContext'
 
 type NavTab = 'inbox' | 'planner' | 'board'
@@ -29,11 +30,21 @@ export default function BottomBar({ active, onChange }: BottomBarProps) {
           >
             <span className="relative inline-flex">
               {item.icon}
-              {item.id === 'inbox' && unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white px-1" style={{ background: '#ef5c48' }}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
+              <AnimatePresence>
+                {item.id === 'inbox' && unreadCount > 0 && (
+                  <motion.span
+                    key="inbox-badge"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                    className="absolute -top-1.5 -right-2 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white px-1 inbox-badge-pulse"
+                    style={{ background: '#ef4444' }}
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </span>
             <span>{item.label}</span>
           </button>

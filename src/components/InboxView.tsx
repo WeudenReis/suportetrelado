@@ -1,6 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CheckCheck, Clock, AtSign, ArrowRight, MessageSquare, UserPlus, ChevronLeft, BellOff } from 'lucide-react'
+import {
+  Inbox, CheckCheck, Clock, AtSign, ArrowRight,
+  MessageSquare, UserPlus, ChevronLeft, CheckCircle2,
+  Check, ExternalLink, Ticket
+} from 'lucide-react'
 import { useNotificationContext } from './NotificationContext'
 import type { Notification } from '../lib/supabase'
 
@@ -11,23 +15,33 @@ interface InboxSidebarProps {
   onOpenTicket?: (ticketId: string) => void
 }
 
+type FilterType = 'all' | 'unread' | 'mentions'
+
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  mention:     { icon: <AtSign size={14} />,        color: '#579dff', label: 'Menção' },
-  comment:     { icon: <MessageSquare size={14} />,  color: '#4bce97', label: 'Comentário' },
-  assignment:  { icon: <UserPlus size={14} />,       color: '#f5a623', label: 'Atribuição' },
-  move:        { icon: <ArrowRight size={14} />,     color: '#a855f7', label: 'Movido' },
+  mention:    { icon: <AtSign size={14} />,        color: '#3B82F6', label: 'Menção' },
+  assignment: { icon: <UserPlus size={14} />,      color: '#10B981', label: 'Atribuição' },
+  comment:    { icon: <MessageSquare size={14} />, color: '#F59E0B', label: 'Comentário' },
+  move:       { icon: <ArrowRight size={14} />,    color: '#8B5CF6', label: 'Movido' },
 }
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
-  const hrs = Math.floor(diff / 3600000)
+  const hrs  = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
   if (mins < 1) return 'agora'
   if (mins < 60) return `${mins}min`
   if (hrs < 24) return `${hrs}h`
   if (days === 1) return 'ontem'
-  return `${days}d`
+  if (days < 7) return `${days}d`
+  if (days < 14) return 'sem passada'
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
+
+function formatFullDate(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) +
+    ' · ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
 function dateLabel(iso: string): string {
@@ -52,34 +66,75 @@ function groupByDate(items: Notification[]): { label: string; items: Notificatio
   return Array.from(groups.entries()).map(([label, items]) => ({ label, items }))
 }
 
+/* ── Animation variants ── */
+const panelVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.2, ease: 'easeOut' } },
+  exit: { opacity: 0, x: -20, transition: { duration: 0.15 } },
+}
+
+const listVariants = {
+  visible: { transition: { staggerChildren: 0.03 } },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+  exit: { opacity: 0, x: -20, transition: { duration: 0.15 } },
+}
+
+/* ── Component ── */
 export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }: InboxSidebarProps) {
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotificationContext()
-  const [filter, setFilter] = useState<'all' | 'unread'>('all')
+  const [filter, setFilter] = useState<FilterType>('all')
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [scrolled, setScrolled] = useState(false)
 
-  const filtered = filter === 'unread' ? notifications.filter(n => !n.is_read) : notifications
+  const filtered = useMemo(() => {
+    if (filter === 'unread') return notifications.filter(n => !n.is_read)
+    if (filter === 'mentions') return notifications.filter(n => n.type === 'mention')
+    return notifications
+  }, [notifications, filter])
+
   const grouped = useMemo(() => groupByDate(filtered), [filtered])
 
-  const handleClick = async (notif: { id: string; is_read: boolean; ticket_id?: string | null }) => {
-    if (!notif.is_read) {
-      await markRead(notif.id)
-    }
-    if (notif.ticket_id && onOpenTicket) {
-      onOpenTicket(notif.ticket_id)
-    }
-  }
+  const handleMarkRead = useCallback(async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    await markRead(id)
+  }, [markRead])
 
-  const handleMarkAll = async () => {
+  const handleOpen = useCallback(async (e: React.MouseEvent, notif: Notification) => {
+    e.stopPropagation()
+    if (!notif.is_read) await markRead(notif.id)
+    if (notif.ticket_id && onOpenTicket) onOpenTicket(notif.ticket_id)
+  }, [markRead, onOpenTicket])
+
+  const handleItemClick = useCallback(async (notif: Notification) => {
+    if (!notif.is_read) await markRead(notif.id)
+    if (notif.ticket_id && onOpenTicket) onOpenTicket(notif.ticket_id)
+  }, [markRead, onOpenTicket])
+
+  const handleMarkAll = useCallback(async () => {
     await markAllRead()
-  }
+  }, [markAllRead])
 
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => setScrolled(el.scrollTop > 8)
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  /* ── Collapsed state ── */
   if (collapsed) {
     return (
       <div className="sidebar-root sidebar-root--collapsed h-full flex-shrink-0 relative z-30" style={{ width: 52 }}>
         <div className="flex flex-col items-center pt-4 gap-3">
-          <button onClick={onToggle} className="w-8 h-8 rounded-lg flex items-center justify-center relative" style={{ background: 'rgba(87,157,255,0.15)' }}>
-            <Inbox size={16} className="text-blue-400" />
+          <button onClick={onToggle} className="inbox-collapsed-btn" title="Caixa de Entrada">
+            <Inbox size={16} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full text-[9px] font-bold flex items-center justify-center text-white px-0.5" style={{ background: '#ef5c48', boxShadow: '0 0 0 2px var(--bg-secondary)' }}>
+              <span className="inbox-collapsed-badge inbox-badge-pulse">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -89,122 +144,186 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
     )
   }
 
+  /* ── Empty state helper ── */
+  const renderEmpty = () => {
+    const states: Record<FilterType, { icon: React.ReactNode; title: string; desc: string }> = {
+      all: {
+        icon: <Inbox size={28} strokeWidth={1.2} />,
+        title: 'Nenhuma notificação',
+        desc: 'As notificações aparecerão aqui',
+      },
+      unread: {
+        icon: <CheckCircle2 size={28} strokeWidth={1.5} />,
+        title: 'Tudo em dia!',
+        desc: 'Nenhuma pendência',
+      },
+      mentions: {
+        icon: <AtSign size={28} strokeWidth={1.5} />,
+        title: 'Sem menções',
+        desc: 'Quando alguém te @mencionar, aparecerá aqui',
+      },
+    }
+    const s = states[filter]
+    return (
+      <motion.div
+        className="inbox-empty"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.25 }}
+      >
+        <div className="inbox-empty__icon">{s.icon}</div>
+        <p className="inbox-empty__title">{s.title}</p>
+        <p className="inbox-empty__desc">{s.desc}</p>
+      </motion.div>
+    )
+  }
+
   return (
-    <div className="sidebar-root h-full flex-shrink-0 relative z-30 flex" style={{ width: 340 }}>
-      <div className="flex flex-col flex-1 overflow-hidden px-3 pt-3 pb-3">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 px-2 py-3 rounded-xl" style={{ background: 'rgba(87,157,255,0.06)', border: '1px solid rgba(87,157,255,0.10)' }}>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(87,157,255,0.18)' }}>
-              <Inbox size={17} className="text-blue-300" />
+    <motion.div
+      className="sidebar-root h-full flex-shrink-0 relative z-30 flex"
+      style={{ width: 340 }}
+      variants={panelVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+    >
+      <div className="inbox-view">
+        {/* ── Header ── */}
+        <div className="inbox-header">
+          <div className="inbox-header__top">
+            <div className="inbox-header__title-group">
+              <div className="inbox-header__icon-wrap">
+                <Inbox size={17} />
+              </div>
+              <h2 className="inbox-header__title">Caixa de Entrada</h2>
             </div>
-            <div className="flex flex-col">
-              <span className="text-[15px] font-bold leading-tight" style={{ color: '#ffffff' }}>Notificações</span>
-              <span className="text-[10px] font-medium leading-tight mt-0.5" style={{ color: '#9fadbc' }}>
-                {notifications.length === 0 ? 'Nenhuma notificação' : unreadCount > 0 ? `${unreadCount} não ${unreadCount === 1 ? 'lida' : 'lidas'} de ${notifications.length}` : `${notifications.length} ${notifications.length === 1 ? 'notificação' : 'notificações'}`}
-              </span>
+            <div className="inbox-header__right">
+              {unreadCount > 0 && (
+                <span className="inbox-header__count">
+                  <span className="inbox-header__count-dot" />
+                  {unreadCount} não {unreadCount === 1 ? 'lida' : 'lidas'}
+                </span>
+              )}
+              <button onClick={onToggle} className="inbox-header__close" title="Fechar painel">
+                <ChevronLeft size={14} />
+              </button>
             </div>
           </div>
-          <button onClick={onToggle} className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: '#9fb0c2' }}>
-            <ChevronLeft size={14} />
-          </button>
-        </div>
 
-        {/* Tabs + mark all */}
-        <div className="flex items-center justify-between mb-3 px-1">
-          <div className="flex gap-1 rounded-lg p-0.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className="text-[11px] font-semibold px-3 py-1.5 rounded-md transition-all"
-              style={filter === 'all' ? { background: 'rgba(87,157,255,0.15)', color: '#579dff' } : { background: 'transparent', color: '#9fadbc' }}
-            >Todas</button>
-            <button
-              type="button"
-              onClick={() => setFilter('unread')}
-              className="text-[11px] font-semibold px-3 py-1.5 rounded-md transition-all"
-              style={filter === 'unread' ? { background: 'rgba(87,157,255,0.15)', color: '#579dff' } : { background: 'transparent', color: '#9fadbc' }}
-            >Não lidas {unreadCount > 0 && <span className="ml-1 text-[9px] font-bold px-1 py-px rounded-full text-white" style={{ background: '#ef5c48' }}>{unreadCount}</span>}</button>
+          {/* ── Tabs + Mark all ── */}
+          <div className="inbox-tabs-row">
+            <div className="inbox-tabs">
+              {(['all', 'unread', 'mentions'] as FilterType[]).map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  className={`inbox-tabs__btn ${filter === f ? 'inbox-tabs__btn--active' : ''}`}
+                >
+                  {f === 'all' && 'Todas'}
+                  {f === 'unread' && 'Não lidas'}
+                  {f === 'mentions' && 'Menções'}
+                </button>
+              ))}
+            </div>
+            {unreadCount > 0 && (
+              <button type="button" onClick={handleMarkAll} className="inbox-mark-all" title="Marcar todas como lidas">
+                <CheckCheck size={12} />
+                Ler todas
+              </button>
+            )}
           </div>
-          {unreadCount > 0 && (
-            <button type="button" onClick={handleMarkAll} className="flex items-center gap-1 text-[10px] font-medium px-2 py-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#9fadbc' }}>
-              <CheckCheck size={12} />
-              Ler todas
-            </button>
-          )}
         </div>
 
-        {/* List grouped by date */}
-        <div className="flex-1 overflow-y-auto pr-1 inbox-scroll">
+        <div className="inbox-separator" />
+
+        {/* ── List ── */}
+        <div
+          ref={scrollRef}
+          className={`inbox-scroll-container ${scrolled ? 'inbox-scroll-container--scrolled' : ''}`}
+        >
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3" style={{ color: '#596773' }}>
+            <div className="inbox-loading">
               <Clock size={22} className="animate-spin" />
-              <span className="text-xs font-medium">Carregando notificações...</span>
+              <span>Carregando...</span>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(87,157,255,0.08)' }}>
-                {filter === 'unread' ? <BellOff size={24} style={{ color: '#596773' }} /> : <Inbox size={24} strokeWidth={1.2} style={{ color: '#596773' }} />}
-              </div>
-              <div className="text-center">
-                <p className="text-xs font-semibold mb-0.5" style={{ color: '#9fadbc' }}>
-                  {filter === 'unread' ? 'Tudo lido!' : 'Nenhuma notificação'}
-                </p>
-                <p className="text-[10px]" style={{ color: '#596773' }}>
-                  {filter === 'unread' ? 'Você não tem notificações pendentes' : 'Quando alguém te mencionar ou vincular, aparecerá aqui'}
-                </p>
-              </div>
-            </div>
+            renderEmpty()
           ) : (
-            <div className="space-y-1">
+            <motion.div className="inbox-list" variants={listVariants} initial="hidden" animate="visible">
               {grouped.map(group => (
-                <div key={group.label}>
-                  <div className="sticky top-0 z-10 px-1 py-1.5" style={{ background: 'var(--bg-secondary)' }}>
-                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#596773' }}>{group.label}</span>
+                <div key={group.label} className="inbox-group">
+                  <div className="inbox-group__label">
+                    <span>{group.label}</span>
                   </div>
                   <AnimatePresence initial={false}>
                     {group.items.map(notif => {
                       const config = TYPE_CONFIG[notif.type] || TYPE_CONFIG.comment
+                      const isUnread = !notif.is_read
                       return (
                         <motion.div
                           key={notif.id}
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, x: -16 }}
-                          onClick={() => handleClick(notif)}
-                          className="inbox-notif-item flex items-start gap-2.5 px-2.5 py-3 rounded-lg cursor-pointer transition-all"
-                          style={{
-                            background: !notif.is_read ? 'rgba(87,157,255,0.06)' : 'transparent',
-                            borderLeft: !notif.is_read ? '2px solid #579dff' : '2px solid transparent',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = !notif.is_read ? 'rgba(87,157,255,0.10)' : 'rgba(255,255,255,0.04)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = !notif.is_read ? 'rgba(87,157,255,0.06)' : 'transparent')}
+                          variants={itemVariants}
+                          exit="exit"
+                          layout
+                          onClick={() => handleItemClick(notif)}
+                          className={`inbox-item ${isUnread ? 'inbox-item--unread' : 'inbox-item--read'}`}
+                          style={{ borderLeftColor: isUnread ? config.color : 'transparent' }}
                         >
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${config.color}15`, color: config.color }}>
+                          {/* Icon */}
+                          <div
+                            className="inbox-item__icon"
+                            style={{ background: `${config.color}18`, color: config.color }}
+                          >
                             {config.icon}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className="text-[12px] font-bold truncate" style={{ color: !notif.is_read ? '#ffffff' : '#dfe1e6' }}>{notif.sender_name}</span>
-                              <span className="text-[9px] font-semibold px-1.5 py-px rounded-full" style={{ background: `${config.color}18`, color: config.color }}>{config.label}</span>
+
+                          {/* Content */}
+                          <div className="inbox-item__content">
+                            <div className="inbox-item__top">
+                              <span className="inbox-item__sender">{notif.sender_name}</span>
+                              <span
+                                className="inbox-item__type"
+                                style={{ background: `${config.color}18`, color: config.color }}
+                              >
+                                {config.label}
+                              </span>
                             </div>
-                            <p className="text-[11px] leading-snug m-0 overflow-hidden" style={{
-                              color: !notif.is_read ? '#b6c2cf' : '#8c9bab',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              textOverflow: 'ellipsis',
-                            }}>{notif.message}</p>
+                            <p className="inbox-item__message">{notif.message}</p>
                             {notif.ticket_title && (
-                              <span className="text-[10px] mt-1 inline-flex items-center gap-1 truncate max-w-full" style={{ color: '#596773' }}>
-                                <CreditCardIcon /> {notif.ticket_title}
+                              <span className="inbox-item__ticket">
+                                <Ticket size={10} /> {notif.ticket_title}
                               </span>
                             )}
                           </div>
-                          <div className="flex flex-col items-end gap-1.5 flex-shrink-0 pt-0.5">
-                            <span className="text-[10px] font-medium" style={{ color: '#596773' }}>{timeAgo(notif.created_at)}</span>
-                            {!notif.is_read && (
-                              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#579dff' }} />
+
+                          {/* Meta */}
+                          <div className="inbox-item__meta">
+                            <span className="inbox-item__time" title={formatFullDate(notif.created_at)}>
+                              {timeAgo(notif.created_at)}
+                            </span>
+                            {isUnread && <span className="inbox-item__dot" />}
+                          </div>
+
+                          {/* Hover actions */}
+                          <div className="inbox-item__actions">
+                            {isUnread && (
+                              <button
+                                className="inbox-item__action-btn"
+                                title="Marcar como lida"
+                                onClick={(e) => handleMarkRead(e, notif.id)}
+                              >
+                                <Check size={13} />
+                              </button>
+                            )}
+                            {notif.ticket_id && (
+                              <button
+                                className="inbox-item__action-btn"
+                                title="Abrir cartão"
+                                onClick={(e) => handleOpen(e, notif)}
+                              >
+                                <ExternalLink size={13} />
+                              </button>
                             )}
                           </div>
                         </motion.div>
@@ -213,19 +332,10 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
                   </AnimatePresence>
                 </div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
-    </div>
-  )
-}
-
-function CreditCardIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-      <line x1="1" y1="10" x2="23" y2="10" />
-    </svg>
+    </motion.div>
   )
 }
