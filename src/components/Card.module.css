@@ -54,7 +54,7 @@
 
 .checkBtn {
   flex-shrink: 0;
-  width: 20px;
+  width: 0;
   height: 20px;
   border-radius: 50%;
   border: 2px solid #596773;
@@ -66,15 +66,20 @@
   color: transparent;
   margin-top: 2px;
   opacity: 0;
+  overflow: hidden;
   transform: scale(0.8);
-  transition: opacity 0.12s, transform 0.12s, border-color 0.12s, background 0.12s, color 0.12s;
+  transition: opacity 0.15s, transform 0.15s, width 0.15s, margin 0.15s, border-color 0.12s, background 0.12s, color 0.12s;
   position: relative;
   z-index: 2;
+  padding: 0;
+  margin-right: 0;
 }
 
 .checkBtnVisible {
   opacity: 1;
   transform: scale(1);
+  width: 20px;
+  margin-right: 2px;
 }
 
 .checkBtn:hover {
