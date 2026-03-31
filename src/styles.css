@@ -417,7 +417,7 @@ body {
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: var(--text-muted);
+  color: #8c9bab;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   border: none;

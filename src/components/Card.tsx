@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { Archive, Pencil, Check, Clock, Calendar } from 'lucide-react';
+import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { parseTag } from './CardDetailModal';
 import styles from './Card.module.css';
@@ -263,12 +263,39 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
           )}
         </div>
 
-        {/* Descrição resumida */}
-        {card.description && !isEditing && (
-          <p className={styles.description}>
-            {card.description.slice(0, 80)}{card.description.length > 80 ? '…' : ''}
-          </p>
-        )}
+        {/* Badges de conteúdo (descrição, anexos, checklist) */}
+        {!isEditing && (() => {
+          const hasDesc = !!(card.description && card.description.trim());
+          const attCount = (card as any).attachment_count || 0;
+          const obs = (card as any).observacao || '';
+          const checkTotal = (obs.match(/^[☐☑]/gm) || []).length;
+          const checkDone = (obs.match(/^☑/gm) || []).length;
+          const hasChecklist = checkTotal > 0;
+
+          if (!hasDesc && !attCount && !hasChecklist) return null;
+
+          return (
+            <div className={styles.badgesRow}>
+              {hasDesc && (
+                <span className={styles.badge} title="Tem descrição">
+                  <AlignLeft size={12} />
+                </span>
+              )}
+              {attCount > 0 && (
+                <span className={styles.badge} title={`${attCount} anexo(s)`}>
+                  <Paperclip size={12} />
+                  {attCount}
+                </span>
+              )}
+              {hasChecklist && (
+                <span className={`${styles.badge} ${checkDone === checkTotal ? styles.badgeDone : ''}`} title={`Checklist: ${checkDone}/${checkTotal}`}>
+                  <CheckSquare size={12} />
+                  {checkDone}/{checkTotal}
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Footer */}
         {!isEditing && (

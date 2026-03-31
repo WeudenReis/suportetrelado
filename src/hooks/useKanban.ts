@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { arrayMove } from '@dnd-kit/sortable'
-import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog } from '../lib/supabase'
+import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog } from '../lib/supabase'
 import type { Ticket, TicketStatus } from '../lib/supabase'
 
 export const COLUMNS: { id: TicketStatus; label: string; color: string; accent: string }[] = [
@@ -37,8 +37,9 @@ export function useKanban(user: string) {
   // ─── Load tickets ─────────────────────────────────────────
   const loadTickets = useCallback(async () => {
     try {
-      const data = await fetchTickets()
-      setTickets(data)
+      const [data, attCounts] = await Promise.all([fetchTickets(), fetchAttachmentCounts()])
+      const enriched = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
+      setTickets(enriched)
     } catch (err) {
       console.error('Failed to load tickets:', err)
       showToast('Erro ao carregar tickets', 'err')

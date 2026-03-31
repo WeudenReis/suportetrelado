@@ -201,6 +201,18 @@ export async function deleteComment(id: string): Promise<void> {
 }
 
 // --- Attachments ---
+export async function fetchAttachmentCounts(): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('attachments')
+    .select('ticket_id')
+  if (error) { console.warn('attachments count error:', error.message); return {} }
+  const counts: Record<string, number> = {}
+  for (const row of data ?? []) {
+    counts[row.ticket_id] = (counts[row.ticket_id] || 0) + 1
+  }
+  return counts
+}
+
 export async function fetchAttachments(ticketId: string): Promise<Attachment[]> {
   const { data, error } = await supabase
     .from('attachments')
