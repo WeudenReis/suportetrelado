@@ -37,6 +37,7 @@ export interface Ticket {
   observacao?: string | null
   due_date?: string | null
   cover_image_url?: string | null
+  cover_thumb_url?: string | null
 }
 
 export interface Comment {

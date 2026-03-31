@@ -14,6 +14,7 @@ import {
   extractMentionNames, resolveMentionsToEmails, insertNotification,
   fetchUserProfiles
 } from '../lib/supabase'
+import { compressCover, compressThumbnail, compressAttachment } from '../lib/imageUtils'
 import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog, UserProfile } from '../lib/supabase'
 
 interface CardDetailModalProps {
@@ -353,13 +354,32 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     const file = e.target.files?.[0]
     if (!file) return
     setUploadingCover(true)
-    const fileExt = file.name.split('.').pop()
-    const filePath = `${ticket.id}/cover_${Date.now()}.${fileExt}`
-    const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, file)
-    if (!uploadError) {
-      const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath)
-      setCoverImage(publicUrl)
-      await save({ cover_image_url: publicUrl })
+    try {
+      // Comprimir: cover (800x400) + thumbnail (400x200) em paralelo
+      const [coverFile, thumbFile] = await Promise.all([
+        compressCover(file),
+        compressThumbnail(file),
+      ])
+      const ts = Date.now()
+      const coverPath = `${ticket.id}/cover_${ts}.webp`
+      const thumbPath = `${ticket.id}/thumb_${ts}.webp`
+
+      // Upload cover + thumbnail em paralelo
+      const [coverResult, thumbResult] = await Promise.all([
+        supabase.storage.from('attachments').upload(coverPath, coverFile),
+        supabase.storage.from('attachments').upload(thumbPath, thumbFile),
+      ])
+
+      if (!coverResult.error) {
+        const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(coverPath)
+        const thumbUrl = !thumbResult.error
+          ? supabase.storage.from('attachments').getPublicUrl(thumbPath).data.publicUrl
+          : publicUrl
+        setCoverImage(publicUrl)
+        await save({ cover_image_url: publicUrl, cover_thumb_url: thumbUrl })
+      }
+    } catch (err) {
+      console.error('Cover upload error:', err)
     }
     setUploadingCover(false)
     if (coverInputRef.current) coverInputRef.current.value = ''
@@ -375,7 +395,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     if (!files?.length) return
     setUploading(true)
     for (const file of Array.from(files)) {
-      const att = await uploadAttachment(ticket.id, file, user)
+      const compressed = await compressAttachment(file)
+      const att = await uploadAttachment(ticket.id, compressed, user)
       if (att) setAttachments(prev => [...prev, att])
     }
     setUploading(false)

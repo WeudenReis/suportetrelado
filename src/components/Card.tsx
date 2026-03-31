@@ -165,9 +165,9 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
       style={style}
     >
       {/* ── CAPA ─────────────────────────── */}
-      {card.cover_image_url && (
+      {(card.cover_thumb_url || card.cover_image_url) && (
         <div className={styles.cover}>
-          <img src={card.cover_image_url} alt="" className={styles.coverImg} loading="lazy" />
+          <img src={card.cover_thumb_url || card.cover_image_url} alt="" className={styles.coverImg} loading="lazy" decoding="async" />
         </div>
       )}
 
