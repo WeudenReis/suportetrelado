@@ -131,6 +131,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
   const [editingColumnTitle, setEditingColumnTitle] = useState('')
   const [colorPickerColumnId, setColorPickerColumnId] = useState<string | null>(null)
+  const [colorPickerPos, setColorPickerPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
   const [showLabelsManager, setShowLabelsManager] = useState(false)
   const [newLabelName, setNewLabelName] = useState('')
@@ -946,13 +947,27 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                                 type="button"
                                 className="w-3.5 h-3.5 rounded-full flex-shrink-0 border-0 p-0 cursor-pointer hover:scale-125 transition-transform"
                                 style={{ background: '#ffffff', boxShadow: '0 0 6px rgba(255,255,255,0.3)' }}
-                                onClick={e => { e.stopPropagation(); setColorPickerColumnId(prev => prev === col.id ? null : col.id) }}
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  if (colorPickerColumnId === col.id) {
+                                    setColorPickerColumnId(null)
+                                  } else {
+                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                    setColorPickerPos({ top: rect.bottom + 6, left: rect.left })
+                                    setColorPickerColumnId(col.id)
+                                  }
+                                }}
                                 title="Mudar cor"
                               />
                               {colorPickerColumnId === col.id && (
                                 <>
-                                  <div className="fixed inset-0 z-[99]" onClick={() => setColorPickerColumnId(null)} />
-                                  <div className="col-color-picker" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
+                                  <div className="fixed inset-0 z-[199]" onClick={() => setColorPickerColumnId(null)} />
+                                  <div
+                                    className="col-color-picker"
+                                    style={{ top: colorPickerPos.top, left: colorPickerPos.left }}
+                                    onClick={e => e.stopPropagation()}
+                                    onPointerDown={e => e.stopPropagation()}
+                                  >
                                     {COL_COLORS.map(c => (
                                       <button
                                         key={c}

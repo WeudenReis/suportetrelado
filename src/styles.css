@@ -261,10 +261,8 @@ body {
 
 /* Column dot color picker */
 .col-color-picker {
-  position: absolute;
-  top: 16px;
-  left: -4px;
-  z-index: 100;
+  position: fixed;
+  z-index: 200;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
