@@ -4,17 +4,17 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyb
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
-import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment } from '../lib/supabase'
+import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../hooks/useKanban'
-import type { Ticket, TicketStatus, UserProfile } from '../lib/supabase'
+import type { Ticket, TicketStatus, UserProfile, BoardLabel } from '../lib/supabase'
 
 interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null }
 
@@ -97,6 +97,8 @@ function SortableBoardColumn({ id, children }: { id: string; children: (drag: { 
   )
 }
 
+const LABEL_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
+
 export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
@@ -128,6 +130,13 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
   const [editingColumnTitle, setEditingColumnTitle] = useState('')
   const [colorPickerColumnId, setColorPickerColumnId] = useState<string | null>(null)
+  const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
+  const [showLabelsManager, setShowLabelsManager] = useState(false)
+  const [newLabelName, setNewLabelName] = useState('')
+  const [newLabelColor, setNewLabelColor] = useState('#579dff')
+  const [editingLabel, setEditingLabel] = useState<BoardLabel | null>(null)
+  const [editLabelName, setEditLabelName] = useState('')
+  const [editLabelColor, setEditLabelColor] = useState('')
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -1276,6 +1285,73 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                   style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}>
                   Restaurar padrão
                 </button>
+
+                {/* Etiquetas */}
+                <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[11px] font-semibold flex items-center gap-1.5" style={{ color: '#b6c2cf' }}><Tag size={13} /> Etiquetas</div>
+                    <button onClick={async () => { setBoardLabels(await fetchBoardLabels()); setShowLabelsManager(true) }} className="text-[10px] font-semibold px-2 py-0.5 rounded hover:bg-white/10 transition-colors" style={{ color: '#579dff' }}>Gerenciar</button>
+                  </div>
+                  {boardLabels.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {boardLabels.map(l => (
+                        <span key={l.id} className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: l.color }}>{l.name}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Labels Manager Modal */}
+      <AnimatePresence>
+        {showLabelsManager && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[55] flex items-center justify-center" style={{ background: 'rgba(0,0,10,0.85)' }} onClick={e => e.target === e.currentTarget && setShowLabelsManager(false)}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="w-full max-w-md rounded-xl overflow-hidden" style={{ background: '#282e33', border: '1px solid rgba(166,197,226,0.12)' }}>
+              <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#1d2125' }}>
+                <h3 className="font-bold text-sm" style={{ color: '#b6c2cf' }}>Gerenciar Etiquetas</h3>
+                <button onClick={() => { setShowLabelsManager(false); setEditingLabel(null) }} className="p-1 rounded hover:bg-white/10"><X size={16} style={{ color: '#596773' }} /></button>
+              </div>
+              <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                {/* Existing labels */}
+                {boardLabels.map(label => (
+                  editingLabel?.id === label.id ? (
+                    <div key={label.id} className="rounded-lg p-3 space-y-2" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
+                      <input value={editLabelName} onChange={e => setEditLabelName(e.target.value)} className="modal-field text-xs w-full" placeholder="Nome da etiqueta..." />
+                      <div className="flex flex-wrap gap-1.5">
+                        {LABEL_COLORS.map(c => (
+                          <button key={c} type="button" onClick={() => setEditLabelColor(c)} className="rounded-full" style={{ width: 20, height: 20, background: c, border: editLabelColor === c ? '2px solid #fff' : '2px solid transparent' }} />
+                        ))}
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button onClick={async () => { if (!editLabelName.trim()) return; await updateBoardLabel(label.id, { name: editLabelName.trim(), color: editLabelColor }); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) }} className="px-3 py-1 rounded text-xs font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Salvar</button>
+                        <button onClick={async () => { if (confirm('Excluir esta etiqueta?')) { await deleteBoardLabel(label.id); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) } }} className="px-3 py-1 rounded text-xs font-semibold" style={{ background: 'rgba(239,68,68,0.15)', color: '#ef5c48' }}>Excluir</button>
+                        <button onClick={() => setEditingLabel(null)} className="px-3 py-1 rounded text-xs font-semibold" style={{ color: '#596773' }}>Cancelar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={label.id} className="flex items-center gap-2 group">
+                      <div className="flex-1 px-3 py-2 rounded-md text-xs font-bold text-white" style={{ background: label.color }}>{label.name}</div>
+                      <button onClick={() => { setEditingLabel(label); setEditLabelName(label.name); setEditLabelColor(label.color) }} className="p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10" title="Editar"><Pencil size={13} style={{ color: '#9fadbc' }} /></button>
+                    </div>
+                  )
+                ))}
+
+                {/* Create new label */}
+                <div className="rounded-lg p-3 space-y-2" style={{ background: '#22272b', border: '1px dashed rgba(166,197,226,0.15)' }}>
+                  <div className="text-[11px] font-semibold" style={{ color: '#596773' }}>Criar nova etiqueta</div>
+                  <input value={newLabelName} onChange={e => setNewLabelName(e.target.value)} placeholder="Nome da etiqueta..." className="modal-field text-xs w-full"
+                    onKeyDown={async e => { if (e.key === 'Enter' && newLabelName.trim()) { await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') } }} />
+                  <div className="flex flex-wrap gap-1.5">
+                    {LABEL_COLORS.map(c => (
+                      <button key={c} type="button" onClick={() => setNewLabelColor(c)} className="rounded-full" style={{ width: 20, height: 20, background: c, border: newLabelColor === c ? '2px solid #fff' : '2px solid transparent' }} />
+                    ))}
+                  </div>
+                  <button onClick={async () => { if (!newLabelName.trim()) return; await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') }} className="w-full py-1.5 rounded text-xs font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Criar etiqueta</button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

@@ -13,7 +13,7 @@ import {
   fetchActivityLog, insertActivityLog,
   extractMentionNames, resolveMentionsToEmails, insertNotification,
   fetchUserProfiles,
-  fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel
+  fetchBoardLabels, updateBoardLabel, deleteBoardLabel
 } from '../lib/supabase'
 import { compressCover, compressThumbnail, compressAttachment } from '../lib/imageUtils'
 import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
@@ -106,13 +106,10 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [dueDate, setDueDate] = useState(ticket.due_date || '')
   const [tags, setTags] = useState<string[]>(ticket.tags || [])
-  const [newTag, setNewTag] = useState('')
-  const [selectedTagColor, setSelectedTagColor] = useState('#579dff')
   const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
   const [editingLabelName, setEditingLabelName] = useState('')
   const [editingLabelColor, setEditingLabelColor] = useState('')
-  const [showCreateLabel, setShowCreateLabel] = useState(false)
   const [coverImage, setCoverImage] = useState(ticket.cover_image_url || '')
   const [uploadingCover, setUploadingCover] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
@@ -588,7 +585,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                           <button
                             type="button"
                             className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
-                            onClick={() => { setEditingLabelId(label.id); setEditingLabelName(label.name); setEditingLabelColor(label.color); setShowCreateLabel(false) }}
+                            onClick={() => { setEditingLabelId(label.id); setEditingLabelName(label.name); setEditingLabelColor(label.color) }}
                             title="Editar etiqueta"
                           >
                             <Pencil size={11} style={{ color: '#9fadbc' }} />
@@ -644,47 +641,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   </div>
                 )}
 
-                {/* Create new label */}
-                {!editingLabelId && (
-                  <>
-                    {showCreateLabel ? (
-                      <div className="space-y-1.5 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div className="flex flex-wrap gap-1">
-                          {TAG_COLORS.map(c => (
-                            <button key={c} type="button" onClick={() => setSelectedTagColor(c)}
-                              className="rounded-full" style={{ width: 18, height: 18, background: c, border: selectedTagColor === c ? '2px solid #fff' : '2px solid transparent' }} />
-                          ))}
-                        </div>
-                        <div className="flex gap-1.5">
-                          <input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Nome da etiqueta..." className="modal-field flex-1 text-xs"
-                            onKeyDown={async e => {
-                              if (e.key === 'Enter' && newTag.trim()) {
-                                const label = await insertBoardLabel(newTag.trim(), selectedTagColor);
-                                const encoded = `${label.name}|${label.color}`;
-                                const next = [...tags, encoded]; setTags(next); save({ tags: next });
-                                setNewTag(''); setShowCreateLabel(false);
-                                setBoardLabels(await fetchBoardLabels());
-                              }
-                            }} />
-                          <button type="button" onClick={async () => {
-                            if (!newTag.trim()) return;
-                            const label = await insertBoardLabel(newTag.trim(), selectedTagColor);
-                            const encoded = `${label.name}|${label.color}`;
-                            const next = [...tags, encoded]; setTags(next); save({ tags: next });
-                            setNewTag(''); setShowCreateLabel(false);
-                            setBoardLabels(await fetchBoardLabels());
-                          }} className="px-2 py-1 rounded text-[10px] font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Criar</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => setShowCreateLabel(true)}
-                        className="w-full text-center py-1 rounded text-[10px] font-semibold hover:bg-white/5 transition-colors"
-                        style={{ color: '#9fadbc', border: '1px dashed rgba(166,197,226,0.15)' }}>
-                        + Nova etiqueta
-                      </button>
-                    )}
-                  </>
-                )}
+
               </div>
             )}
 
