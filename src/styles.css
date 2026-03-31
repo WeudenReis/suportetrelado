@@ -574,16 +574,16 @@ body {
 }
 
 /* =========================================
-   Sidebar — Floating Container
+   Sidebar — Flush Panel (no floating)
    ========================================= */
 .sidebar-root {
   background: #1d2125;
-  border: 1px solid rgba(166,197,226,0.12);
-  border-radius: var(--float-radius);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  transition: width 0.15s ease, box-shadow 0.3s ease;
+  transition: width 0.15s ease;
   overflow: hidden;
-  min-width: 52px;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 .sidebar-root--collapsed {
   border-radius: 0;
@@ -591,25 +591,39 @@ body {
   border-right: 1px solid rgba(166,197,226,0.12);
   box-shadow: none;
 }
-.sidebar-root:hover {
-  box-shadow: 0 6px 16px rgba(0,0,0,0.30);
-}
 
-/* ── Sidebar Nav Strip ── */
-.sidebar-nav-strip {
-  width: 48px;
+/* ── Sidebar Panel (wraps nav + content) ── */
+.sidebar-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   flex-shrink: 0;
   background: #1d2125;
   border-right: 1px solid rgba(166,197,226,0.12);
+  z-index: 30;
+  position: relative;
+  overflow: hidden;
+}
+.sidebar-panel__nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(166,197,226,0.08);
+  flex-shrink: 0;
+}
+.sidebar-panel__content {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding-top: 10px;
-  gap: 6px;
+  overflow: hidden;
 }
+
+/* ── Nav Buttons ── */
 .sidebar-nav-btn {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   border: none;
   display: flex;
@@ -619,7 +633,7 @@ body {
   background: transparent;
   color: #6B7A8D;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 .sidebar-nav-btn:hover {
   background: rgba(255,255,255,0.06);
@@ -630,8 +644,26 @@ body {
   color: #25D066;
 }
 .sidebar-nav-btn--active:hover {
-  background: rgba(37,208,102,0.25);
+  background: rgba(37,208,102,0.22);
   color: #25D066;
+}
+.sidebar-nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  padding: 0 3px;
+  background: #25D066;
+  box-shadow: 0 0 0 2px #1d2125;
+  animation: inbox-badge-pulse 2s infinite;
 }
 
 /* Sidebar resize handle */

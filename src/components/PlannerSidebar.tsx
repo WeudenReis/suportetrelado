@@ -58,8 +58,7 @@ export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps
   const selectedTickets = ticketsByDate[selectedDate] || []
 
   return (
-    <div className="sidebar-root h-full flex-shrink-0 relative z-30 flex" style={{ width: 300 }}>
-      <div className="flex flex-col flex-1 overflow-hidden px-3 pt-3 pb-3">
+    <div className="flex flex-col flex-1 overflow-hidden px-3 pt-3 pb-3" style={{ width: 280 }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2.5">
@@ -146,6 +145,5 @@ export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps
           )}
         </div>
       </div>
-    </div>
   )
 }

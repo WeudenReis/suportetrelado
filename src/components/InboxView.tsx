@@ -89,17 +89,10 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
   }, [])
 
   return (
-    <motion.div
-      className="sidebar-root h-full flex-shrink-0 relative z-30 flex"
-      style={{ width: 370 }}
-      initial={{ opacity: 0, x: -24 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-    >
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', width: 340 }}>
 
         {/* ══════ HEADER ══════ */}
-        <div style={{ padding: '18px 20px 14px' }}>
+        <div data-gsap-child style={{ padding: '18px 20px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <h2 style={{
@@ -138,6 +131,7 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
         </div>
 
         {/* ══════ TABS ══════ */}
+        <div data-gsap-child>
         <InboxTabs
           active={filter}
           onChange={setFilter}
@@ -145,6 +139,7 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
           unreadCount={unreadCount}
           mentionCount={mentionCount}
         />
+        </div>
 
         {/* ── Mark all read ── */}
         {unreadCount > 0 && (
@@ -240,6 +235,5 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
           )}
         </div>
       </div>
-    </motion.div>
   )
 }

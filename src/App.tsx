@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Inbox, CalendarDays } from 'lucide-react'
+import gsap from 'gsap'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
 import { NotificationProvider, useNotificationContext } from './components/NotificationContext'
@@ -99,58 +100,125 @@ interface AppContentProps {
 
 function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketId, setOpenTicketId, onLogout }: AppContentProps) {
   const { unreadCount } = useNotificationContext()
-  const showNav = activeTab !== 'board'
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  const isAnimating = useRef(false)
 
-  const handleNavClick = (tab: 'inbox' | 'planner') => {
-    if (activeTab === tab) {
-      setActiveTab('board')
-    } else {
-      setActiveTab(tab)
+  const handleTabChange = useCallback((tab: 'inbox' | 'planner' | 'board') => {
+    if (isAnimating.current) return
+
+    // Clicking the active sidebar tab → close with GSAP then go to board
+    if (tab === activeTab && tab !== 'board') {
+      const el = sidebarRef.current
+      if (el) {
+        isAnimating.current = true
+        gsap.to(el, {
+          x: -el.offsetWidth,
+          opacity: 0,
+          duration: 0.35,
+          ease: 'power3.in',
+          onComplete: () => {
+            isAnimating.current = false
+            setActiveTab('board')
+          },
+        })
+      } else {
+        setActiveTab('board')
+      }
+      return
     }
-  }
+
+    // Switching to a different sidebar or closing → just set
+    if (tab === 'board' && activeTab !== 'board') {
+      const el = sidebarRef.current
+      if (el) {
+        isAnimating.current = true
+        gsap.to(el, {
+          x: -el.offsetWidth,
+          opacity: 0,
+          duration: 0.35,
+          ease: 'power3.in',
+          onComplete: () => {
+            isAnimating.current = false
+            setActiveTab('board')
+          },
+        })
+        return
+      }
+    }
+
+    setActiveTab(tab)
+  }, [activeTab, setActiveTab])
+
+  // GSAP entrance animation when sidebar mounts
+  useEffect(() => {
+    const el = sidebarRef.current
+    if (!el || activeTab === 'board') return
+
+    gsap.set(el, { x: -el.offsetWidth, opacity: 0 })
+    gsap.to(el, {
+      x: 0,
+      opacity: 1,
+      duration: 0.45,
+      ease: 'power3.out',
+    })
+
+    // Stagger-in children of the sidebar content
+    const children = el.querySelectorAll('[data-gsap-child]')
+    if (children.length > 0) {
+      gsap.fromTo(children,
+        { y: 12, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.35, stagger: 0.06, ease: 'power2.out', delay: 0.15 }
+      )
+    }
+  }, [activeTab])
+
+  const showSidebar = activeTab !== 'board'
 
   return (
     <div className="app-layout">
-      {/* ── Sidebar Nav Strip ── */}
-      {showNav && (
-        <div className="sidebar-nav-strip">
-          <button
-            onClick={() => handleNavClick('inbox')}
-            className={`sidebar-nav-btn${activeTab === 'inbox' ? ' sidebar-nav-btn--active' : ''}`}
-            title="Caixa de Entrada"
-            type="button"
-          >
-            <Inbox size={18} />
-            {unreadCount > 0 && (
-              <span className="inbox-collapsed-badge inbox-badge-pulse">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => handleNavClick('planner')}
-            className={`sidebar-nav-btn${activeTab === 'planner' ? ' sidebar-nav-btn--active' : ''}`}
-            title="Planejador"
-            type="button"
-          >
-            <CalendarDays size={18} />
-          </button>
-        </div>
-      )}
+      {/* ── Sidebar Panel (icons inside) ── */}
+      {showSidebar && (
+        <div ref={sidebarRef} className="sidebar-panel">
+          {/* ▸ Nav icons row */}
+          <div className="sidebar-panel__nav">
+            <button
+              onClick={() => handleTabChange('inbox')}
+              className={`sidebar-nav-btn${activeTab === 'inbox' ? ' sidebar-nav-btn--active' : ''}`}
+              title="Caixa de Entrada"
+              type="button"
+            >
+              <Inbox size={17} />
+              {unreadCount > 0 && (
+                <span className="sidebar-nav-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+            <button
+              onClick={() => handleTabChange('planner')}
+              className={`sidebar-nav-btn${activeTab === 'planner' ? ' sidebar-nav-btn--active' : ''}`}
+              title="Planejador"
+              type="button"
+            >
+              <CalendarDays size={17} />
+            </button>
+          </div>
 
-      {/* ── Expanded Sidebar Panels ── */}
-      {activeTab === 'inbox' && (
-        <InboxSidebar
-          user={user}
-          onClose={() => setActiveTab('board')}
-          onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
-        />
-      )}
-      {activeTab === 'planner' && (
-        <PlannerSidebar
-          tickets={plannerTickets}
-          onClose={() => setActiveTab('board')}
-        />
+          {/* ▸ Sidebar content */}
+          <div className="sidebar-panel__content">
+            {activeTab === 'inbox' && (
+              <InboxSidebar
+                user={user}
+                onClose={() => handleTabChange('board')}
+                onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
+              />
+            )}
+            {activeTab === 'planner' && (
+              <PlannerSidebar
+                tickets={plannerTickets}
+                onClose={() => handleTabChange('board')}
+              />
+            )}
+          </div>
+        </div>
       )}
 
       <div className="app-layout__main">
@@ -160,7 +228,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
             <KanbanBoard user={user} onLogout={onLogout} openTicketId={openTicketId} />
           </motion.div>
         </AnimatePresence>
-        <BottomNav active={activeTab} onChange={setActiveTab} />
+        <BottomNav active={activeTab} onChange={handleTabChange} />
       </div>
     </div>
   )
