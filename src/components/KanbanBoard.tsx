@@ -1286,19 +1286,21 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                   Restaurar padrão
                 </button>
 
+
                 {/* Etiquetas */}
-                <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[11px] font-semibold flex items-center gap-1.5" style={{ color: '#b6c2cf' }}><Tag size={13} /> Etiquetas</div>
-                    <button onClick={async () => { setBoardLabels(await fetchBoardLabels()); setShowLabelsManager(true) }} className="text-[10px] font-semibold px-2 py-0.5 rounded hover:bg-white/10 transition-colors" style={{ color: '#579dff' }}>Gerenciar</button>
+                <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Tag size={14} style={{ color: '#579dff' }} />
+                    <span className="font-bold text-xs" style={{ color: '#b6c2cf' }}>Etiquetas do Board</span>
                   </div>
-                  {boardLabels.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {boardLabels.map(l => (
-                        <span key={l.id} className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: l.color }}>{l.name}</span>
-                      ))}
-                    </div>
-                  )}
+                  <button
+                    onClick={() => { setShowLabelsManager(true); fetchBoardLabels().then(setBoardLabels).catch(console.error) }}
+                    className="w-full py-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2"
+                    style={{ background: 'rgba(87,157,255,0.12)', border: '1px solid rgba(87,157,255,0.25)', color: '#579dff' }}
+                  >
+                    <Pencil size={13} />
+                    Gerenciar Etiquetas
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -1307,58 +1309,98 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
       </AnimatePresence>
 
       {/* Labels Manager Modal */}
-      <AnimatePresence>
-        {showLabelsManager && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[55] flex items-center justify-center" style={{ background: 'rgba(0,0,10,0.85)' }} onClick={e => e.target === e.currentTarget && setShowLabelsManager(false)}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="w-full max-w-md rounded-xl overflow-hidden" style={{ background: '#282e33', border: '1px solid rgba(166,197,226,0.12)' }}>
-              <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#1d2125' }}>
+      {showLabelsManager && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }} onClick={e => e.target === e.currentTarget && setShowLabelsManager(false)}>
+          <div className="w-full max-w-sm mx-4 rounded-xl shadow-2xl overflow-hidden" style={{ background: '#282e33', border: '1px solid rgba(166,197,226,0.16)' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5" style={{ background: '#1d2125', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-center gap-2">
+                <Tag size={15} style={{ color: '#579dff' }} />
                 <h3 className="font-bold text-sm" style={{ color: '#b6c2cf' }}>Gerenciar Etiquetas</h3>
-                <button onClick={() => { setShowLabelsManager(false); setEditingLabel(null) }} className="p-1 rounded hover:bg-white/10"><X size={16} style={{ color: '#596773' }} /></button>
               </div>
-              <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
-                {/* Existing labels */}
-                {boardLabels.map(label => (
-                  editingLabel?.id === label.id ? (
-                    <div key={label.id} className="rounded-lg p-3 space-y-2" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
-                      <input value={editLabelName} onChange={e => setEditLabelName(e.target.value)} className="modal-field text-xs w-full" placeholder="Nome da etiqueta..." />
-                      <div className="flex flex-wrap gap-1.5">
-                        {LABEL_COLORS.map(c => (
-                          <button key={c} type="button" onClick={() => setEditLabelColor(c)} className="rounded-full" style={{ width: 20, height: 20, background: c, border: editLabelColor === c ? '2px solid #fff' : '2px solid transparent' }} />
-                        ))}
-                      </div>
-                      <div className="flex gap-1.5">
-                        <button onClick={async () => { if (!editLabelName.trim()) return; await updateBoardLabel(label.id, { name: editLabelName.trim(), color: editLabelColor }); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) }} className="px-3 py-1 rounded text-xs font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Salvar</button>
-                        <button onClick={async () => { if (confirm('Excluir esta etiqueta?')) { await deleteBoardLabel(label.id); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) } }} className="px-3 py-1 rounded text-xs font-semibold" style={{ background: 'rgba(239,68,68,0.15)', color: '#ef5c48' }}>Excluir</button>
-                        <button onClick={() => setEditingLabel(null)} className="px-3 py-1 rounded text-xs font-semibold" style={{ color: '#596773' }}>Cancelar</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div key={label.id} className="flex items-center gap-2 group">
-                      <div className="flex-1 px-3 py-2 rounded-md text-xs font-bold text-white" style={{ background: label.color }}>{label.name}</div>
-                      <button onClick={() => { setEditingLabel(label); setEditLabelName(label.name); setEditLabelColor(label.color) }} className="p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10" title="Editar"><Pencil size={13} style={{ color: '#9fadbc' }} /></button>
-                    </div>
-                  )
-                ))}
+              <button onClick={() => { setShowLabelsManager(false); setEditingLabel(null) }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: '#596773' }} /></button>
+            </div>
 
-                {/* Create new label */}
-                <div className="rounded-lg p-3 space-y-2" style={{ background: '#22272b', border: '1px dashed rgba(166,197,226,0.15)' }}>
-                  <div className="text-[11px] font-semibold" style={{ color: '#596773' }}>Criar nova etiqueta</div>
-                  <input value={newLabelName} onChange={e => setNewLabelName(e.target.value)} placeholder="Nome da etiqueta..." className="modal-field text-xs w-full"
-                    onKeyDown={async e => { if (e.key === 'Enter' && newLabelName.trim()) { await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') } }} />
-                  <div className="flex flex-wrap gap-1.5">
-                    {LABEL_COLORS.map(c => (
-                      <button key={c} type="button" onClick={() => setNewLabelColor(c)} className="rounded-full" style={{ width: 20, height: 20, background: c, border: newLabelColor === c ? '2px solid #fff' : '2px solid transparent' }} />
-                    ))}
+            {/* Content */}
+            <div className="p-4 space-y-2 max-h-[55vh] overflow-y-auto">
+              {boardLabels.map(label => (
+                editingLabel?.id === label.id ? (
+                  <div key={label.id} className="rounded-lg p-3.5 space-y-3" style={{ background: '#1d2125', border: '1px solid rgba(87,157,255,0.2)' }}>
+                    <input
+                      value={editLabelName}
+                      onChange={e => setEditLabelName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-xs font-medium outline-none"
+                      style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.15)', color: '#b6c2cf' }}
+                      placeholder="Nome da etiqueta..."
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {LABEL_COLORS.map(c => (
+                        <button key={c} type="button" onClick={() => setEditLabelColor(c)}
+                          className="rounded-full transition-transform hover:scale-110"
+                          style={{ width: 24, height: 24, background: c, border: editLabelColor === c ? '2.5px solid #fff' : '2.5px solid transparent', boxShadow: editLabelColor === c ? '0 0 0 2px ' + c : 'none' }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={async () => { if (!editLabelName.trim()) return; await updateBoardLabel(label.id, { name: editLabelName.trim(), color: editLabelColor }); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) }}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold"
+                        style={{ background: '#579dff', color: '#1d2125' }}>Salvar</button>
+                      <button onClick={async () => { if (confirm('Excluir esta etiqueta?')) { await deleteBoardLabel(label.id); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) } }}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold"
+                        style={{ background: 'rgba(239,68,68,0.15)', color: '#ef5c48' }}>Excluir</button>
+                      <button onClick={() => setEditingLabel(null)}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-white/5"
+                        style={{ color: '#596773' }}>Cancelar</button>
+                    </div>
                   </div>
-                  <button onClick={async () => { if (!newLabelName.trim()) return; await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') }} className="w-full py-1.5 rounded text-xs font-semibold" style={{ background: 'rgba(87,157,255,0.18)', color: '#579dff' }}>Criar etiqueta</button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                ) : (
+                  <div key={label.id} className="flex items-center gap-2 group">
+                    <div className="flex-1 px-3.5 py-2.5 rounded-lg text-xs font-bold text-white" style={{ background: label.color }}>{label.name}</div>
+                    <button onClick={() => { setEditingLabel(label); setEditLabelName(label.name); setEditLabelColor(label.color) }}
+                      className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-white/10"
+                      title="Editar"><Pencil size={14} style={{ color: '#9fadbc' }} /></button>
+                  </div>
+                )
+              ))}
 
-      {/* Card Detail Modal */}
+              {boardLabels.length === 0 && !editingLabel && (
+                <div className="text-center py-6">
+                  <Tag size={28} style={{ color: '#596773', margin: '0 auto 8px' }} />
+                  <p className="text-xs" style={{ color: '#596773' }}>Nenhuma etiqueta criada ainda</p>
+                </div>
+              )}
+            </div>
+
+            {/* Create new label footer */}
+            <div className="p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: '#1d2125' }}>
+              <div className="text-[11px] font-semibold mb-2.5" style={{ color: '#596773' }}>Criar nova etiqueta</div>
+              <input
+                value={newLabelName}
+                onChange={e => setNewLabelName(e.target.value)}
+                placeholder="Nome da etiqueta..."
+                className="w-full px-3 py-2 rounded-lg text-xs font-medium outline-none mb-3"
+                style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.15)', color: '#b6c2cf' }}
+                onKeyDown={async e => { if (e.key === 'Enter' && newLabelName.trim()) { await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') } }}
+              />
+              <div className="flex flex-wrap gap-2 mb-3">
+                {LABEL_COLORS.map(c => (
+                  <button key={c} type="button" onClick={() => setNewLabelColor(c)}
+                    className="rounded-full transition-transform hover:scale-110"
+                    style={{ width: 24, height: 24, background: c, border: newLabelColor === c ? '2.5px solid #fff' : '2.5px solid transparent', boxShadow: newLabelColor === c ? '0 0 0 2px ' + c : 'none' }}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={async () => { if (!newLabelName.trim()) return; await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') }}
+                className="w-full py-2 rounded-lg text-xs font-bold transition-colors"
+                style={{ background: newLabelName.trim() ? '#579dff' : 'rgba(87,157,255,0.15)', color: newLabelName.trim() ? '#1d2125' : '#579dff' }}
+              >Criar etiqueta</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+            {/* Card Detail Modal */}
       <AnimatePresence>
         {selectedTicket && (
           <CardDetailModal
