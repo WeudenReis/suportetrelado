@@ -5,7 +5,7 @@ import {
   X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
   ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
   AlignLeft, CreditCard, Paperclip, Check, User, Calendar,
-  CheckSquare, Square, Plus
+  CheckSquare, Square, Plus, Link2
 } from 'lucide-react'
 import {
   supabase, updateTicket, deleteTicket,
@@ -116,10 +116,16 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [newChecklistItem, setNewChecklistItem] = useState('')
   const checklistInputRef = useRef<HTMLInputElement>(null)
 
+  // Multi-member state
+  const [showMemberPicker, setShowMemberPicker] = useState(false)
+  const [members, setMembers] = useState<string[]>(() => {
+    const raw = ticket.assignee || ''
+    return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
+  })
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
   const commentsEndRef = useRef<HTMLDivElement>(null)
-  const memberRef = useRef<HTMLInputElement>(null)
 
   // Mention autocomplete state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
@@ -484,12 +490,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
         {/* ── Action quick bar ── */}
         <div className="flex items-center gap-1.5 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => fileInputRef.current?.click()} className="elite-action-chip">+ Adicionar</button>
-          {!coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
           <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
           <button onClick={() => setShowDatePicker(p => !p)} className="elite-action-chip" style={showDatePicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Datas</button>
           <button onClick={() => setShowChecklist(p => !p)} className="elite-action-chip" style={showChecklist ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Checklist</button>
-          <button onClick={() => memberRef.current?.focus()} className="elite-action-chip">Membro</button>
+          {!coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
+          <button onClick={() => setShowMemberPicker(p => !p)} className="elite-action-chip" style={showMemberPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>
+            <Link2 size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Vincular
+          </button>
         </div>
 
         {/* ── Creation info ── */}
@@ -630,8 +637,51 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   <option value="high">Alta</option>
                 </select>
               </FieldGroup>
-              <FieldGroup label="Responsavel">
-                <input ref={memberRef} value={assignee} onChange={e => setAssignee(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Responsavel" />
+              <FieldGroup label="Vinculados">
+                <div className="flex flex-wrap gap-1">
+                  {members.map(m => (
+                    <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(87,157,255,0.15)', color: '#579dff' }}>
+                      {m.includes('@') ? m.split('@')[0] : m}
+                      <button onClick={() => { const next = members.filter(x => x !== m); setMembers(next); const joined = next.join(', '); setAssignee(joined); save({ assignee: joined || null }) }} className="hover:text-red-400 transition-colors">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                  {members.length === 0 && <span className="text-[11px]" style={{ color: '#596773' }}>Nenhum</span>}
+                </div>
+                {showMemberPicker && (
+                  <div className="mt-2 rounded-lg p-2 space-y-1" style={{ background: '#1d2125', border: '1px solid rgba(166,197,226,0.12)', maxHeight: 180, overflowY: 'auto' }}>
+                    {allUsers.length === 0 && <div className="text-[11px] py-2 text-center" style={{ color: '#596773' }}>Carregando...</div>}
+                    {allUsers.map(u => {
+                      const isAdded = members.some(m => m === u.email || m === u.name)
+                      return (
+                        <button
+                          key={u.email}
+                          onClick={() => {
+                            const identifier = u.name || u.email
+                            let next: string[]
+                            if (isAdded) {
+                              next = members.filter(m => m !== u.email && m !== u.name)
+                            } else {
+                              next = [...members, identifier]
+                            }
+                            setMembers(next)
+                            const joined = next.join(', ')
+                            setAssignee(joined)
+                            save({ assignee: joined || null })
+                          }}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-white/5"
+                        >
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: u.avatar_color || '#579dff' }}>
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="flex-1 text-[11px] truncate" style={{ color: '#b6c2cf' }}>{u.name}</span>
+                          {isAdded && <Check size={12} style={{ color: '#22c55e' }} />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </FieldGroup>
             </div>
 
