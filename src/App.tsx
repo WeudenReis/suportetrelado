@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
+import { NotificationProvider } from './components/NotificationContext'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
 import InboxSidebar from './components/InboxView'
@@ -79,27 +80,29 @@ export default function App() {
       {!user ? (
         <Login onLogin={handleLogin} />
       ) : (
-        <div className="app-layout">
-          {activeTab === 'inbox' && (
-            <InboxSidebar
-              user={user!}
-              collapsed={inboxCollapsed}
-              onToggle={() => setInboxCollapsed(p => !p)}
-              onOpenTicket={(ticketId) => {
-                setOpenTicketId(ticketId)
-              }}
-            />
-          )}
-          {activeTab === 'planner' && (
-            <PlannerSidebar tickets={plannerTickets} collapsed={plannerCollapsed} onToggle={() => setPlannerCollapsed(p => !p)} />
-          )}
-          <div className="app-layout__main">
-            <AnimatePresence mode="wait">
-              {renderView()}
-            </AnimatePresence>
-            <BottomNav active={activeTab} onChange={setActiveTab} />
+        <NotificationProvider user={user!}>
+          <div className="app-layout">
+            {activeTab === 'inbox' && (
+              <InboxSidebar
+                user={user!}
+                collapsed={inboxCollapsed}
+                onToggle={() => setInboxCollapsed(p => !p)}
+                onOpenTicket={(ticketId) => {
+                  setOpenTicketId(ticketId)
+                }}
+              />
+            )}
+            {activeTab === 'planner' && (
+              <PlannerSidebar tickets={plannerTickets} collapsed={plannerCollapsed} onToggle={() => setPlannerCollapsed(p => !p)} />
+            )}
+            <div className="app-layout__main">
+              <AnimatePresence mode="wait">
+                {renderView()}
+              </AnimatePresence>
+              <BottomNav active={activeTab} onChange={setActiveTab} />
+            </div>
           </div>
-        </div>
+        </NotificationProvider>
       )}
     </ThemeProvider>
   )

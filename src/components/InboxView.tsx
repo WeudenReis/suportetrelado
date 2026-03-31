@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Inbox, CheckCheck, Clock, AtSign, ArrowRight, MessageSquare, UserPlus, ChevronLeft } from 'lucide-react'
-import { supabase, fetchNotifications, markNotificationRead, markAllNotificationsRead } from '../lib/supabase'
-import type { Notification } from '../lib/supabase'
+import { useNotificationContext } from './NotificationContext'
 
 interface InboxSidebarProps {
   user: string
@@ -31,42 +30,14 @@ function timeAgo(iso: string): string {
 }
 
 export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }: InboxSidebarProps) {
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const { notifications, unreadCount, loading, markRead, markAllRead } = useNotificationContext()
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
-  const [loading, setLoading] = useState(true)
-
-  const load = useCallback(async () => {
-    const data = await fetchNotifications(user)
-    setNotifications(data)
-    setLoading(false)
-  }, [user])
-
-  useEffect(() => {
-    load()
-
-    const channel = supabase
-      .channel('notifications-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
-        const notif = payload.new as Notification
-        if (notif.recipient_email === user) {
-          setNotifications(prev => [notif, ...prev])
-        }
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, payload => {
-        setNotifications(prev => prev.map(n => n.id === (payload.new as Notification).id ? payload.new as Notification : n))
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [load, user])
 
   const filtered = filter === 'unread' ? notifications.filter(n => !n.is_read) : notifications
-  const unreadCount = notifications.filter(n => !n.is_read).length
 
-  const handleClick = async (notif: Notification) => {
+  const handleClick = async (notif: { id: string; is_read: boolean; ticket_id?: string | null }) => {
     if (!notif.is_read) {
-      await markNotificationRead(notif.id)
-      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n))
+      await markRead(notif.id)
     }
     if (notif.ticket_id && onOpenTicket) {
       onOpenTicket(notif.ticket_id)
@@ -74,8 +45,7 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
   }
 
   const handleMarkAll = async () => {
-    await markAllNotificationsRead(user)
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+    await markAllRead()
   }
 
   if (collapsed) {

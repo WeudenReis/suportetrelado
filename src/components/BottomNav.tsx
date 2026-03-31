@@ -1,4 +1,5 @@
 import { Inbox, Calendar, LayoutGrid } from 'lucide-react'
+import { useNotificationContext } from './NotificationContext'
 
 type NavTab = 'inbox' | 'planner' | 'board'
 
@@ -14,6 +15,8 @@ const NAV_ITEMS = [
 ]
 
 export default function BottomBar({ active, onChange }: BottomBarProps) {
+  const { unreadCount } = useNotificationContext()
+
   return (
     <div className="bottom-bar-outer">
       <nav className="bottom-bar">
@@ -24,7 +27,14 @@ export default function BottomBar({ active, onChange }: BottomBarProps) {
             className={`nav-item${active === item.id ? ' nav-item-active' : ''}`}
             type="button"
           >
-            {item.icon}
+            <span className="relative inline-flex">
+              {item.icon}
+              {item.id === 'inbox' && unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white px-1" style={{ background: '#ef5c48' }}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </span>
             <span>{item.label}</span>
           </button>
         ))}
