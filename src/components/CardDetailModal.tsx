@@ -361,10 +361,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     const file = e.target.files?.[0]
     if (!file) return
     setUploadingCover(true)
-    const att = await uploadAttachment(ticket.id, file, user)
-    if (att) {
-      setCoverImage(att.file_url)
-      await save({ cover_image_url: att.file_url })
+    const fileExt = file.name.split('.').pop()
+    const filePath = `${ticket.id}/cover_${Date.now()}.${fileExt}`
+    const { error: uploadError } = await supabase.storage.from('attachments').upload(filePath, file)
+    if (!uploadError) {
+      const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath)
+      setCoverImage(publicUrl)
+      await save({ cover_image_url: publicUrl })
     }
     setUploadingCover(false)
     if (coverInputRef.current) coverInputRef.current.value = ''
