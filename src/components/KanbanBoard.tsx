@@ -35,7 +35,7 @@ function buildLocalColumn(title: string, position: number): BoardColumn {
     id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     title: title.trim(),
     position,
-    dot_color: '#579dff',
+    dot_color: '#101204',
     is_archived: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -625,7 +625,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   }, [])
 
   // ── Cores disponíveis para dot das colunas ──
-  const COL_COLORS = ['#579dff', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4', '#22c55e', '#ec4899', '#a855f7', '#f97316', '#64748b']
+  const COL_COLORS = ['#101204', '#579dff', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4', '#22c55e', '#ec4899', '#a855f7', '#f97316', '#64748b']
 
   const handleSaveColumnTitle = useCallback(async (colId: string, newTitle: string) => {
     const trimmed = newTitle.trim()
