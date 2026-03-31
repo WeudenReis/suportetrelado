@@ -958,10 +958,19 @@ body {
   position: relative;
   border-radius: calc(var(--float-radius) - 4px);
   background-clip: padding-box;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) transparent;
   cursor: grab;
 }
-.board-main__scroller::-webkit-scrollbar { display: none; }
+.board-main__scroller::-webkit-scrollbar { height: 8px; }
+.board-main__scroller::-webkit-scrollbar-track { background: transparent; }
+.board-main__scroller::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.18);
+  border-radius: 4px;
+}
+.board-main__scroller::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.3);
+}
 .board-main__scroller[style*="grabbing"] { user-select: none; }
 .board-columns {
   display: flex;

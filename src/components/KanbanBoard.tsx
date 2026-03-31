@@ -583,14 +583,15 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   const handleBoardMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     // Só ativa se clicar no fundo do scroller/board (não em cards, colunas ou botões)
+    if (target.closest('.trello-col')) return
     const isBoard = target === scrollerRef.current
       || target.classList.contains('board-columns')
       || target.classList.contains('board-main__scroller')
       || target.classList.contains('board-main')
-      || target.closest('.board-main__scroller') === scrollerRef.current && !target.closest('.trello-col')
+      || (target.closest('.board-main__scroller') === scrollerRef.current)
     if (!isBoard) return
     boardDragRef.current.isDragging = true
-    boardDragRef.current.startX = e.pageX - (scrollerRef.current?.offsetLeft ?? 0)
+    boardDragRef.current.startX = e.clientX
     boardDragRef.current.scrollLeft = scrollerRef.current?.scrollLeft ?? 0
     if (scrollerRef.current) scrollerRef.current.style.cursor = 'grabbing'
   }, [])
@@ -598,8 +599,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   const handleBoardMouseMove = useCallback((e: React.MouseEvent) => {
     if (!boardDragRef.current.isDragging || !scrollerRef.current) return
     e.preventDefault()
-    const x = e.pageX - scrollerRef.current.offsetLeft
-    const walk = (x - boardDragRef.current.startX) * 1.5
+    const walk = (e.clientX - boardDragRef.current.startX) * 1.5
     scrollerRef.current.scrollLeft = boardDragRef.current.scrollLeft - walk
   }, [])
 
