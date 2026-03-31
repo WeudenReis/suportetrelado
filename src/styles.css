@@ -595,6 +595,45 @@ body {
   box-shadow: 0 6px 16px rgba(0,0,0,0.30);
 }
 
+/* ── Sidebar Nav Strip ── */
+.sidebar-nav-strip {
+  width: 48px;
+  flex-shrink: 0;
+  background: #1d2125;
+  border-right: 1px solid rgba(166,197,226,0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  gap: 6px;
+}
+.sidebar-nav-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: transparent;
+  color: #6B7A8D;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.sidebar-nav-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: #B6C2CF;
+}
+.sidebar-nav-btn--active {
+  background: rgba(37,208,102,0.15);
+  color: #25D066;
+}
+.sidebar-nav-btn--active:hover {
+  background: rgba(37,208,102,0.25);
+  color: #25D066;
+}
+
 /* Sidebar resize handle */
 .sidebar-resize-handle {
   position: absolute;

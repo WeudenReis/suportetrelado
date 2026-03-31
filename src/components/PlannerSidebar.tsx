@@ -5,8 +5,7 @@ import type { Ticket } from '../lib/supabase'
 
 interface PlannerSidebarProps {
   tickets: Ticket[]
-  collapsed: boolean
-  onToggle: () => void
+  onClose: () => void
 }
 
 const DAYS_PT = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
@@ -14,7 +13,7 @@ const MONTHS_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', '
 
 const PRIO_COLORS: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' }
 
-export default function PlannerSidebar({ tickets, collapsed, onToggle }: PlannerSidebarProps) {
+export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
 
   const year = currentDate.getFullYear()
@@ -58,18 +57,6 @@ export default function PlannerSidebar({ tickets, collapsed, onToggle }: Planner
   const [selectedDate, setSelectedDate] = useState(todayStr)
   const selectedTickets = ticketsByDate[selectedDate] || []
 
-  if (collapsed) {
-    return (
-      <div className="sidebar-root sidebar-root--collapsed h-full flex-shrink-0 relative z-30" style={{ width: 52 }}>
-        <div className="flex flex-col items-center pt-4 gap-3">
-          <button onClick={onToggle} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.15)' }}>
-            <CalendarDays size={16} className="text-blue-400" />
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="sidebar-root h-full flex-shrink-0 relative z-30 flex" style={{ width: 300 }}>
       <div className="flex flex-col flex-1 overflow-hidden px-3 pt-3 pb-3">
@@ -81,7 +68,7 @@ export default function PlannerSidebar({ tickets, collapsed, onToggle }: Planner
             </div>
             <span className="text-lg font-bold truncate" style={{ color: '#ffffff' }}>Planejador</span>
           </div>
-          <button onClick={onToggle} className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: '#9fb0c2' }}>
+          <button onClick={onClose} className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: '#9fb0c2' }}>
             <ChevronLeft size={14} />
           </button>
         </div>

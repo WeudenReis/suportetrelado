@@ -10,8 +10,7 @@ import EmptyState from './inbox/EmptyState'
 
 interface InboxSidebarProps {
   user: string
-  collapsed: boolean
-  onToggle: () => void
+  onClose: () => void
   onOpenTicket?: (ticketId: string) => void
 }
 
@@ -45,7 +44,7 @@ const listVariants = {
 }
 
 /* ── Component ── */
-export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }: InboxSidebarProps) {
+export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSidebarProps) {
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotificationContext()
   const [filter, setFilter] = useState<TabFilter>('all')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -89,24 +88,6 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
     return () => el.removeEventListener('scroll', onScroll)
   }, [])
 
-  /* ── Collapsed state ── */
-  if (collapsed) {
-    return (
-      <div className="sidebar-root sidebar-root--collapsed h-full flex-shrink-0 relative z-30" style={{ width: 48 }}>
-        <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid rgba(166,197,226,0.12)' }}>
-          <button onClick={onToggle} className="inbox-collapsed-btn" title="Caixa de Entrada">
-            <Inbox size={16} />
-            {unreadCount > 0 && (
-              <span className="inbox-collapsed-badge inbox-badge-pulse">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <motion.div
       className="sidebar-root h-full flex-shrink-0 relative z-30 flex"
@@ -140,7 +121,7 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
               )}
             </div>
             <button
-              onClick={onToggle}
+              onClick={onClose}
               title="Fechar"
               style={{
                 width: 28, height: 28, borderRadius: 7, border: 'none',
