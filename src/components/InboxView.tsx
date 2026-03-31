@@ -92,8 +92,8 @@ export default function InboxSidebar({ user, collapsed, onToggle, onOpenTicket }
   /* ── Collapsed state ── */
   if (collapsed) {
     return (
-      <div className="sidebar-root sidebar-root--collapsed h-full flex-shrink-0 relative z-30" style={{ width: 52 }}>
-        <div className="flex flex-col items-center pt-4 gap-3">
+      <div className="sidebar-root sidebar-root--collapsed h-full flex-shrink-0 relative z-30" style={{ width: 48 }}>
+        <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid rgba(166,197,226,0.12)' }}>
           <button onClick={onToggle} className="inbox-collapsed-btn" title="Caixa de Entrada">
             <Inbox size={16} />
             {unreadCount > 0 && (

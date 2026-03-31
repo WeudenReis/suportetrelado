@@ -586,7 +586,10 @@ body {
   min-width: 52px;
 }
 .sidebar-root--collapsed {
-  border-radius: 12px;
+  border-radius: 0;
+  border: none;
+  border-right: 1px solid rgba(166,197,226,0.12);
+  box-shadow: none;
 }
 .sidebar-root:hover {
   box-shadow: 0 6px 16px rgba(0,0,0,0.30);
