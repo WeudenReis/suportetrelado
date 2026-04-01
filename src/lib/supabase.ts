@@ -389,3 +389,88 @@ export async function resolveMentionsToEmails(names: string[]): Promise<string[]
   }
   return emails
 }
+
+// ── Announcements (Avisos do Supervisor) ──
+export type AnnouncementSeverity = 'info' | 'warning' | 'critical'
+
+export interface Announcement {
+  id: string
+  title: string
+  content: string
+  severity: AnnouncementSeverity
+  author: string
+  is_pinned: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchAnnouncements(): Promise<Announcement[]> {
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*')
+    .eq('is_active', true)
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) { console.warn('announcements error:', error.message); return [] }
+  return (data ?? []) as Announcement[]
+}
+
+export async function insertAnnouncement(ann: { title: string; content: string; severity: AnnouncementSeverity; author: string; is_pinned?: boolean }): Promise<Announcement | null> {
+  const { data, error } = await supabase
+    .from('announcements')
+    .insert(ann)
+    .select()
+    .single()
+  if (error) { console.error('insert announcement error:', error.message); return null }
+  return data as Announcement
+}
+
+export async function updateAnnouncement(id: string, updates: Partial<Announcement>): Promise<void> {
+  await supabase.from('announcements').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+}
+
+export async function deleteAnnouncement(id: string): Promise<void> {
+  await supabase.from('announcements').delete().eq('id', id)
+}
+
+// ── Useful Links (Links Úteis) ──
+export interface UsefulLink {
+  id: string
+  title: string
+  url: string
+  description: string
+  category: string
+  icon: string
+  added_by: string
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchUsefulLinks(): Promise<UsefulLink[]> {
+  const { data, error } = await supabase
+    .from('useful_links')
+    .select('*')
+    .order('category', { ascending: true })
+    .order('title', { ascending: true })
+  if (error) { console.warn('useful_links error:', error.message); return [] }
+  return (data ?? []) as UsefulLink[]
+}
+
+export async function insertUsefulLink(link: { title: string; url: string; description?: string; category: string; added_by: string }): Promise<UsefulLink | null> {
+  const { data, error } = await supabase
+    .from('useful_links')
+    .insert(link)
+    .select()
+    .single()
+  if (error) { console.error('insert link error:', error.message); return null }
+  return data as UsefulLink
+}
+
+export async function updateUsefulLink(id: string, updates: Partial<UsefulLink>): Promise<void> {
+  await supabase.from('useful_links').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+}
+
+export async function deleteUsefulLink(id: string): Promise<void> {
+  await supabase.from('useful_links').delete().eq('id', id)
+}

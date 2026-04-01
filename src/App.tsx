@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CalendarDays } from 'lucide-react'
+import { Inbox, CalendarDays, AlertTriangle, Link2, BarChart3 } from 'lucide-react'
 import gsap from 'gsap'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
@@ -10,6 +10,9 @@ import KanbanBoard from './components/KanbanBoard'
 import InboxSidebar from './components/InboxView'
 import PlannerView from './components/PlannerView'
 import PlannerSidebar from './components/PlannerSidebar'
+import AnnouncementsView from './components/AnnouncementsView'
+import LinksView from './components/LinksView'
+import DashboardView from './components/DashboardView'
 import BottomNav from './components/BottomNav'
 import { fetchTickets, upsertUserProfile, updateLastSeen } from './lib/supabase'
 import type { Ticket } from './lib/supabase'
@@ -17,7 +20,7 @@ import type { Ticket } from './lib/supabase'
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board'>('board')
+  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'>('board')
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
   const [openTicketId, setOpenTicketId] = useState<string | null>(null)
   useEffect(() => {
@@ -89,8 +92,8 @@ export default function App() {
 
 /* ── Inner component that has access to NotificationContext ── */
 interface AppContentProps {
-  activeTab: 'inbox' | 'planner' | 'board'
-  setActiveTab: (tab: 'inbox' | 'planner' | 'board') => void
+  activeTab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'
+  setActiveTab: (tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => void
   user: string
   plannerTickets: Ticket[]
   openTicketId: string | null
@@ -103,7 +106,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
   const sidebarRef = useRef<HTMLDivElement>(null)
   const isAnimating = useRef(false)
 
-  const handleTabChange = useCallback((tab: 'inbox' | 'planner' | 'board') => {
+  const handleTabChange = useCallback((tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => {
     if (isAnimating.current) return
 
     // Clicking the active sidebar tab → close with GSAP then go to board
@@ -200,6 +203,30 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
             >
               <CalendarDays size={17} />
             </button>
+            <button
+              onClick={() => handleTabChange('announcements')}
+              className={`sidebar-nav-btn${activeTab === 'announcements' ? ' sidebar-nav-btn--active' : ''}`}
+              title="Avisos"
+              type="button"
+            >
+              <AlertTriangle size={17} />
+            </button>
+            <button
+              onClick={() => handleTabChange('links')}
+              className={`sidebar-nav-btn${activeTab === 'links' ? ' sidebar-nav-btn--active' : ''}`}
+              title="Links Úteis"
+              type="button"
+            >
+              <Link2 size={17} />
+            </button>
+            <button
+              onClick={() => handleTabChange('dashboard')}
+              className={`sidebar-nav-btn${activeTab === 'dashboard' ? ' sidebar-nav-btn--active' : ''}`}
+              title="Dashboard"
+              type="button"
+            >
+              <BarChart3 size={17} />
+            </button>
           </div>
 
           {/* ▸ Sidebar content */}
@@ -214,6 +241,24 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
             {activeTab === 'planner' && (
               <PlannerSidebar
                 tickets={plannerTickets}
+                onClose={() => handleTabChange('board')}
+              />
+            )}
+            {activeTab === 'announcements' && (
+              <AnnouncementsView
+                user={user}
+                onClose={() => handleTabChange('board')}
+              />
+            )}
+            {activeTab === 'links' && (
+              <LinksView
+                user={user}
+                onClose={() => handleTabChange('board')}
+              />
+            )}
+            {activeTab === 'dashboard' && (
+              <DashboardView
+                user={user}
                 onClose={() => handleTabChange('board')}
               />
             )}
