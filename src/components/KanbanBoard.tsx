@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable,
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock, LayoutGrid, List, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock, LayoutGrid, List, ChevronDown, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -1364,32 +1364,19 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
               {/* Stats bar */}
-              <div style={{
-                display: 'flex', gap: 12, flexWrap: 'wrap',
-              }}>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {allColumns.map(col => {
                   const count = getColumnTickets(col.id).length
                   return (
                     <div key={col.id} style={{
                       flex: '1 1 0', minWidth: 140,
-                      background: '#22272B', borderRadius: 10,
-                      padding: '12px 16px',
+                      background: '#22272B', borderRadius: 10, padding: '12px 16px',
                       border: '1px solid rgba(255,255,255,0.06)',
                       display: 'flex', alignItems: 'center', gap: 10,
                     }}>
-                      <div style={{
-                        width: 10, height: 10, borderRadius: '50%',
-                        background: col.dot_color, flexShrink: 0,
-                      }} />
-                      <span style={{
-                        fontSize: 12, fontWeight: 600, color: '#8C96A3',
-                        fontFamily: "'Space Grotesk', sans-serif",
-                        flex: 1,
-                      }}>{col.title}</span>
-                      <span style={{
-                        fontSize: 18, fontWeight: 800, color: '#25D066',
-                        fontFamily: "'Paytone One', sans-serif",
-                      }}>{count}</span>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.dot_color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#8C96A3', fontFamily: "'Space Grotesk', sans-serif", flex: 1 }}>{col.title}</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: '#25D066', fontFamily: "'Paytone One', sans-serif" }}>{count}</span>
                     </div>
                   )
                 })}
@@ -1400,32 +1387,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                   border: '1px solid rgba(37,208,102,0.15)',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
-                  <span style={{
-                    fontSize: 12, fontWeight: 600, color: '#25D066',
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    flex: 1,
-                  }}>Total</span>
-                  <span style={{
-                    fontSize: 18, fontWeight: 800, color: '#25D066',
-                    fontFamily: "'Paytone One', sans-serif",
-                  }}>{tickets.filter(t => !t.is_archived).length}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", flex: 1 }}>Total</span>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: '#25D066', fontFamily: "'Paytone One', sans-serif" }}>{tickets.filter(t => !t.is_archived).length}</span>
                 </div>
-              </div>
-
-              {/* Table header */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '44px 1fr 120px 90px 80px 70px 36px',
-                gap: 8, padding: '8px 16px',
-                borderBottom: '1px solid rgba(37,208,102,0.15)',
-              }}>
-                {['', 'Título', 'Etiquetas', 'Prioridade', 'Tempo', 'Coluna', ''].map((h, i) => (
-                  <span key={i} style={{
-                    fontSize: 10, fontWeight: 700, color: '#25D066',
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    textTransform: 'uppercase', letterSpacing: '0.06em',
-                  }}>{h}</span>
-                ))}
               </div>
 
               {/* Column groups */}
@@ -1451,29 +1415,18 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                       style={{
                         width: '100%', display: 'flex', alignItems: 'center', gap: 12,
                         padding: '14px 20px', background: 'transparent', border: 'none',
-                        cursor: 'pointer', color: '#B6C2CF',
-                        fontFamily: "'Space Grotesk', sans-serif",
+                        cursor: 'pointer', color: '#B6C2CF', fontFamily: "'Space Grotesk', sans-serif",
                         transition: 'background 0.15s',
                       }}
                     >
                       <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
                         <ChevronRight size={14} style={{ color: '#25D066' }} />
                       </motion.div>
-                      <div style={{
-                        width: 10, height: 10, borderRadius: '50%',
-                        background: col.dot_color, flexShrink: 0,
-                        boxShadow: `0 0 6px ${col.dot_color}44`,
-                      }} />
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.dot_color, flexShrink: 0, boxShadow: `0 0 6px ${col.dot_color}44` }} />
                       <span style={{ fontWeight: 700, fontSize: 14 }}>{col.title}</span>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, color: '#25D066',
-                        background: 'rgba(37,208,102,0.1)',
-                        padding: '2px 10px', borderRadius: 10,
-                      }}>{colTickets.length}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', background: 'rgba(37,208,102,0.1)', padding: '2px 10px', borderRadius: 10 }}>{colTickets.length}</span>
                       <span style={{ flex: 1 }} />
-                      <span style={{ fontSize: 10, color: '#596773', fontWeight: 500 }}>
-                        {isCollapsed ? 'Expandir' : 'Recolher'}
-                      </span>
+                      <span style={{ fontSize: 10, color: '#596773', fontWeight: 500 }}>{isCollapsed ? 'Expandir' : 'Recolher'}</span>
                     </button>
 
                     {/* Cards list */}
@@ -1486,176 +1439,298 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                           transition={{ duration: 0.2, ease: 'easeInOut' }}
                           style={{ overflow: 'hidden' }}
                         >
-                          <div style={{
-                            padding: '0 8px 10px',
-                            display: 'flex', flexDirection: 'column', gap: 1,
-                          }}>
+                          <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                             {colTickets.length === 0 && (
-                              <div style={{
-                                padding: '24px', textAlign: 'center',
-                                color: '#596773', fontSize: 12,
-                                fontFamily: "'Space Grotesk', sans-serif",
-                              }}>
+                              <div style={{ padding: '24px', textAlign: 'center', color: '#596773', fontSize: 12, fontFamily: "'Space Grotesk', sans-serif" }}>
                                 Nenhum card nesta coluna
                               </div>
                             )}
-                            {colTickets.map((ticket, tIdx) => {
+                            {colTickets.map((ticket) => {
                               const prioColors: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#06b6d4' }
                               const prioLabels: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
+                              const pColor = prioColors[ticket.priority] || '#596773'
+                              const hasDesc = !!(ticket.description && ticket.description.trim())
+                              const attCount = (ticket as any).attachment_count || 0
+                              const obs = (ticket as any).observacao || ''
+                              const checkTotal = (obs.match(/^[☐☑]/gm) || []).length
+                              const checkDone = (obs.match(/^☑/gm) || []).length
+                              const hasChecklist = checkTotal > 0
                               const elapsed = (() => {
                                 if (!ticket.created_at) return null
                                 const diffMs = Date.now() - new Date(ticket.created_at).getTime()
+                                const diffMin = Math.floor(diffMs / 60_000)
                                 const diffH = Math.floor(diffMs / 3_600_000)
                                 const diffD = Math.floor(diffMs / 86_400_000)
-                                if (diffH < 24) return `${Math.max(diffH, 0)}h`
-                                return `${diffD}d`
+                                if (diffMin < 60) return { label: `${Math.max(diffMin, 1)}m`, isOverdue: false }
+                                if (diffH < 24) return { label: `${diffH}h`, isOverdue: diffH >= 2 }
+                                return { label: `${diffD}d`, isOverdue: true }
                               })()
-                              const pColor = prioColors[ticket.priority] || '#596773'
+                              const createdDate = (() => {
+                                if (!ticket.created_at) return null
+                                const d = new Date(ticket.created_at)
+                                const months = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.']
+                                return `${d.getDate()} ${months[d.getMonth()]}`
+                              })()
 
                               return (
-                                <button
+                                <div
                                   key={ticket.id}
-                                  onClick={() => handleCardClick(ticket)}
                                   onMouseEnter={e => {
-                                    e.currentTarget.style.background = 'rgba(37,208,102,0.06)'
-                                    e.currentTarget.style.borderColor = 'rgba(37,208,102,0.15)'
+                                    e.currentTarget.style.background = 'rgba(37,208,102,0.05)'
+                                    e.currentTarget.style.borderColor = 'rgba(37,208,102,0.12)'
+                                    const acts = e.currentTarget.querySelector('[data-list-actions]') as HTMLElement
+                                    if (acts) acts.style.opacity = '1'
                                   }}
                                   onMouseLeave={e => {
-                                    e.currentTarget.style.background = tIdx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'
-                                    e.currentTarget.style.borderColor = 'transparent'
+                                    e.currentTarget.style.background = '#2c333a'
+                                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'
+                                    const acts = e.currentTarget.querySelector('[data-list-actions]') as HTMLElement
+                                    if (acts) acts.style.opacity = '0'
                                   }}
                                   style={{
-                                    width: '100%',
-                                    display: 'grid',
-                                    gridTemplateColumns: '44px 1fr 120px 90px 80px 70px 36px',
-                                    gap: 8,
-                                    alignItems: 'center',
-                                    padding: '10px 12px',
-                                    borderRadius: 8,
-                                    border: '1px solid transparent',
-                                    background: tIdx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
+                                    display: 'flex', alignItems: 'flex-start', gap: 12,
+                                    padding: '12px 14px', borderRadius: 10,
+                                    border: '1px solid rgba(255,255,255,0.04)',
+                                    background: '#2c333a', cursor: 'pointer',
                                     transition: 'background 0.15s, border-color 0.15s',
                                     fontFamily: "'Space Grotesk', sans-serif",
+                                    position: 'relative',
                                   }}
+                                  onClick={() => handleCardClick(ticket)}
                                 >
-                                  {/* Checkbox visual */}
-                                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                    <div style={{
-                                      width: 18, height: 18, borderRadius: 5,
+                                  {/* Check button (funcional) */}
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation()
+                                      const newVal = !ticket.is_completed
+                                      handleTicketUpdate({ ...ticket, is_completed: newVal } as Ticket)
+                                      await supabase.from('tickets').update({ is_completed: newVal, updated_at: new Date().toISOString() }).eq('id', ticket.id)
+                                    }}
+                                    style={{
+                                      width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
                                       border: ticket.is_completed ? '2px solid #25D066' : '2px solid rgba(255,255,255,0.15)',
                                       background: ticket.is_completed ? '#25D066' : 'transparent',
                                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                      transition: 'all 0.15s',
+                                      cursor: 'pointer', transition: 'all 0.15s', padding: 0,
+                                    }}
+                                    title={ticket.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
+                                  >
+                                    {ticket.is_completed && <Check size={12} strokeWidth={3} color="#fff" />}
+                                  </button>
+
+                                  {/* Cover thumbnail */}
+                                  {(ticket.cover_thumb_url || ticket.cover_image_url) && (
+                                    <div style={{
+                                      width: 48, height: 36, borderRadius: 6, flexShrink: 0, overflow: 'hidden',
+                                      border: '1px solid rgba(255,255,255,0.06)',
                                     }}>
-                                      {ticket.is_completed && (
-                                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                                          <path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </svg>
+                                      <img
+                                        src={ticket.cover_thumb_url || ticket.cover_image_url || ''}
+                                        alt=""
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        loading="lazy"
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Main content */}
+                                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {/* Row 1: Priority + Title + Cliente */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span style={{
+                                        fontSize: 9, fontWeight: 800, padding: '2px 7px',
+                                        borderRadius: 4, flexShrink: 0,
+                                        background: `${pColor}18`, color: pColor,
+                                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                                      }}>
+                                        {prioLabels[ticket.priority] || ticket.priority}
+                                      </span>
+                                      <span style={{
+                                        fontSize: 13, fontWeight: 600,
+                                        color: ticket.is_completed ? '#596773' : '#E5E7EB',
+                                        textDecoration: ticket.is_completed ? 'line-through' : 'none',
+                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        flex: 1,
+                                      }}>
+                                        {ticket.title}
+                                      </span>
+                                      {ticket.cliente && (
+                                        <span style={{
+                                          fontSize: 11, color: '#8C96A3', fontWeight: 500, flexShrink: 0,
+                                          maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}>
+                                          {ticket.cliente}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Row 2: Tags */}
+                                    {ticket.tags && ticket.tags.length > 0 && (
+                                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                        {ticket.tags.map(raw => {
+                                          const { name, color } = parseTag(raw)
+                                          return (
+                                            <span key={raw} style={{
+                                              fontSize: 10, fontWeight: 700, padding: '2px 8px',
+                                              borderRadius: 4, background: color, color: '#fff',
+                                            }}>{name}</span>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
+
+                                    {/* Row 3: Badges + metadata */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                      {/* Elapsed */}
+                                      {elapsed && (
+                                        <span style={{
+                                          fontSize: 10, display: 'flex', alignItems: 'center', gap: 3,
+                                          color: elapsed.isOverdue ? '#ef4444' : '#8C96A3',
+                                          fontWeight: elapsed.isOverdue ? 700 : 500,
+                                        }}>
+                                          <Clock size={11} />
+                                          {elapsed.label}
+                                        </span>
+                                      )}
+
+                                      {/* Created date */}
+                                      {createdDate && (
+                                        <span style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 3, color: '#596773' }}>
+                                          <Calendar size={11} />
+                                          {createdDate}
+                                        </span>
+                                      )}
+
+                                      {/* Has description */}
+                                      {hasDesc && (
+                                        <span style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 3, color: '#596773' }} title="Tem descrição">
+                                          <AlignLeft size={11} />
+                                        </span>
+                                      )}
+
+                                      {/* Attachments */}
+                                      {attCount > 0 && (
+                                        <span style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 3, color: '#596773' }} title={`${attCount} anexo(s)`}>
+                                          <Paperclip size={11} />
+                                          {attCount}
+                                        </span>
+                                      )}
+
+                                      {/* Checklist */}
+                                      {hasChecklist && (
+                                        <span style={{
+                                          fontSize: 10, display: 'flex', alignItems: 'center', gap: 3,
+                                          color: checkDone === checkTotal ? '#25D066' : '#596773',
+                                          fontWeight: checkDone === checkTotal ? 700 : 500,
+                                        }} title={`Checklist: ${checkDone}/${checkTotal}`}>
+                                          <CheckSquare size={11} />
+                                          {checkDone}/{checkTotal}
+                                        </span>
+                                      )}
+
+                                      {/* Instancia */}
+                                      {ticket.instancia && (
+                                        <span style={{ fontSize: 10, color: '#596773', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                          <Plug size={10} />
+                                          {ticket.instancia}
+                                        </span>
                                       )}
                                     </div>
                                   </div>
 
-                                  {/* Title + client */}
-                                  <div style={{ overflow: 'hidden', minWidth: 0 }}>
-                                    <div style={{
-                                      fontSize: 13, fontWeight: 600,
-                                      color: ticket.is_completed ? '#596773' : '#E5E7EB',
-                                      textDecoration: ticket.is_completed ? 'line-through' : 'none',
-                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                    }}>
-                                      {ticket.title}
-                                    </div>
-                                    {ticket.cliente && (
-                                      <div style={{
-                                        fontSize: 10, color: '#596773', fontWeight: 500,
-                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                        marginTop: 1,
-                                      }}>
-                                        {ticket.cliente}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Tags */}
-                                  <div style={{ display: 'flex', gap: 3, overflow: 'hidden' }}>
-                                    {ticket.tags && ticket.tags.slice(0, 2).map(raw => {
-                                      const { name, color } = parseTag(raw)
-                                      return (
-                                        <span key={raw} style={{
-                                          fontSize: 9, fontWeight: 700, padding: '2px 6px',
-                                          borderRadius: 4, background: `${color}20`, color,
-                                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                          maxWidth: 55,
-                                        }}>{name}</span>
-                                      )
-                                    })}
-                                    {ticket.tags && ticket.tags.length > 2 && (
-                                      <span style={{ fontSize: 9, color: '#596773', fontWeight: 600 }}>+{ticket.tags.length - 2}</span>
-                                    )}
-                                  </div>
-
-                                  {/* Priority */}
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                    <div style={{
-                                      width: 7, height: 7, borderRadius: '50%',
-                                      background: pColor, flexShrink: 0,
-                                      boxShadow: `0 0 4px ${pColor}44`,
-                                    }} />
-                                    <span style={{
-                                      fontSize: 11, fontWeight: 700, color: pColor,
-                                    }}>
-                                      {prioLabels[ticket.priority] || ticket.priority}
-                                    </span>
-                                  </div>
-
-                                  {/* Elapsed */}
-                                  <div style={{
-                                    fontSize: 11, color: '#8C96A3',
-                                    display: 'flex', alignItems: 'center', gap: 4,
-                                  }}>
-                                    <Clock size={11} style={{ color: '#596773' }} />
-                                    {elapsed || '—'}
-                                  </div>
-
-                                  {/* Column dot */}
-                                  <div style={{
-                                    display: 'flex', alignItems: 'center', gap: 4,
-                                  }}>
-                                    <div style={{
-                                      width: 6, height: 6, borderRadius: '50%',
-                                      background: col.dot_color, flexShrink: 0,
-                                    }} />
-                                    <span style={{
-                                      fontSize: 9, color: '#596773', fontWeight: 600,
-                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                    }}>{col.title.slice(0, 6)}</span>
-                                  </div>
-
                                   {/* Assignee avatar */}
-                                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                                     {ticket.assignee ? (
                                       <div style={{
-                                        width: 24, height: 24, borderRadius: '50%',
+                                        width: 28, height: 28, borderRadius: '50%',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: 9, fontWeight: 700, color: '#fff',
+                                        fontSize: 10, fontWeight: 700, color: '#fff',
                                         background: `hsl(${(ticket.assignee.charCodeAt(0) * 47) % 360}, 55%, 45%)`,
-                                        border: '2px solid #22272B',
-                                      }}>
+                                        border: '2px solid #2c333a',
+                                      }} title={ticket.assignee}>
                                         {ticket.assignee.slice(0, 2).toUpperCase()}
                                       </div>
                                     ) : (
                                       <div style={{
-                                        width: 24, height: 24, borderRadius: '50%',
+                                        width: 28, height: 28, borderRadius: '50%',
                                         background: 'rgba(255,255,255,0.04)',
                                         border: '1px dashed rgba(255,255,255,0.1)',
                                       }} />
                                     )}
                                   </div>
-                                </button>
+
+                                  {/* Actions overlay (hover) */}
+                                  <div
+                                    data-list-actions
+                                    style={{
+                                      position: 'absolute', top: 8, right: 8,
+                                      display: 'flex', gap: 2, opacity: 0,
+                                      transition: 'opacity 0.15s',
+                                    }}
+                                  >
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation()
+                                        handleTicketArchive(ticket.id)
+                                        await supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', ticket.id)
+                                      }}
+                                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
+                                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.4)' }}
+                                      title="Arquivar"
+                                      style={{
+                                        width: 26, height: 26, borderRadius: 6,
+                                        background: 'rgba(0,0,0,0.4)', border: 'none',
+                                        color: '#B6C2CF', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        transition: 'background 0.15s', padding: 0,
+                                      }}
+                                    >
+                                      <Archive size={13} />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleCardClick(ticket)
+                                      }}
+                                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
+                                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.4)' }}
+                                      title="Abrir detalhes"
+                                      style={{
+                                        width: 26, height: 26, borderRadius: 6,
+                                        background: 'rgba(0,0,0,0.4)', border: 'none',
+                                        color: '#B6C2CF', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        transition: 'background 0.15s', padding: 0,
+                                      }}
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
+                                  </div>
+                                </div>
                               )
                             })}
+
+                            {/* Inline add card */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setAddingTo(col.id as TicketStatus)
+                                setInlineTitle('')
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)' }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '8px 14px', borderRadius: 8, border: 'none',
+                                background: 'transparent', cursor: 'pointer',
+                                color: '#596773', fontSize: 12, fontWeight: 600,
+                                fontFamily: "'Space Grotesk', sans-serif",
+                                transition: 'background 0.15s, color 0.15s',
+                              }}
+                            >
+                              <Plus size={14} />
+                              Adicionar card
+                            </button>
                           </div>
                         </motion.div>
                       )}
