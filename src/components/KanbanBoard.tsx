@@ -47,11 +47,12 @@ function DroppableColumn({ id, children, isOver }: { id: string; children: React
   return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
 }
 
-function SortableCardInner({ ticket, onClick, onUpdate, onArchive, isOverCard, activeTicket }: {
+function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, isOverCard, activeTicket }: {
   ticket: any
   onClick: (ticket: any) => void
   onUpdate: (u: any) => void
   onArchive: (id: string) => void
+  onShowToast?: (msg: string, type: 'ok' | 'err') => void
   isOverCard: boolean
   activeTicket: any | null
 }) {
@@ -75,6 +76,7 @@ function SortableCardInner({ ticket, onClick, onUpdate, onArchive, isOverCard, a
         onClick={handleClick}
         onUpdate={onUpdate}
         onArchive={onArchive}
+        onShowToast={onShowToast}
         isDragging={isDragging}
       />
     </div>
@@ -492,7 +494,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
 
   const handleTicketUpdate = useCallback((updated: Ticket) => {
     setTickets(prev => prev.map(t => t.id === updated.id ? { ...updated, attachment_count: (t as any).attachment_count || 0 } : t))
-    setSelectedTicket(updated)
+    // Só atualizar o selectedTicket se o modal já estiver aberto (não abrir ao clicar no check)
+    setSelectedTicket(prev => prev && prev.id === updated.id ? updated : prev)
   }, [])
 
   const handleTicketDelete = useCallback((id: string) => {
@@ -1193,6 +1196,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                       onClick={handleCardClick}
                                       onUpdate={handleTicketUpdate}
                                       onArchive={handleTicketArchive}
+                                      onShowToast={showToast}
                                       isOverCard={overCardId === ticket.id}
                                       activeTicket={activeTicket}
                                     />
@@ -1642,6 +1646,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                       onClick={async (e) => {
                                         e.stopPropagation()
                                         handleTicketArchive(ticket.id)
+                                        showToast('Cartão arquivado com sucesso', 'ok')
                                         await supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', ticket.id)
                                       }}
                                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}

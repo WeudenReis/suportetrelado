@@ -17,7 +17,14 @@
 }
 
 .cardCompleted {
-  border-color: rgba(75, 206, 151, 0.35);
+  background: rgba(37, 208, 102, 0.12);
+  border-color: rgba(37, 208, 102, 0.45);
+  box-shadow: 0 0 0 1px rgba(37, 208, 102, 0.15), 0 2px 8px rgba(37, 208, 102, 0.08);
+}
+
+.cardCompleted:hover {
+  background: rgba(37, 208, 102, 0.18);
+  border-color: rgba(37, 208, 102, 0.6);
 }
 
 .cardDragging {
@@ -109,9 +116,9 @@
 }
 
 .titleDone {
-  color: #596773;
+  color: #25D066;
   text-decoration: line-through;
-  text-decoration-color: #596773;
+  text-decoration-color: rgba(37, 208, 102, 0.5);
 }
 
 .titleInput {
