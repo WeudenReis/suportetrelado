@@ -204,49 +204,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
         <div ref={sidebarRef} className="sidebar-panel" style={{ width: sidebarWidth, transition: 'width 0.3s ease' }}>
           {/* ▸ Nav icons row */}
           <div className="sidebar-panel__nav">
-            <button
-              onClick={() => handleTabChange('inbox')}
-              className={`sidebar-nav-btn${activeTab === 'inbox' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Caixa de Entrada"
-              type="button"
-            >
-              <Inbox size={17} />
-              {unreadCount > 0 && (
-                <span className="sidebar-nav-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-              )}
-            </button>
-            <button
-              onClick={() => handleTabChange('planner')}
-              className={`sidebar-nav-btn${activeTab === 'planner' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Planejador"
-              type="button"
-            >
-              <CalendarDays size={17} />
-            </button>
-            <button
-              onClick={() => handleTabChange('announcements')}
-              className={`sidebar-nav-btn${activeTab === 'announcements' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Avisos"
-              type="button"
-            >
-              <Megaphone size={17} />
-            </button>
-            <button
-              onClick={() => handleTabChange('links')}
-              className={`sidebar-nav-btn${activeTab === 'links' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Links Úteis"
-              type="button"
-            >
-              <Link2 size={17} />
-            </button>
-            <button
-              onClick={() => handleTabChange('dashboard')}
-              className={`sidebar-nav-btn${activeTab === 'dashboard' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Dashboard"
-              type="button"
-            >
-              <BarChart3 size={17} />
-            </button>
+
 
             {/* Spacer */}
             <span style={{ flex: 1 }} />
