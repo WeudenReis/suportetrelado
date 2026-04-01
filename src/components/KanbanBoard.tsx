@@ -4,11 +4,11 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable,
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock, LayoutGrid, List, ChevronDown, ChevronRight } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
-import CardDetailModal from './CardDetailModal'
+import CardDetailModal, { parseTag } from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
 import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../lib/supabase'
@@ -112,6 +112,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   const [isConnected, setIsConnected] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>(() => {
+    try { return (localStorage.getItem('chatpro-view-mode') as 'kanban' | 'list') || 'kanban' } catch { return 'kanban' }
+  })
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set())
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
@@ -832,6 +836,41 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
             <Share2 size={16} />
           </button>
 
+          {/* Toggle Kanban / Lista */}
+          <div style={{
+            display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: 8,
+            padding: 2, gap: 2,
+          }}>
+            <button
+              onClick={() => { setViewMode('kanban'); try { localStorage.setItem('chatpro-view-mode', 'kanban') } catch {} }}
+              title="Kanban"
+              style={{
+                padding: '5px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: viewMode === 'kanban' ? '#25D066' : 'transparent',
+                color: viewMode === 'kanban' ? '#fff' : '#8C96A3',
+                display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600,
+                fontFamily: "'Space Grotesk', sans-serif",
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <LayoutGrid size={13} />
+            </button>
+            <button
+              onClick={() => { setViewMode('list'); try { localStorage.setItem('chatpro-view-mode', 'list') } catch {} }}
+              title="Lista"
+              style={{
+                padding: '5px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: viewMode === 'list' ? '#25D066' : 'transparent',
+                color: viewMode === 'list' ? '#fff' : '#8C96A3',
+                display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600,
+                fontFamily: "'Space Grotesk', sans-serif",
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <List size={13} />
+            </button>
+          </div>
+
           <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configuracoes">
             <Settings size={16} />
           </button>
@@ -992,6 +1031,16 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
 
       {/* Board */}
       <main className="board-main" style={boardSurfaceStyle}>
+        <AnimatePresence mode="wait">
+        {viewMode === 'kanban' ? (
+        <motion.div
+          key="kanban"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+          style={{ display: 'contents' }}
+        >
         {/* Scrollbar customizada no topo */}
         <div ref={topScrollRef} className="board-top-scrollbar">
           <div className="board-top-scrollbar__inner" />
@@ -1295,6 +1344,191 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
         </DndContext>
         )}
         </div>
+        </motion.div>
+        ) : (
+        <motion.div
+          key="list"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 20 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+          style={{ height: '100%', overflow: 'auto', padding: '20px 24px' }}
+          className="modal-scroll"
+        >
+          {loading ? (
+            <div className="flex items-center justify-center h-64 gap-3 text-slate-400">
+              <Loader2 size={24} className="animate-spin" />
+              <span className="text-sm">Carregando tickets...</span>
+            </div>
+          ) : (
+            <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {allColumns.map(col => {
+                const colTickets = getColumnTickets(col.id)
+                const isCollapsed = collapsedColumns.has(col.id)
+                return (
+                  <div key={col.id} style={{
+                    background: 'rgba(255,255,255,0.03)', borderRadius: 12,
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    overflow: 'hidden',
+                  }}>
+                    {/* Column header */}
+                    <button
+                      onClick={() => setCollapsedColumns(prev => {
+                        const next = new Set(prev)
+                        if (next.has(col.id)) next.delete(col.id)
+                        else next.add(col.id)
+                        return next
+                      })}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '12px 16px', background: 'none', border: 'none',
+                        cursor: 'pointer', color: '#B6C2CF',
+                        fontFamily: "'Space Grotesk', sans-serif",
+                      }}
+                    >
+                      <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
+                        <ChevronRight size={14} style={{ color: '#596773' }} />
+                      </motion.div>
+                      <div style={{
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: col.dot_color, flexShrink: 0,
+                      }} />
+                      <span style={{ fontWeight: 700, fontSize: 13 }}>{col.title}</span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, color: '#596773',
+                        background: 'rgba(255,255,255,0.06)',
+                        padding: '1px 8px', borderRadius: 10,
+                      }}>{colTickets.length}</span>
+                    </button>
+
+                    {/* Cards list */}
+                    <AnimatePresence initial={false}>
+                      {!isCollapsed && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: 'easeInOut' }}
+                          style={{ overflow: 'hidden' }}
+                        >
+                          <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {colTickets.length === 0 && (
+                              <div style={{
+                                padding: '16px', textAlign: 'center',
+                                color: '#596773', fontSize: 12,
+                                fontFamily: "'Space Grotesk', sans-serif",
+                              }}>
+                                Nenhum card nesta coluna
+                              </div>
+                            )}
+                            {colTickets.map(ticket => {
+                              const prioColors: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#06b6d4' }
+                              const prioLabels: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
+                              const elapsed = (() => {
+                                if (!ticket.created_at) return null
+                                const diffMs = Date.now() - new Date(ticket.created_at).getTime()
+                                const diffH = Math.floor(diffMs / 3_600_000)
+                                const diffD = Math.floor(diffMs / 86_400_000)
+                                if (diffH < 24) return `${Math.max(diffH, 0)}h`
+                                return `${diffD}d`
+                              })()
+
+                              return (
+                                <button
+                                  key={ticket.id}
+                                  onClick={() => handleCardClick(ticket)}
+                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+                                  style={{
+                                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                                    padding: '10px 12px', borderRadius: 8, border: 'none',
+                                    background: 'rgba(255,255,255,0.02)', cursor: 'pointer',
+                                    textAlign: 'left', transition: 'background 0.15s',
+                                    fontFamily: "'Space Grotesk', sans-serif",
+                                  }}
+                                >
+                                  {/* Priority dot */}
+                                  <div style={{
+                                    width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                                    background: prioColors[ticket.priority] || '#596773',
+                                  }} />
+
+                                  {/* Title */}
+                                  <span style={{
+                                    flex: 1, fontSize: 13, fontWeight: 500,
+                                    color: ticket.is_completed ? '#596773' : '#B6C2CF',
+                                    textDecoration: ticket.is_completed ? 'line-through' : 'none',
+                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                  }}>
+                                    {ticket.title}
+                                  </span>
+
+                                  {/* Tags */}
+                                  {ticket.tags && ticket.tags.length > 0 && (
+                                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                                      {ticket.tags.slice(0, 2).map(raw => {
+                                        const { name, color } = parseTag(raw)
+                                        return (
+                                          <span key={raw} style={{
+                                            fontSize: 10, fontWeight: 600, padding: '1px 6px',
+                                            borderRadius: 4, background: `${color}22`, color,
+                                          }}>{name}</span>
+                                        )
+                                      })}
+                                      {ticket.tags.length > 2 && (
+                                        <span style={{ fontSize: 10, color: '#596773' }}>+{ticket.tags.length - 2}</span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Priority badge */}
+                                  <span style={{
+                                    fontSize: 10, fontWeight: 700, padding: '2px 6px',
+                                    borderRadius: 4, flexShrink: 0,
+                                    background: `${prioColors[ticket.priority] || '#596773'}18`,
+                                    color: prioColors[ticket.priority] || '#596773',
+                                    textTransform: 'uppercase',
+                                  }}>
+                                    {prioLabels[ticket.priority] || ticket.priority}
+                                  </span>
+
+                                  {/* Elapsed */}
+                                  {elapsed && (
+                                    <span style={{
+                                      fontSize: 10, color: '#596773', flexShrink: 0,
+                                      display: 'flex', alignItems: 'center', gap: 3,
+                                    }}>
+                                      <Clock size={10} />
+                                      {elapsed}
+                                    </span>
+                                  )}
+
+                                  {/* Assignee avatar */}
+                                  {ticket.assignee && (
+                                    <div style={{
+                                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      fontSize: 9, fontWeight: 700, color: '#fff',
+                                      background: `hsl(${(ticket.assignee.charCodeAt(0) * 47) % 360}, 55%, 45%)`,
+                                    }}>
+                                      {ticket.assignee.slice(0, 2).toUpperCase()}
+                                    </div>
+                                  )}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </motion.div>
+        )}
+        </AnimatePresence>
       </main>
 
       {/* Add Modal */}
