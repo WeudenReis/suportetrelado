@@ -121,8 +121,9 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
     }
   }, [editTitle, card, onUpdate]);
 
-  // Enter salva, Escape cancela
+  // Enter salva, Escape cancela — stopPropagation impede dnd-kit de capturar teclas
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    e.stopPropagation();
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSaveTitle();
@@ -228,6 +229,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
               onChange={e => setEditTitle(e.target.value)}
               onKeyDown={handleKeyDown}
               onBlur={handleSaveTitle}
+              onPointerDown={e => e.stopPropagation()}
               className={styles.titleInput}
               rows={2}
               onClick={e => e.stopPropagation()}

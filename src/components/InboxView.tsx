@@ -89,7 +89,7 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
   }, [])
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', width: 340 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
         {/* ══════ HEADER ══════ */}
         <div data-gsap-child style={{ padding: '18px 20px 14px' }}>

@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
-import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X } from 'lucide-react'
-import { fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../lib/supabase'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, RefreshCw } from 'lucide-react'
+import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../lib/supabase'
+import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
 
 interface DashboardViewProps {
   user: string
@@ -11,17 +12,38 @@ interface DashboardViewProps {
 function Bar({ value, max, color, label, count }: { value: number; max: number; color: string; label: string; count: number }) {
   const pct = max > 0 ? (value / max) * 100 : 0
   return (
-    <div className="flex items-center gap-2 group">
-      <span className="text-[11px] w-[100px] truncate text-right" style={{ color: '#8c9bab' }}>{label}</span>
-      <div className="flex-1 h-5 rounded overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
-        <div
-          className="h-full rounded transition-all duration-500 flex items-center px-2"
-          style={{ width: `${Math.max(pct, 2)}%`, background: color }}
-        >
-          {pct > 15 && <span className="text-[10px] font-bold" style={{ color: '#000' }}>{count}</span>}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{
+        fontSize: 11, width: 100, textAlign: 'right', color: '#8C96A3',
+        fontFamily: "'Space Grotesk', sans-serif",
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 20, borderRadius: 6, overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
+        <div style={{
+          height: '100%', borderRadius: 6, transition: 'width 0.5s ease',
+          width: `${Math.max(pct, 2)}%`, background: color,
+          display: 'flex', alignItems: 'center', paddingLeft: 8,
+        }}>
+          {pct > 15 && (
+            <span style={{
+              fontSize: 10, fontWeight: 700, color: '#000',
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}>
+              {count}
+            </span>
+          )}
         </div>
       </div>
-      {pct <= 15 && <span className="text-[11px] font-semibold" style={{ color }}>{count}</span>}
+      {pct <= 15 && (
+        <span style={{
+          fontSize: 11, fontWeight: 700, color,
+          fontFamily: "'Space Grotesk', sans-serif",
+        }}>
+          {count}
+        </span>
+      )}
     </div>
   )
 }
@@ -29,13 +51,36 @@ function Bar({ value, max, color, label, count }: { value: number; max: number; 
 /** Card de métrica */
 function MetricCard({ icon, label, value, color, sub }: { icon: React.ReactNode; label: string; value: string | number; color: string; sub?: string }) {
   return (
-    <div className="rounded-xl p-3 flex flex-col gap-1" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(166,197,226,0.08)' }}>
-      <div className="flex items-center gap-1.5">
+    <div style={{
+      borderRadius: 12, padding: 12,
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      display: 'flex', flexDirection: 'column', gap: 4,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ color }}>{icon}</span>
-        <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: '#596773' }}>{label}</span>
+        <span style={{
+          fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+          letterSpacing: '0.04em', color: '#6B7A8D',
+          fontFamily: "'Space Grotesk', sans-serif",
+        }}>
+          {label}
+        </span>
       </div>
-      <p className="text-2xl font-bold" style={{ color }}>{value}</p>
-      {sub && <p className="text-[10px]" style={{ color: '#596773' }}>{sub}</p>}
+      <p style={{
+        fontSize: 24, fontWeight: 900, color, margin: 0,
+        fontFamily: "'Paytone One', sans-serif",
+      }}>
+        {value}
+      </p>
+      {sub && (
+        <p style={{
+          fontSize: 10, color: '#6B7A8D', margin: 0,
+          fontFamily: "'Space Grotesk', sans-serif",
+        }}>
+          {sub}
+        </p>
+      )}
     </div>
   )
 }
@@ -56,13 +101,36 @@ const PRIORITY_LABELS: Record<string, { label: string; color: string }> = {
 export default function DashboardView({ user, onClose }: DashboardViewProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [profiles, setProfiles] = useState<UserProfile[]>([])
+  const [columns, setColumns] = useState<BoardColumn[]>([])
   const [loading, setLoading] = useState(true)
 
+  const loadData = useCallback(async () => {
+    try {
+      const [t, p, c] = await Promise.all([fetchTickets(), fetchUserProfiles(), fetchBoardColumns()])
+      setTickets(t)
+      setProfiles(p)
+      setColumns(c)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
-    Promise.all([fetchTickets(), fetchUserProfiles()])
-      .then(([t, p]) => { setTickets(t); setProfiles(p) })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+    loadData()
+  }, [loadData])
+
+  // ── Realtime: atualizar tickets automaticamente ──
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-tickets')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
+        fetchTickets().then(setTickets).catch(console.error)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const active = useMemo(() => tickets.filter(t => !t.is_archived), [tickets])
@@ -140,40 +208,123 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
 
   const maxDaily = Math.max(...dailyCounts.map(d => d.count), 1)
 
+  // ── Contagens por coluna do board ──
+  const columnCounts = useMemo(() => {
+    return columns.map(col => ({
+      id: col.id,
+      title: col.title,
+      color: col.dot_color || '#579dff',
+      count: active.filter(t => t.status === col.id).length,
+    }))
+  }, [columns, active])
+
+  // ── Tickets não concluídos (para a seção de concluir) ──
+  const uncompleted = useMemo(() => {
+    return active
+      .filter(t => !(t as any).is_completed)
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, 10)
+  }, [active])
+
+  const handleConclude = useCallback(async (ticketId: string) => {
+    setTickets(prev => prev.map(t =>
+      t.id === ticketId ? { ...t, is_completed: true } as Ticket & { is_completed: boolean } as any : t
+    ))
+    await supabase
+      .from('tickets')
+      .update({ is_completed: true, updated_at: new Date().toISOString() })
+      .eq('id', ticketId)
+  }, [])
+
   if (loading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'rgba(166,197,226,0.08)' }}>
-          <div className="flex items-center gap-2">
-            <BarChart3 size={18} style={{ color: '#25D066' }} />
-            <h2 className="text-sm font-semibold" style={{ color: '#b6c2cf' }}>Dashboard</h2>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+        <div data-gsap-child style={{ padding: '18px 20px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2 style={{
+              fontSize: 16, fontWeight: 900, color: '#E5E7EB', margin: 0,
+              fontFamily: "'Paytone One', sans-serif",
+              letterSpacing: '-0.2px',
+            }}>
+              Dashboard
+            </h2>
+            <button
+              onClick={onClose}
+              title="Fechar"
+              style={{
+                width: 28, height: 28, borderRadius: 7, border: 'none',
+                background: 'transparent', color: '#8C96A3', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <X size={15} />
+            </button>
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-white/5" style={{ color: '#596773' }}><X size={16} /></button>
         </div>
-        <p className="text-center text-xs py-16" style={{ color: '#596773' }}>Carregando métricas...</p>
+        <p style={{
+          textAlign: 'center', padding: '64px 0',
+          fontSize: 12, color: '#6B7A8D',
+          fontFamily: "'Space Grotesk', sans-serif",
+        }}>
+          Carregando métricas...
+        </p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full" data-gsap-child>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'rgba(166,197,226,0.08)' }}>
-        <div className="flex items-center gap-2">
-          <BarChart3 size={18} style={{ color: '#25D066' }} />
-          <h2 className="text-sm font-semibold" style={{ color: '#b6c2cf' }}>Dashboard</h2>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+
+      {/* ══════ HEADER ══════ */}
+      <div data-gsap-child style={{ padding: '18px 20px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{
+            fontSize: 16, fontWeight: 900, color: '#E5E7EB', margin: 0,
+            fontFamily: "'Paytone One', sans-serif",
+            letterSpacing: '-0.2px',
+          }}>
+            Dashboard
+          </h2>
+          <button
+            onClick={onClose}
+            title="Fechar"
+            style={{
+              width: 28, height: 28, borderRadius: 7, border: 'none',
+              background: 'transparent', color: '#8C96A3', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#E5E7EB' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#8C96A3' }}
+          >
+            <X size={15} />
+          </button>
         </div>
-        <button onClick={onClose} className="p-1 rounded hover:bg-white/5" style={{ color: '#596773' }}><X size={16} /></button>
+        <p style={{
+          fontSize: 12, color: '#6B7A8D', margin: '4px 0 0',
+          fontFamily: "'Space Grotesk', sans-serif",
+        }}>
+          Visão geral dos tickets da equipe
+        </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5 inbox-scroll">
+      {/* ══════ CONTEÚDO ══════ */}
+      <div
+        className="inbox-scroll"
+        style={{
+          flex: 1, overflowY: 'auto', padding: '4px 20px 80px',
+          display: 'flex', flexDirection: 'column', gap: 20,
+        }}
+      >
         {/* ── Cartões de métricas ── */}
-        <div className="grid grid-cols-2 gap-2" data-gsap-child>
+        <div data-gsap-child style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
+        }}>
           <MetricCard
             icon={<BarChart3 size={14} />}
             label="Total Ativos"
             value={totalActive}
-            color="#579dff"
+            color="#25D066"
             sub={`${resolved} resolvidos`}
           />
           <MetricCard
@@ -187,7 +338,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             icon={<CheckCircle2 size={14} />}
             label="Concluídos"
             value={completed}
-            color="#4bce97"
+            color="#1BAD53"
             sub={`de ${totalActive} ativos`}
           />
           <MetricCard
@@ -201,10 +352,14 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
 
         {/* ── Gráfico: Por Status ── */}
         <div data-gsap-child>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#596773' }}>
+          <p style={{
+            fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}>
             Tickets por Status
           </p>
-          <div className="space-y-1.5">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {Object.entries(STATUS_LABELS).map(([key, { label, color }]) => (
               <Bar key={key} value={statusCounts[key] || 0} max={maxStatus} color={color} label={label} count={statusCounts[key] || 0} />
             ))}
@@ -213,10 +368,14 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
 
         {/* ── Gráfico: Por Prioridade ── */}
         <div data-gsap-child>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#596773' }}>
+          <p style={{
+            fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}>
             Tickets por Prioridade
           </p>
-          <div className="space-y-1.5">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {Object.entries(PRIORITY_LABELS).map(([key, { label, color }]) => (
               <Bar key={key} value={priorityCounts[key] || 0} max={maxPriority} color={color} label={label} count={priorityCounts[key] || 0} />
             ))}
@@ -225,46 +384,189 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
 
         {/* ── Gráfico: Tickets criados por dia (últimos 7 dias) ── */}
         <div data-gsap-child>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#596773' }}>
-            <TrendingUp size={11} className="inline mr-1" />
+          <p style={{
+            fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
+            fontFamily: "'Space Grotesk', sans-serif",
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            <TrendingUp size={11} />
             Criados nos Últimos 7 Dias
           </p>
-          <div className="flex items-end gap-1 h-24 px-1">
+          <div style={{
+            display: 'flex', alignItems: 'flex-end', gap: 4, height: 96, padding: '0 4px',
+          }}>
             {dailyCounts.map((d, i) => {
               const h = maxDaily > 0 ? (d.count / maxDaily) * 100 : 0
               return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-[9px] font-bold" style={{ color: d.count > 0 ? '#25D066' : '#454f59' }}>
+                <div key={i} style={{
+                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                }}>
+                  <span style={{
+                    fontSize: 9, fontWeight: 700,
+                    color: d.count > 0 ? '#25D066' : '#454F59',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                  }}>
                     {d.count > 0 ? d.count : ''}
                   </span>
-                  <div
-                    className="w-full rounded-t transition-all duration-500"
-                    style={{
-                      height: `${Math.max(h, 4)}%`,
-                      background: d.count > 0 ? 'linear-gradient(to top, #1BAD53, #25D066)' : 'rgba(255,255,255,0.04)',
-                      minHeight: '3px',
-                    }}
-                  />
-                  <span className="text-[8px]" style={{ color: '#596773' }}>{d.label}</span>
+                  <div style={{
+                    width: '100%', borderRadius: '4px 4px 0 0',
+                    transition: 'height 0.5s ease',
+                    height: `${Math.max(h, 4)}%`,
+                    background: d.count > 0 ? 'linear-gradient(to top, #1BAD53, #25D066)' : 'rgba(255,255,255,0.04)',
+                    minHeight: 3,
+                  }} />
+                  <span style={{
+                    fontSize: 8, color: '#596773',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                  }}>
+                    {d.label}
+                  </span>
                 </div>
               )
             })}
           </div>
         </div>
 
+        {/* ── Cartões por Coluna ── */}
+        {columnCounts.length > 0 && (
+          <div data-gsap-child>
+            <p style={{
+              fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
+              fontFamily: "'Space Grotesk', sans-serif",
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <Columns3 size={11} />
+              Cartões por Coluna
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {columnCounts.map(col => (
+                <div key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                    background: col.color,
+                  }} />
+                  <span style={{
+                    fontSize: 12, fontWeight: 600, color: '#E5E7EB', flex: 1,
+                    fontFamily: "'Space Grotesk', sans-serif",
+                  }}>
+                    {col.title}
+                  </span>
+                  <span style={{
+                    fontSize: 13, fontWeight: 900, color: col.count > 0 ? '#25D066' : '#454F59',
+                    fontFamily: "'Paytone One', sans-serif",
+                  }}>
+                    {col.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Concluir Chamados ── */}
+        <div data-gsap-child>
+          <p style={{
+            fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
+            fontFamily: "'Space Grotesk', sans-serif",
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            <CheckCircle2 size={11} />
+            Concluir Chamados
+          </p>
+          {uncompleted.length === 0 ? (
+            <p style={{
+              fontSize: 11, color: '#596773', textAlign: 'center', padding: '16px 0',
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}>
+              Todos os chamados estão concluídos
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {uncompleted.map(t => (
+                <div
+                  key={t.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 10px', borderRadius: 10,
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.04)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <button
+                    onClick={() => handleConclude(t.id)}
+                    title="Concluir chamado"
+                    style={{
+                      width: 22, height: 22, borderRadius: 6, border: '2px solid #454F59',
+                      background: 'transparent', cursor: 'pointer', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = '#25D066'
+                      e.currentTarget.style.background = 'rgba(37,208,102,0.12)'
+                      const icon = e.currentTarget.querySelector('svg') as HTMLElement | null
+                      if (icon) icon.style.opacity = '1'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = '#454F59'
+                      e.currentTarget.style.background = 'transparent'
+                      const icon = e.currentTarget.querySelector('svg') as HTMLElement | null
+                      if (icon) icon.style.opacity = '0'
+                    }}
+                  >
+                    <Check size={12} style={{ color: '#25D066', opacity: 0 }} />
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontSize: 12, fontWeight: 600, color: '#E5E7EB', margin: 0,
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {t.title}
+                    </p>
+                    <p style={{
+                      fontSize: 10, color: '#596773', margin: '2px 0 0',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                    }}>
+                      {t.assignee ? t.assignee.split('@')[0] : 'Sem responsável'}
+                    </p>
+                  </div>
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    background: t.priority === 'high' ? 'rgba(239,92,72,0.12)' : t.priority === 'medium' ? 'rgba(226,178,3,0.12)' : 'rgba(75,206,151,0.12)',
+                    color: t.priority === 'high' ? '#ef5c48' : t.priority === 'medium' ? '#e2b203' : '#4bce97',
+                  }}>
+                    {t.priority === 'high' ? 'ALTA' : t.priority === 'medium' ? 'MÉDIA' : 'BAIXA'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* ── Gráfico: Por Membro ── */}
         <div data-gsap-child>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#596773' }}>
-            <Users size={11} className="inline mr-1" />
+          <p style={{
+            fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
+            fontFamily: "'Space Grotesk', sans-serif",
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            <Users size={11} />
             Tickets por Responsável
           </p>
-          <div className="space-y-1.5">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {memberCounts.slice(0, 8).map(([name, count]) => (
               <Bar
                 key={name}
                 value={count}
                 max={maxMember}
-                color={name === 'Sem responsável' ? '#596773' : '#579dff'}
+                color={name === 'Sem responsável' ? '#596773' : '#25D066'}
                 label={name.split('@')[0]}
                 count={count}
               />
@@ -272,21 +574,34 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
           </div>
         </div>
 
-        {/* ── Membros online ── */}
+        {/* ── Membros da equipe ── */}
         <div data-gsap-child>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#596773' }}>
+          <p style={{
+            fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}>
             Equipe ({profiles.length} membros)
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {profiles.map(p => {
               const isOnline = p.last_seen_at && (Date.now() - new Date(p.last_seen_at).getTime()) < 5 * 60_000
               return (
                 <div
                   key={p.email}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px]"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(166,197,226,0.06)', color: '#8c9bab' }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '5px 10px', borderRadius: 8,
+                    fontSize: 11, color: '#8C96A3',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.04)',
+                  }}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: isOnline ? '#4bce97' : '#596773' }} />
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                    background: isOnline ? '#25D066' : '#596773',
+                  }} />
                   {p.name || p.email.split('@')[0]}
                 </div>
               )

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AlertTriangle, Info, AlertOctagon, Plus, Pin, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
@@ -10,10 +10,10 @@ interface AnnouncementsViewProps {
   onClose: () => void
 }
 
-const SEVERITY_CONFIG: Record<AnnouncementSeverity, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  info:     { label: 'Informativo', color: '#579dff', bg: 'rgba(87,157,255,0.10)', icon: <Info size={16} /> },
-  warning:  { label: 'Atenção',     color: '#e2b203', bg: 'rgba(226,178,3,0.10)',  icon: <AlertTriangle size={16} /> },
-  critical: { label: 'Crítico',     color: '#ef5c48', bg: 'rgba(239,92,72,0.10)',  icon: <AlertOctagon size={16} /> },
+const SEVERITY_CONFIG: Record<AnnouncementSeverity, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
+  info:     { label: 'Informativo', color: '#579dff', bg: 'rgba(87,157,255,0.08)',  border: 'rgba(87,157,255,0.18)',  icon: <Info size={16} /> },
+  warning:  { label: 'Atenção',     color: '#e2b203', bg: 'rgba(226,178,3,0.08)',   border: 'rgba(226,178,3,0.18)',   icon: <AlertTriangle size={16} /> },
+  critical: { label: 'Crítico',     color: '#ef5c48', bg: 'rgba(239,92,72,0.08)',   border: 'rgba(239,92,72,0.18)',   icon: <AlertOctagon size={16} /> },
 }
 
 function timeAgo(dateStr: string): string {
@@ -37,6 +37,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
   const [isPinned, setIsPinned] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [filterSeverity, setFilterSeverity] = useState<AnnouncementSeverity | 'all'>('all')
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -82,113 +83,249 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
     : announcements.filter(a => a.severity === filterSeverity)
 
   return (
-    <div className="flex flex-col h-full" data-gsap-child>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'rgba(166,197,226,0.08)' }}>
-        <div className="flex items-center gap-2">
-          <AlertTriangle size={18} style={{ color: '#e2b203' }} />
-          <h2 className="text-sm font-semibold" style={{ color: '#b6c2cf' }}>Avisos do Supervisor</h2>
-        </div>
-        <button onClick={onClose} className="p-1 rounded hover:bg-white/5" style={{ color: '#596773' }}>
-          <X size={16} />
-        </button>
-      </div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
-      {/* Filtro por severidade */}
-      <div className="flex items-center gap-1.5 px-4 py-2 border-b" style={{ borderColor: 'rgba(166,197,226,0.06)' }} data-gsap-child>
-        {(['all', 'info', 'warning', 'critical'] as const).map(sev => (
+      {/* ══════ HEADER ══════ */}
+      <div data-gsap-child style={{ padding: '18px 20px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{
+              fontSize: 16, fontWeight: 900, color: '#E5E7EB', margin: 0,
+              fontFamily: "'Paytone One', sans-serif",
+              letterSpacing: '-0.2px',
+            }}>
+              Avisos
+            </h2>
+            {announcements.length > 0 && (
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                background: '#25D066', color: '#000',
+                fontFamily: "'Space Grotesk', sans-serif",
+                lineHeight: '18px',
+              }}>
+                {announcements.length}
+              </span>
+            )}
+          </div>
           <button
-            key={sev}
-            onClick={() => setFilterSeverity(sev)}
-            className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors"
+            onClick={onClose}
+            title="Fechar"
             style={{
-              background: filterSeverity === sev ? (sev === 'all' ? 'rgba(255,255,255,0.08)' : SEVERITY_CONFIG[sev].bg) : 'transparent',
-              color: filterSeverity === sev ? (sev === 'all' ? '#b6c2cf' : SEVERITY_CONFIG[sev].color) : '#596773',
-              border: '1px solid transparent',
+              width: 28, height: 28, borderRadius: 7, border: 'none',
+              background: 'transparent', color: '#8C96A3', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.15s',
             }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#E5E7EB' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#8C96A3' }}
           >
-            {sev === 'all' ? 'Todos' : SEVERITY_CONFIG[sev].label}
+            <X size={15} />
           </button>
-        ))}
+        </div>
+        <p style={{
+          fontSize: 12, color: '#6B7A8D', margin: '4px 0 0',
+          fontFamily: "'Space Grotesk', sans-serif",
+        }}>
+          Comunicados importantes da supervisão
+        </p>
       </div>
 
-      {/* Botão adicionar */}
-      <div className="px-4 py-2" data-gsap-child>
+      {/* ══════ FILTRO POR SEVERIDADE ══════ */}
+      <div data-gsap-child style={{
+        display: 'flex', gap: 6, padding: '0 20px 12px',
+        borderBottom: '1px solid rgba(255,255,255,0.04)',
+      }}>
+        {(['all', 'info', 'warning', 'critical'] as const).map(sev => {
+          const isActive = filterSeverity === sev
+          const color = sev === 'all' ? '#25D066' : SEVERITY_CONFIG[sev].color
+          return (
+            <button
+              key={sev}
+              onClick={() => setFilterSeverity(sev)}
+              style={{
+                padding: '5px 12px', borderRadius: 8, border: 'none',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: isActive ? (sev === 'all' ? 'rgba(37,208,102,0.12)' : SEVERITY_CONFIG[sev].bg) : 'transparent',
+                color: isActive ? color : '#6B7A8D',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+            >
+              {sev === 'all' ? 'Todos' : SEVERITY_CONFIG[sev].label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ══════ BOTÃO NOVO AVISO ══════ */}
+      <div data-gsap-child style={{ padding: '12px 20px 8px' }}>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
-          style={{ background: 'rgba(37,208,102,0.08)', color: '#25D066', border: '1px dashed rgba(37,208,102,0.25)' }}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 6, padding: '10px 0', borderRadius: 10, cursor: 'pointer',
+            fontSize: 12, fontWeight: 700,
+            fontFamily: "'Space Grotesk', sans-serif",
+            background: 'rgba(37,208,102,0.08)', color: '#25D066',
+            border: '1px dashed rgba(37,208,102,0.30)',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
         >
           <Plus size={14} />
           Novo Aviso
         </button>
       </div>
 
-      {/* Formulário */}
+      {/* ══════ FORMULÁRIO ══════ */}
       {showForm && (
-        <div className="px-4 pb-3 space-y-2" style={{ borderBottom: '1px solid rgba(166,197,226,0.06)' }}>
-          <input
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="Título do aviso"
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-            style={{ background: '#282e33', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.12)' }}
-          />
-          <textarea
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            placeholder="Descrição (opcional)"
-            rows={3}
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-            style={{ background: '#282e33', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.12)' }}
-          />
-          <div className="flex items-center gap-2">
-            <label className="text-[11px] font-medium" style={{ color: '#596773' }}>Severidade:</label>
-            {(['info', 'warning', 'critical'] as AnnouncementSeverity[]).map(sev => (
-              <button
-                key={sev}
-                onClick={() => setSeverity(sev)}
-                className="px-2 py-1 rounded text-[10px] font-bold transition-colors"
-                style={{
-                  background: severity === sev ? SEVERITY_CONFIG[sev].bg : 'transparent',
-                  color: severity === sev ? SEVERITY_CONFIG[sev].color : '#596773',
-                  border: `1px solid ${severity === sev ? SEVERITY_CONFIG[sev].color + '40' : 'transparent'}`,
-                }}
-              >
-                {SEVERITY_CONFIG[sev].label}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={isPinned} onChange={e => setIsPinned(e.target.checked)} className="accent-green-500" />
-              <span className="text-[11px]" style={{ color: '#596773' }}>Fixar no topo</span>
-            </label>
-            <div className="flex gap-1.5">
-              <button onClick={() => setShowForm(false)} className="px-3 py-1.5 rounded text-xs" style={{ color: '#596773' }}>
-                Cancelar
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={!title.trim()}
-                className="px-3 py-1.5 rounded text-xs font-semibold transition-colors disabled:opacity-40"
-                style={{ background: '#25D066', color: '#000' }}
-              >
-                Publicar
-              </button>
+        <div data-gsap-child style={{
+          padding: '0 20px 14px',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Título do aviso"
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10,
+                fontSize: 13, fontWeight: 600, outline: 'none',
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: '#22272B', color: '#E5E7EB',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}
+            />
+            <textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              placeholder="Descrição (opcional)"
+              rows={3}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10,
+                fontSize: 12, outline: 'none', resize: 'none',
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: '#22272B', color: '#B6C2CF',
+                border: '1px solid rgba(255,255,255,0.06)',
+                lineHeight: '1.5',
+              }}
+            />
+
+            {/* Severidade */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#6B7A8D', fontFamily: "'Space Grotesk', sans-serif" }}>
+                Severidade:
+              </span>
+              {(['info', 'warning', 'critical'] as AnnouncementSeverity[]).map(sev => {
+                const cfg = SEVERITY_CONFIG[sev]
+                const isActive = severity === sev
+                return (
+                  <button
+                    key={sev}
+                    onClick={() => setSeverity(sev)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      padding: '4px 10px', borderRadius: 6, border: 'none',
+                      fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      background: isActive ? cfg.bg : 'transparent',
+                      color: isActive ? cfg.color : '#6B7A8D',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {cfg.icon}
+                    {cfg.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Pin + Ações */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={isPinned}
+                  onChange={e => setIsPinned(e.target.checked)}
+                  style={{ accentColor: '#25D066' }}
+                />
+                <span style={{ fontSize: 11, color: '#6B7A8D', fontFamily: "'Space Grotesk', sans-serif" }}>
+                  Fixar no topo
+                </span>
+              </label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => setShowForm(false)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 8, border: 'none',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    background: 'transparent', color: '#6B7A8D',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!title.trim()}
+                  style={{
+                    padding: '6px 16px', borderRadius: 8, border: 'none',
+                    fontSize: 11, fontWeight: 700, cursor: title.trim() ? 'pointer' : 'default',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    background: title.trim() ? '#25D066' : 'rgba(37,208,102,0.3)',
+                    color: '#000',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  Publicar
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Lista de avisos */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 inbox-scroll">
+      {/* ══════ LISTA DE AVISOS ══════ */}
+      <div
+        ref={scrollRef}
+        className="inbox-scroll"
+        style={{
+          flex: 1, overflowY: 'auto', padding: '8px 20px 80px',
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}
+      >
         {loading ? (
-          <p className="text-center text-xs py-8" style={{ color: '#596773' }}>Carregando...</p>
+          <p style={{
+            textAlign: 'center', padding: '40px 0',
+            fontSize: 12, color: '#6B7A8D',
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}>
+            Carregando avisos...
+          </p>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-10" data-gsap-child>
-            <AlertTriangle size={32} className="mx-auto mb-2" style={{ color: '#596773', opacity: 0.4 }} />
-            <p className="text-xs" style={{ color: '#596773' }}>Nenhum aviso encontrado</p>
+          <div data-gsap-child style={{ textAlign: 'center', padding: '48px 20px' }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16, margin: '0 auto 12px',
+              background: 'rgba(255,255,255,0.03)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <AlertTriangle size={24} style={{ color: '#454F59' }} />
+            </div>
+            <p style={{
+              fontSize: 13, fontWeight: 700, color: '#8C96A3', margin: '0 0 4px',
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}>
+              Nenhum aviso
+            </p>
+            <p style={{
+              fontSize: 11, color: '#596773',
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}>
+              Quando houver comunicados, eles aparecem aqui.
+            </p>
           </div>
         ) : (
           filtered.map(ann => {
@@ -197,45 +334,91 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
             return (
               <div
                 key={ann.id}
-                className="rounded-lg overflow-hidden transition-colors"
-                style={{ background: cfg.bg, border: `1px solid ${cfg.color}20` }}
                 data-gsap-child
+                style={{
+                  borderRadius: 12, overflow: 'hidden',
+                  background: cfg.bg,
+                  border: `1px solid ${cfg.border}`,
+                  transition: 'all 0.15s',
+                }}
               >
+                {/* Cabeçalho do aviso */}
                 <div
-                  className="flex items-start gap-2.5 px-3 py-2.5 cursor-pointer"
                   onClick={() => setExpandedId(isExpanded ? null : ann.id)}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    padding: '12px 14px', cursor: 'pointer',
+                  }}
                 >
-                  <span className="mt-0.5 flex-shrink-0" style={{ color: cfg.color }}>{cfg.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
+                  <span style={{ color: cfg.color, marginTop: 1, flexShrink: 0 }}>{cfg.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       {ann.is_pinned && <Pin size={10} style={{ color: cfg.color }} />}
-                      <p className="text-sm font-semibold truncate" style={{ color: '#b6c2cf' }}>{ann.title}</p>
+                      <p style={{
+                        fontSize: 13, fontWeight: 700, color: '#E5E7EB', margin: 0,
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {ann.title}
+                      </p>
                     </div>
-                    <p className="text-[10px] mt-0.5" style={{ color: '#596773' }}>
+                    <p style={{
+                      fontSize: 10, color: '#6B7A8D', margin: '3px 0 0',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                    }}>
                       {ann.author.split('@')[0]} · {timeAgo(ann.created_at)}
                     </p>
                   </div>
-                  <span style={{ color: '#596773' }}>
+                  <span style={{ color: '#6B7A8D', marginTop: 2 }}>
                     {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </span>
                 </div>
+
+                {/* Conteúdo expandido */}
                 {isExpanded && (
-                  <div className="px-3 pb-2.5" style={{ borderTop: `1px solid ${cfg.color}15` }}>
+                  <div style={{
+                    padding: '0 14px 12px',
+                    borderTop: `1px solid ${cfg.border}`,
+                  }}>
                     {ann.content && (
-                      <p className="text-xs mt-2 whitespace-pre-wrap" style={{ color: '#8c9bab', lineHeight: '1.5' }}>{ann.content}</p>
+                      <p style={{
+                        fontSize: 12, color: '#B6C2CF', margin: '10px 0 0',
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        lineHeight: '1.6', whiteSpace: 'pre-wrap',
+                      }}>
+                        {ann.content}
+                      </p>
                     )}
-                    <div className="flex items-center gap-2 mt-2">
+                    <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
                       <button
                         onClick={e => { e.stopPropagation(); handleTogglePin(ann) }}
-                        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] hover:bg-white/5 transition-colors"
-                        style={{ color: ann.is_pinned ? cfg.color : '#596773' }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '5px 10px', borderRadius: 6, border: 'none',
+                          fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          background: 'rgba(255,255,255,0.04)',
+                          color: ann.is_pinned ? cfg.color : '#6B7A8D',
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
                       >
                         <Pin size={10} /> {ann.is_pinned ? 'Desafixar' : 'Fixar'}
                       </button>
                       <button
                         onClick={e => { e.stopPropagation(); handleDelete(ann.id) }}
-                        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] hover:bg-red-500/10 transition-colors"
-                        style={{ color: '#ef5c48' }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '5px 10px', borderRadius: 6, border: 'none',
+                          fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          background: 'rgba(239,92,72,0.08)',
+                          color: '#ef5c48',
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,92,72,0.14)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,92,72,0.08)' }}
                       >
                         <Trash2 size={10} /> Remover
                       </button>

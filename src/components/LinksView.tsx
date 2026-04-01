@@ -97,177 +97,357 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
   }
 
   return (
-    <div className="flex flex-col h-full" data-gsap-child>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'rgba(166,197,226,0.08)' }}>
-        <div className="flex items-center gap-2">
-          <Link2 size={18} style={{ color: '#579dff' }} />
-          <h2 className="text-sm font-semibold" style={{ color: '#b6c2cf' }}>Links Úteis</h2>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium" style={{ background: 'rgba(87,157,255,0.12)', color: '#579dff' }}>
-            {links.length}
-          </span>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+
+      {/* ══════ HEADER ══════ */}
+      <div data-gsap-child style={{ padding: '18px 20px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{
+              fontSize: 16, fontWeight: 900, color: '#E5E7EB', margin: 0,
+              fontFamily: "'Paytone One', sans-serif",
+              letterSpacing: '-0.2px',
+            }}>
+              Links Úteis
+            </h2>
+            {links.length > 0 && (
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                background: '#25D066', color: '#000',
+                fontFamily: "'Space Grotesk', sans-serif",
+                lineHeight: '18px',
+              }}>
+                {links.length}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            title="Fechar"
+            style={{
+              width: 28, height: 28, borderRadius: 7, border: 'none',
+              background: 'transparent', color: '#8C96A3', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#E5E7EB' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#8C96A3' }}
+          >
+            <X size={15} />
+          </button>
         </div>
-        <button onClick={onClose} className="p-1 rounded hover:bg-white/5" style={{ color: '#596773' }}>
-          <X size={16} />
-        </button>
+        <p style={{
+          fontSize: 12, color: '#6B7A8D', margin: '4px 0 0',
+          fontFamily: "'Space Grotesk', sans-serif",
+        }}>
+          Recursos e referências da equipe
+        </p>
       </div>
 
-      {/* Busca */}
-      <div className="px-4 py-2 border-b" style={{ borderColor: 'rgba(166,197,226,0.06)' }} data-gsap-child>
-        <div className="relative">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: '#596773' }} />
+      {/* ══════ BUSCA ══════ */}
+      <div data-gsap-child style={{
+        padding: '0 20px 10px',
+        borderBottom: '1px solid rgba(255,255,255,0.04)',
+      }}>
+        <div style={{ position: 'relative' }}>
+          <Search size={14} style={{
+            position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+            color: '#6B7A8D',
+          }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar links..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none"
-            style={{ background: '#282e33', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.12)' }}
+            style={{
+              width: '100%', padding: '8px 14px 8px 34px', borderRadius: 10,
+              fontSize: 12, outline: 'none',
+              fontFamily: "'Space Grotesk', sans-serif",
+              background: '#22272B', color: '#E5E7EB',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}
           />
         </div>
       </div>
 
-      {/* Filtro por categoria */}
-      <div className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto border-b" style={{ borderColor: 'rgba(166,197,226,0.06)' }} data-gsap-child>
+      {/* ══════ FILTRO POR CATEGORIA ══════ */}
+      <div data-gsap-child style={{
+        display: 'flex', gap: 6, padding: '10px 20px 10px',
+        overflowX: 'auto',
+        borderBottom: '1px solid rgba(255,255,255,0.04)',
+      }}>
         <button
           onClick={() => setFilterCategory('all')}
-          className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap"
           style={{
-            background: filterCategory === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent',
-            color: filterCategory === 'all' ? '#b6c2cf' : '#596773',
+            padding: '5px 12px', borderRadius: 8, border: 'none',
+            fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+            fontFamily: "'Space Grotesk', sans-serif",
+            background: filterCategory === 'all' ? 'rgba(37,208,102,0.12)' : 'transparent',
+            color: filterCategory === 'all' ? '#25D066' : '#6B7A8D',
+            transition: 'all 0.15s',
           }}
         >
           Todos
         </button>
-        {categories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setFilterCategory(cat)}
-            className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap"
-            style={{
-              background: filterCategory === cat ? 'rgba(87,157,255,0.12)' : 'transparent',
-              color: filterCategory === cat ? '#579dff' : '#596773',
-            }}
-          >
-            {cat}
-          </button>
-        ))}
+        {categories.map(cat => {
+          const isActive = filterCategory === cat
+          return (
+            <button
+              key={cat}
+              onClick={() => setFilterCategory(cat)}
+              style={{
+                padding: '5px 12px', borderRadius: 8, border: 'none',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: isActive ? 'rgba(37,208,102,0.12)' : 'transparent',
+                color: isActive ? '#25D066' : '#6B7A8D',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+            >
+              {cat}
+            </button>
+          )
+        })}
       </div>
 
-      {/* Botão adicionar */}
-      <div className="px-4 py-2" data-gsap-child>
+      {/* ══════ BOTÃO ADICIONAR ══════ */}
+      <div data-gsap-child style={{ padding: '12px 20px 8px' }}>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
-          style={{ background: 'rgba(37,208,102,0.08)', color: '#25D066', border: '1px dashed rgba(37,208,102,0.25)' }}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 6, padding: '10px 0', borderRadius: 10, cursor: 'pointer',
+            fontSize: 12, fontWeight: 700,
+            fontFamily: "'Space Grotesk', sans-serif",
+            background: 'rgba(37,208,102,0.08)', color: '#25D066',
+            border: '1px dashed rgba(37,208,102,0.30)',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
         >
           <Plus size={14} />
           Adicionar Link
         </button>
       </div>
 
-      {/* Formulário */}
+      {/* ══════ FORMULÁRIO ══════ */}
       {showForm && (
-        <div className="px-4 pb-3 space-y-2" style={{ borderBottom: '1px solid rgba(166,197,226,0.06)' }}>
-          <input
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="Nome do link"
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-            style={{ background: '#282e33', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.12)' }}
-          />
-          <input
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            placeholder="https://..."
-            type="url"
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-            style={{ background: '#282e33', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.12)' }}
-          />
-          <input
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="Descrição (opcional)"
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-            style={{ background: '#282e33', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.12)' }}
-          />
-          <div className="flex items-center gap-2">
-            <select
-              value={category}
-              onChange={e => { setCategory(e.target.value); setCustomCategory('') }}
-              className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
-              style={{ background: '#282e33', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.12)' }}
-            >
-              {DEFAULT_CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-              <option value="__custom">+ Nova categoria</option>
-            </select>
-            {category === '__custom' && (
-              <input
-                value={customCategory}
-                onChange={e => setCustomCategory(e.target.value)}
-                placeholder="Nome da categoria"
-                className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
-                style={{ background: '#282e33', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.12)' }}
-              />
-            )}
-          </div>
-          <div className="flex justify-end gap-1.5">
-            <button onClick={() => setShowForm(false)} className="px-3 py-1.5 rounded text-xs" style={{ color: '#596773' }}>
-              Cancelar
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={!title.trim() || !url.trim()}
-              className="px-3 py-1.5 rounded text-xs font-semibold transition-colors disabled:opacity-40"
-              style={{ background: '#25D066', color: '#000' }}
-            >
-              Salvar
-            </button>
+        <div data-gsap-child style={{
+          padding: '0 20px 14px',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Nome do link"
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10,
+                fontSize: 13, fontWeight: 600, outline: 'none',
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: '#22272B', color: '#E5E7EB',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}
+            />
+            <input
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://..."
+              type="url"
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10,
+                fontSize: 12, outline: 'none',
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: '#22272B', color: '#B6C2CF',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}
+            />
+            <input
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Descrição (opcional)"
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10,
+                fontSize: 12, outline: 'none',
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: '#22272B', color: '#B6C2CF',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <select
+                value={category}
+                onChange={e => { setCategory(e.target.value); setCustomCategory('') }}
+                style={{
+                  flex: 1, padding: '10px 14px', borderRadius: 10,
+                  fontSize: 12, outline: 'none',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  background: '#22272B', color: '#B6C2CF',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                {DEFAULT_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="__custom">+ Nova categoria</option>
+              </select>
+              {category === '__custom' && (
+                <input
+                  value={customCategory}
+                  onChange={e => setCustomCategory(e.target.value)}
+                  placeholder="Nome da categoria"
+                  style={{
+                    flex: 1, padding: '10px 14px', borderRadius: 10,
+                    fontSize: 12, outline: 'none',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    background: '#22272B', color: '#B6C2CF',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                />
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+              <button
+                onClick={() => setShowForm(false)}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, border: 'none',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  background: 'transparent', color: '#6B7A8D',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={!title.trim() || !url.trim()}
+                style={{
+                  padding: '6px 16px', borderRadius: 8, border: 'none',
+                  fontSize: 11, fontWeight: 700,
+                  cursor: (title.trim() && url.trim()) ? 'pointer' : 'default',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  background: (title.trim() && url.trim()) ? '#25D066' : 'rgba(37,208,102,0.3)',
+                  color: '#000',
+                  transition: 'all 0.15s',
+                }}
+              >
+                Salvar
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Lista de links agrupados por categoria */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-4 inbox-scroll">
+      {/* ══════ LISTA DE LINKS ══════ */}
+      <div
+        className="inbox-scroll"
+        style={{
+          flex: 1, overflowY: 'auto', padding: '8px 20px 80px',
+          display: 'flex', flexDirection: 'column', gap: 16,
+        }}
+      >
         {loading ? (
-          <p className="text-center text-xs py-8" style={{ color: '#596773' }}>Carregando...</p>
+          <p style={{
+            textAlign: 'center', padding: '40px 0',
+            fontSize: 12, color: '#6B7A8D',
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}>
+            Carregando links...
+          </p>
         ) : grouped.length === 0 ? (
-          <div className="text-center py-10" data-gsap-child>
-            <FolderOpen size={32} className="mx-auto mb-2" style={{ color: '#596773', opacity: 0.4 }} />
-            <p className="text-xs" style={{ color: '#596773' }}>Nenhum link encontrado</p>
+          <div data-gsap-child style={{ textAlign: 'center', padding: '48px 20px' }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16, margin: '0 auto 12px',
+              background: 'rgba(255,255,255,0.03)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <FolderOpen size={24} style={{ color: '#454F59' }} />
+            </div>
+            <p style={{
+              fontSize: 13, fontWeight: 700, color: '#8C96A3', margin: '0 0 4px',
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}>
+              Nenhum link encontrado
+            </p>
+            <p style={{
+              fontSize: 11, color: '#596773',
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}>
+              Adicione links úteis para a equipe consultar.
+            </p>
           </div>
         ) : (
           grouped.map(([cat, catLinks]) => (
             <div key={cat} data-gsap-child>
-              <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: '#596773' }}>
-                {cat} <span style={{ color: '#454f59' }}>({catLinks.length})</span>
+              <p style={{
+                fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 8px',
+                fontFamily: "'Space Grotesk', sans-serif",
+              }}>
+                {cat}{' '}
+                <span style={{ color: '#454F59' }}>({catLinks.length})</span>
               </p>
-              <div className="space-y-1">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {catLinks.map(link => (
                   <a
                     key={link.id}
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group flex items-start gap-2.5 px-3 py-2 rounded-lg transition-colors hover:bg-white/[0.04]"
-                    style={{ border: '1px solid rgba(166,197,226,0.06)' }}
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10,
+                      padding: '10px 12px', borderRadius: 10, textDecoration: 'none',
+                      border: '1px solid rgba(255,255,255,0.04)',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                   >
-                    <div className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(87,157,255,0.12)' }}>
-                      <ExternalLink size={12} style={{ color: '#579dff' }} />
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                      background: 'rgba(37,208,102,0.10)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <ExternalLink size={13} style={{ color: '#25D066' }} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold truncate group-hover:underline" style={{ color: '#b6c2cf' }}>{link.title}</p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{
+                        fontSize: 13, fontWeight: 700, color: '#E5E7EB', margin: 0,
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {link.title}
+                      </p>
                       {link.description && (
-                        <p className="text-[10px] mt-0.5 truncate" style={{ color: '#596773' }}>{link.description}</p>
+                        <p style={{
+                          fontSize: 11, color: '#6B7A8D', margin: '2px 0 0',
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {link.description}
+                        </p>
                       )}
-                      <p className="text-[9px] mt-0.5" style={{ color: '#454f59' }}>{getDomain(link.url)}</p>
+                      <p style={{
+                        fontSize: 10, color: '#454F59', margin: '2px 0 0',
+                        fontFamily: "'Space Grotesk', sans-serif",
+                      }}>
+                        {getDomain(link.url)}
+                      </p>
                     </div>
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); handleDelete(link.id) }}
-                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10"
-                      style={{ color: '#ef5c48' }}
                       title="Remover link"
+                      style={{
+                        width: 24, height: 24, borderRadius: 6, border: 'none',
+                        background: 'transparent', color: '#596773', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: 0, transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,92,72,0.08)'; e.currentTarget.style.color = '#ef5c48' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+                      onFocus={e => { e.currentTarget.style.opacity = '1' }}
                     >
                       <Trash2 size={12} />
                     </button>

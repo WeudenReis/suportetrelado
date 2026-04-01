@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CalendarDays, AlertTriangle, Link2, BarChart3 } from 'lucide-react'
+import { Inbox, CalendarDays, AlertTriangle, Link2, BarChart3, ChevronsRight, ChevronsLeft } from 'lucide-react'
 import gsap from 'gsap'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
@@ -105,6 +105,8 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
   const { unreadCount } = useNotificationContext()
   const sidebarRef = useRef<HTMLDivElement>(null)
   const isAnimating = useRef(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const sidebarWidth = sidebarExpanded ? 520 : 340
 
   const handleTabChange = useCallback((tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => {
     if (isAnimating.current) return
@@ -181,7 +183,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
     <div className="app-layout">
       {/* ── Sidebar Panel (icons inside) ── */}
       {showSidebar && (
-        <div ref={sidebarRef} className="sidebar-panel">
+        <div ref={sidebarRef} className="sidebar-panel" style={{ width: sidebarWidth, transition: 'width 0.3s ease' }}>
           {/* ▸ Nav icons row */}
           <div className="sidebar-panel__nav">
             <button
@@ -226,6 +228,19 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
               type="button"
             >
               <BarChart3 size={17} />
+            </button>
+
+            {/* Spacer */}
+            <span style={{ flex: 1 }} />
+
+            {/* Expandir / Recolher */}
+            <button
+              onClick={() => setSidebarExpanded(!sidebarExpanded)}
+              className="sidebar-nav-btn"
+              title={sidebarExpanded ? 'Recolher painel' : 'Expandir painel'}
+              type="button"
+            >
+              {sidebarExpanded ? <ChevronsLeft size={17} /> : <ChevronsRight size={17} />}
             </button>
           </div>
 
