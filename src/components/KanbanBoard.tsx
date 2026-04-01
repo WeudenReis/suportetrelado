@@ -1525,16 +1525,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                       {recentWallpapers.map((wp, i) => {
                         const isActive = wallpaper === wp
                         return (
-                          <div key={i} style={{ position: 'relative' }}
-                            onMouseEnter={e => {
-                              const xBtn = e.currentTarget.querySelector('[data-remove-btn]') as HTMLElement
-                              if (xBtn) xBtn.style.opacity = '1'
-                            }}
-                            onMouseLeave={e => {
-                              const xBtn = e.currentTarget.querySelector('[data-remove-btn]') as HTMLElement
-                              if (xBtn) xBtn.style.opacity = '0'
-                            }}
-                          >
+                          <div key={i} style={{ position: 'relative' }}>
                             <button onClick={() => applyWallpaper(wp)}
                               style={{
                                 width: '100%', aspectRatio: '1', borderRadius: 8, cursor: 'pointer',
@@ -1548,21 +1539,21 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                               onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
                             />
                             <button
-                              data-remove-btn
                               onClick={(e) => {
                                 e.stopPropagation()
                                 const updated = recentWallpapers.filter((_, idx) => idx !== i)
                                 setRecentWallpapers(updated)
                                 try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
                               }}
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,50,50,0.9)' }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.65)' }}
                               style={{
-                                position: 'absolute', top: 3, right: 3,
-                                width: 16, height: 16, borderRadius: '50%',
-                                background: 'rgba(0,0,0,0.7)', border: 'none',
+                                position: 'absolute', top: -4, right: -4,
+                                width: 18, height: 18, borderRadius: '50%',
+                                background: 'rgba(0,0,0,0.65)', border: '1.5px solid rgba(255,255,255,0.2)',
                                 color: '#fff', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                opacity: 0, transition: 'opacity 0.15s',
-                                padding: 0,
+                                padding: 0, transition: 'background 0.15s',
                               }}
                             >
                               <X size={10} />
