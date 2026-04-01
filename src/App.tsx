@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CalendarDays, Megaphone, Link2, BarChart3, Briefcase, ChevronsRight, ChevronsLeft, X, AtSign, UserPlus, MessageSquare, ArrowRight } from 'lucide-react'
+import { Inbox, CalendarDays, Megaphone, Link2, BarChart3, ChevronsRight, ChevronsLeft, X, AtSign, UserPlus, MessageSquare, ArrowRight } from 'lucide-react'
 import gsap from 'gsap'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
@@ -13,7 +13,6 @@ import PlannerSidebar from './components/PlannerSidebar'
 import AnnouncementsView from './components/AnnouncementsView'
 import LinksView from './components/LinksView'
 import DashboardView from './components/DashboardView'
-import DemandView from './components/DemandView'
 import BottomNav from './components/BottomNav'
 import { fetchTickets, upsertUserProfile, updateLastSeen, checkAuthorizedUser } from './lib/supabase'
 import type { Ticket } from './lib/supabase'
@@ -21,7 +20,7 @@ import type { Ticket } from './lib/supabase'
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard' | 'demands'>('board')
+  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'>('board')
 
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
   const [openTicketId, setOpenTicketId] = useState<string | null>(null)
@@ -111,8 +110,8 @@ export default function App() {
 
 /* ── Inner component that has access to NotificationContext ── */
 interface AppContentProps {
-  activeTab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard' | 'demands'
-  setActiveTab: (tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard' | 'demands') => void
+  activeTab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'
+  setActiveTab: (tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => void
   user: string
   plannerTickets: Ticket[]
   openTicketId: string | null
@@ -248,14 +247,6 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
             >
               <BarChart3 size={17} />
             </button>
-            <button
-              onClick={() => handleTabChange('demands')}
-              className={`sidebar-nav-btn${activeTab === 'demands' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Demandas"
-              type="button"
-            >
-              <Briefcase size={17} />
-            </button>
 
             {/* Spacer */}
             <span style={{ flex: 1 }} />
@@ -300,12 +291,6 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
             )}
             {activeTab === 'dashboard' && (
               <DashboardView
-                user={user}
-                onClose={() => handleTabChange('board')}
-              />
-            )}
-            {activeTab === 'demands' && (
-              <DemandView
                 user={user}
                 onClose={() => handleTabChange('board')}
               />
