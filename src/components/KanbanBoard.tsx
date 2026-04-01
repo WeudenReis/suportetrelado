@@ -16,7 +16,7 @@ import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardCo
 import { COLUMNS } from '../hooks/useKanban'
 import type { Ticket, TicketStatus, UserProfile, BoardLabel } from '../lib/supabase'
 
-interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null }
+interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
 
 function buildFallbackColumns(): BoardColumn[] {
   return COLUMNS.map((c, i) => ({
@@ -100,7 +100,7 @@ function SortableBoardColumn({ id, accentColor, children }: { id: string; accent
 
 const LABEL_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
 
-export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoardProps) {
+export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTicketId }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null)
@@ -203,8 +203,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   useEffect(() => {
     if (!openTicketId || tickets.length === 0) return
     const found = tickets.find(t => t.id === openTicketId)
-    if (found) setSelectedTicket(found)
-  }, [openTicketId, tickets])
+    if (found) {
+      setSelectedTicket(found)
+      clearOpenTicketId?.()
+    }
+  }, [openTicketId, tickets, clearOpenTicketId])
 
   // --- Presence tracking ---
   useEffect(() => {

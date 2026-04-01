@@ -260,7 +260,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
         <AnimatePresence mode="wait">
           <motion.div key="board" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
             className="flex-1 flex flex-col min-h-0">
-            <KanbanBoard user={user} onLogout={onLogout} openTicketId={openTicketId} />
+            <KanbanBoard user={user} onLogout={onLogout} openTicketId={openTicketId} clearOpenTicketId={() => setOpenTicketId(null)} />
           </motion.div>
         </AnimatePresence>
         <BottomNav active={activeTab} onChange={handleTabChange} />
