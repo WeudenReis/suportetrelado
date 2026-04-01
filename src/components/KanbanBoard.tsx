@@ -11,7 +11,7 @@ import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
-import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../lib/supabase'
+import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../hooks/useKanban'
 import type { Ticket, TicketStatus, UserProfile, BoardLabel } from '../lib/supabase'
@@ -152,8 +152,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   // --- Load tickets from Supabase ---
   const loadTickets = useCallback(async () => {
     try {
-      const data = await fetchTickets()
-      setTickets(data)
+      const [data, attCounts] = await Promise.all([fetchTickets(), fetchAttachmentCounts()])
+      setTickets(data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 })))
     } catch (err) {
       console.error('Failed to load tickets:', err)
       showToast('Erro ao carregar tickets', 'err')
@@ -170,14 +170,22 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => {
           if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
-          return [...prev, payload.new as Ticket]
+          return [...prev, { ...(payload.new as Ticket), attachment_count: 0 }]
         })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, payload => {
-        setTickets(prev => prev.map(t => t.id === (payload.new as Ticket).id ? (payload.new as Ticket) : t))
+        setTickets(prev => prev.map(t => {
+          if (t.id !== (payload.new as Ticket).id) return t
+          return { ...(payload.new as Ticket), attachment_count: (t as any).attachment_count || 0 }
+        }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => prev.filter(t => t.id !== (payload.old as any).id))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments' }, () => {
+        fetchAttachmentCounts().then(counts => {
+          setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
+        })
       })
       .subscribe((status) => {
         setIsConnected(status === 'SUBSCRIBED')
@@ -472,7 +480,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   }, [])
 
   const handleTicketUpdate = useCallback((updated: Ticket) => {
-    setTickets(prev => prev.map(t => t.id === updated.id ? updated : t))
+    setTickets(prev => prev.map(t => t.id === updated.id ? { ...updated, attachment_count: (t as any).attachment_count || 0 } : t))
     setSelectedTicket(updated)
   }, [])
 
@@ -1503,7 +1511,13 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
           <CardDetailModal
             ticket={selectedTicket}
             user={user}
-            onClose={() => setSelectedTicket(null)}
+            onClose={() => {
+              setSelectedTicket(null)
+              // Recarregar contagem de anexos ao fechar o modal
+              fetchAttachmentCounts().then(counts => {
+                setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
+              })
+            }}
             onUpdate={handleTicketUpdate}
             onDelete={handleTicketDelete}
           />
