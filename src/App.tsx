@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CalendarDays, Megaphone, Link2, BarChart3, Briefcase, ChevronsRight, ChevronsLeft, X, AtSign, UserPlus, MessageSquare, ArrowRight } from 'lucide-react'
+import { Inbox, CalendarDays, Megaphone, Link2, BarChart3, ChevronsRight, ChevronsLeft, X, AtSign, UserPlus, MessageSquare, ArrowRight } from 'lucide-react'
 import gsap from 'gsap'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
@@ -13,7 +13,6 @@ import PlannerSidebar from './components/PlannerSidebar'
 import AnnouncementsView from './components/AnnouncementsView'
 import LinksView from './components/LinksView'
 import DashboardView from './components/DashboardView'
-import DemandView from './components/DemandView'
 import BottomNav from './components/BottomNav'
 import { fetchTickets, upsertUserProfile, updateLastSeen, checkAuthorizedUser } from './lib/supabase'
 import type { Ticket } from './lib/supabase'
@@ -21,7 +20,7 @@ import type { Ticket } from './lib/supabase'
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard' | 'demands'>('board')
+  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'>('board')
 
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
   const [openTicketId, setOpenTicketId] = useState<string | null>(null)
@@ -111,8 +110,8 @@ export default function App() {
 
 /* ── Inner component that has access to NotificationContext ── */
 interface AppContentProps {
-  activeTab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard' | 'demands'
-  setActiveTab: (tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard' | 'demands') => void
+  activeTab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'
+  setActiveTab: (tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => void
   user: string
   plannerTickets: Ticket[]
   openTicketId: string | null
@@ -203,74 +202,6 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
       {/* ── Sidebar Panel (icons inside) ── */}
       {showSidebar && (
         <div ref={sidebarRef} className="sidebar-panel" style={{ width: sidebarWidth, transition: 'width 0.3s ease' }}>
-          {/* ▸ Nav icons row */}
-          <div className="sidebar-panel__nav">
-            <button
-              onClick={() => handleTabChange('inbox')}
-              className={`sidebar-nav-btn${activeTab === 'inbox' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Caixa de Entrada"
-              type="button"
-            >
-              <Inbox size={17} />
-              {unreadCount > 0 && (
-                <span className="sidebar-nav-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-              )}
-            </button>
-            <button
-              onClick={() => handleTabChange('planner')}
-              className={`sidebar-nav-btn${activeTab === 'planner' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Planejador"
-              type="button"
-            >
-              <CalendarDays size={17} />
-            </button>
-            <button
-              onClick={() => handleTabChange('announcements')}
-              className={`sidebar-nav-btn${activeTab === 'announcements' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Avisos"
-              type="button"
-            >
-              <Megaphone size={17} />
-            </button>
-            <button
-              onClick={() => handleTabChange('links')}
-              className={`sidebar-nav-btn${activeTab === 'links' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Links Úteis"
-              type="button"
-            >
-              <Link2 size={17} />
-            </button>
-            <button
-              onClick={() => handleTabChange('dashboard')}
-              className={`sidebar-nav-btn${activeTab === 'dashboard' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Dashboard"
-              type="button"
-            >
-              <BarChart3 size={17} />
-            </button>
-            <button
-              onClick={() => handleTabChange('demands')}
-              className={`sidebar-nav-btn${activeTab === 'demands' ? ' sidebar-nav-btn--active' : ''}`}
-              title="Demandas"
-              type="button"
-            >
-              <Briefcase size={17} />
-            </button>
-
-            {/* Spacer */}
-            <span style={{ flex: 1 }} />
-
-            {/* Expandir / Recolher */}
-            <button
-              onClick={() => setSidebarExpanded(!sidebarExpanded)}
-              className="sidebar-nav-btn"
-              title={sidebarExpanded ? 'Recolher painel' : 'Expandir painel'}
-              type="button"
-            >
-              {sidebarExpanded ? <ChevronsLeft size={17} /> : <ChevronsRight size={17} />}
-            </button>
-          </div>
-
           {/* ▸ Sidebar content */}
           <div className="sidebar-panel__content">
             {activeTab === 'inbox' && (
@@ -304,12 +235,23 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
                 onClose={() => handleTabChange('board')}
               />
             )}
-            {activeTab === 'demands' && (
-              <DemandView
-                user={user}
-                onClose={() => handleTabChange('board')}
-              />
-            )}
+          </div>
+
+          {/* ▸ Nav icons row (moved to bottom) */}
+          <div className="sidebar-panel__nav hidden-nav-bar-bottom" style={{ borderBottom: 'none', borderTop: '1px solid rgba(166,197,226,0.08)' }}>
+
+            {/* Spacer */}
+            <span style={{ flex: 1 }} />
+
+            {/* Expandir / Recolher */}
+            <button
+              onClick={() => setSidebarExpanded(!sidebarExpanded)}
+              className="sidebar-nav-btn"
+              title={sidebarExpanded ? 'Recolher painel' : 'Expandir painel'}
+              type="button"
+            >
+              {sidebarExpanded ? <ChevronsLeft size={17} /> : <ChevronsRight size={17} />}
+            </button>
           </div>
         </div>
       )}

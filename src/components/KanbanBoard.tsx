@@ -729,7 +729,13 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
       {/* Nav */}
       <header className="board-header">
         <div className="trello-board-header__left">
-          <button className="trello-board-chip trello-board-chip--title" type="button">
+          <button className="trello-board-chip trello-board-chip--title" type="button" style={{ paddingLeft: '4px' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '2px' }}>
+              <path d="M21 11.5C21 15.6421 16.9706 19 12 19C10.7441 19 9.54922 18.7753 8.46162 18.3743L4.5 20L5.39793 16.205C3.20456 14.8682 2 13.0456 2 11.5C2 7.35786 6.47715 4 12 4C17.5228 4 21 7.35786 21 11.5Z" fill="#25D066"/>
+              <circle cx="8" cy="11.5" r="1.5" fill="#111111"/>
+              <circle cx="12" cy="11.5" r="1.5" fill="#111111"/>
+              <circle cx="16" cy="11.5" r="1.5" fill="#111111"/>
+            </svg>
             <span className="trello-board-chip__title">Suporte chatPro</span>
           </button>
 

@@ -1,8 +1,8 @@
-import { Inbox, Calendar, LayoutGrid, Megaphone, Link2, BarChart3, Briefcase } from 'lucide-react'
+import { Inbox, Calendar, Megaphone, Link2, BarChart3 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNotificationContext } from './NotificationContext'
 
-type NavTab = 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard' | 'demands'
+type NavTab = 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'
 
 interface BottomBarProps {
   active: NavTab
@@ -12,11 +12,9 @@ interface BottomBarProps {
 const NAV_ITEMS = [
   { id: 'inbox',         label: 'Caixa de entrada', icon: <Inbox size={18} strokeWidth={1.6} /> },
   { id: 'planner',       label: 'Planejador',       icon: <Calendar size={18} strokeWidth={1.6} /> },
-  { id: 'board',         label: 'Quadro',           icon: <LayoutGrid size={18} strokeWidth={1.6} /> },
   { id: 'announcements', label: 'Avisos',           icon: <Megaphone size={18} strokeWidth={1.6} /> },
   { id: 'links',         label: 'Links',            icon: <Link2 size={18} strokeWidth={1.6} /> },
   { id: 'dashboard',     label: 'Dashboard',        icon: <BarChart3 size={18} strokeWidth={1.6} /> },
-  { id: 'demands',       label: 'Demandas',         icon: <Briefcase size={18} strokeWidth={1.6} /> },
 ]
 
 export default function BottomBar({ active, onChange }: BottomBarProps) {
