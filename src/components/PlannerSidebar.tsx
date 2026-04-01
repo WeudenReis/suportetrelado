@@ -30,16 +30,21 @@ export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps
 
     const days: { date: number; isCurrentMonth: boolean; fullDate: string }[] = []
     const prevMonthLastDay = new Date(year, month, 0).getDate()
+    const pad = (n: number) => String(n).padStart(2, '0')
     for (let i = startDay - 1; i >= 0; i--) {
       const d = prevMonthLastDay - i
-      days.push({ date: d, isCurrentMonth: false, fullDate: `--` })
+      const pm = month === 0 ? 12 : month
+      const py = month === 0 ? year - 1 : year
+      days.push({ date: d, isCurrentMonth: false, fullDate: `${py}-${pad(pm)}-${pad(d)}` })
     }
     for (let d = 1; d <= totalDays; d++) {
-      days.push({ date: d, isCurrentMonth: true, fullDate: `--` })
+      days.push({ date: d, isCurrentMonth: true, fullDate: `${year}-${pad(month + 1)}-${pad(d)}` })
     }
     const remaining = 42 - days.length
+    const nm = month === 11 ? 1 : month + 2
+    const ny = month === 11 ? year + 1 : year
     for (let d = 1; d <= remaining; d++) {
-      days.push({ date: d, isCurrentMonth: false, fullDate: `--` })
+      days.push({ date: d, isCurrentMonth: false, fullDate: `${ny}-${pad(nm)}-${pad(d)}` })
     }
     return days
   }, [year, month])
@@ -55,7 +60,7 @@ export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps
   }, [tickets])
 
   const today = new Date()
-  const todayStr = `--`
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
   const [selectedDate, setSelectedDate] = useState(todayStr)
   const selectedTickets = ticketsByDate[selectedDate] || []
@@ -242,7 +247,7 @@ export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps
                 <span style={{
                   fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
                   fontFamily: font,
-                  background: `18`,
+                  background: `${PRIO_COLORS[t.priority] || '#596773'}18`,
                   color: PRIO_COLORS[t.priority] || '#596773',
                 }}>
                   {PRIO_LABELS[t.priority] || t.priority}
