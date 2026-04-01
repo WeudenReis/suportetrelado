@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable,
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -119,6 +119,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   const [allMembers, setAllMembers] = useState<UserProfile[]>([])
   const [wallpaper, setWallpaper] = useState<string>('')
   const [wallpaperInput, setWallpaperInput] = useState('')
+  const [recentWallpapers, setRecentWallpapers] = useState<string[]>([])
   const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
   const [inlineTitle, setInlineTitle] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -285,10 +286,16 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
     fetchCols()
   }, [])
 
+  const recentWallpapersKey = `chatpro-recent-wallpapers:${user.toLowerCase()}`
+
   useEffect(() => {
     const saved = localStorage.getItem(wallpaperStorageKey) || ''
     setWallpaper(saved)
-  }, [wallpaperStorageKey])
+    try {
+      const recent = JSON.parse(localStorage.getItem(recentWallpapersKey) || '[]') as string[]
+      setRecentWallpapers(recent)
+    } catch { /* ignore */ }
+  }, [wallpaperStorageKey, recentWallpapersKey])
 
   const allColumnsById = useMemo(() => new Map(columns.map(col => [col.id, col])), [columns])
   const allColumns = useMemo(() => columnOrder.map(id => allColumnsById.get(id)).filter((col): col is NonNullable<typeof col> => Boolean(col)), [columnOrder, allColumnsById])
@@ -498,6 +505,14 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
       localStorage.setItem(wallpaperStorageKey, url)
     } catch {
       showToast('Sem espaço local para salvar este fundo', 'err')
+    }
+    // Salvar nos recentes se for imagem importada (data: ou http)
+    if (url && (url.startsWith('data:') || url.startsWith('http'))) {
+      setRecentWallpapers(prev => {
+        const updated = [url, ...prev.filter(w => w !== url)].slice(0, 4)
+        try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+        return updated
+      })
     }
   }
 
@@ -1322,87 +1337,206 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
       <AnimatePresence>
         {showSettings && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={e => e.target === e.currentTarget && setShowSettings(false)}>
-            <motion.div initial={{ x: 320 }} animate={{ x: 0 }} exit={{ x: 320 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="w-80 h-full overflow-y-auto p-6" style={{ background: theme.bgSecondary, borderLeft: '1px solid ' + theme.borderSubtle }}>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-bold text-lg" style={{ color: theme.textPrimary }}>Aparência</h2>
-                <button onClick={() => setShowSettings(false)} className="p-1.5 rounded-lg transition-colors" style={{ color: theme.textMuted }}>
-                  <X size={16} />
-                </button>
-              </div>
+            <motion.div initial={{ x: 340 }} animate={{ x: 0 }} exit={{ x: 340 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              style={{
+                width: 320, height: '100%', overflowY: 'auto',
+                background: '#1d2125', borderLeft: '1px solid rgba(255,255,255,0.06)',
+              }}>
 
-              {/* Board background */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: theme.textMuted }}>Fundo do Quadro</label>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {WALLPAPER_PRESETS.map(wp => (
-                    <button key={wp.label} onClick={() => applyWallpaper(wp.value)}
-                      className="h-[72px] rounded-[10px] text-[12px] font-semibold transition-all flex items-end justify-center pb-2 hover:scale-[1.03]"
-                      style={{
-                        background: wp.value,
-                        border: wallpaper === wp.value ? '2px solid #4CAF50' : '1px solid ' + theme.borderSubtle,
-                        color: '#fff',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.6)',
-                      }}>
-                      {wp.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 mb-3">
-                  <input
-                    type="color"
-                    value={wallpaper.startsWith('#') ? wallpaper : '#0f3b73'}
-                    onChange={(e) => applyWallpaper(e.target.value)}
-                    className="w-9 h-9 rounded cursor-pointer border-0"
-                    style={{ background: 'none' }}
-                    title="Cor sólida do quadro"
-                  />
-                  <span className="text-[11px]" style={{ color: theme.textMuted }}>Escolher cor sólida</span>
-                </div>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    placeholder="URL da imagem do quadro..."
-                    value={wallpaperInput}
-                    onChange={e => setWallpaperInput(e.target.value)}
-                    className="dark-input flex-1 rounded-lg px-3 py-2 text-xs"
-                  />
-                  <button onClick={() => { if (wallpaperInput.trim()) { applyWallpaper(wallpaperInput.trim()); setWallpaperInput('') } }}
-                    className="px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ background: '#25D066' }}>
-                    <Image size={14} />
+              {/* Header */}
+              <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 10,
+                      background: 'rgba(37,208,102,0.12)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Palette size={16} style={{ color: '#25D066' }} />
+                    </div>
+                    <h2 style={{ fontSize: 15, fontWeight: 900, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>
+                      Aparência
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    style={{
+                      width: 28, height: 28, borderRadius: 8, border: 'none',
+                      background: 'transparent', color: '#596773', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+                  >
+                    <X size={15} />
                   </button>
                 </div>
-                <input
-                  ref={wallpaperFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleWallpaperFileSelect}
-                />
+              </div>
+
+              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                {/* Temas prontos */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Temas
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {WALLPAPER_PRESETS.map(wp => {
+                      const isActive = wallpaper === wp.value
+                      return (
+                        <button key={wp.label} onClick={() => applyWallpaper(wp.value)}
+                          style={{
+                            height: 64, borderRadius: 10, fontSize: 12, fontWeight: 600,
+                            fontFamily: "'Space Grotesk', sans-serif",
+                            display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8,
+                            background: wp.value,
+                            border: isActive ? '2px solid #25D066' : '1px solid rgba(255,255,255,0.08)',
+                            color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+                            cursor: 'pointer', transition: 'transform 0.15s, border-color 0.15s',
+                            boxShadow: isActive ? '0 0 0 1px rgba(37,208,102,0.3)' : 'none',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)' }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                        >
+                          {wp.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Cor sólida + URL */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Personalizar
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <input
+                      type="color"
+                      value={wallpaper.startsWith('#') ? wallpaper : '#0f3b73'}
+                      onChange={(e) => applyWallpaper(e.target.value)}
+                      style={{
+                        width: 36, height: 36, borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'none', padding: 0,
+                      }}
+                      title="Cor sólida"
+                    />
+                    <span style={{ fontSize: 12, color: '#8C96A3', fontFamily: "'Space Grotesk', sans-serif" }}>Cor sólida</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    <input
+                      placeholder="URL da imagem..."
+                      value={wallpaperInput}
+                      onChange={e => setWallpaperInput(e.target.value)}
+                      style={{
+                        flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 12,
+                        fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB',
+                        background: '#22272B', border: '1px solid rgba(255,255,255,0.08)',
+                        outline: 'none', transition: 'border-color 0.15s',
+                      }}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)' }}
+                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
+                    />
+                    <button
+                      onClick={() => { if (wallpaperInput.trim()) { applyWallpaper(wallpaperInput.trim()); setWallpaperInput('') } }}
+                      style={{
+                        padding: '8px 12px', borderRadius: 8, border: 'none',
+                        background: '#25D066', color: '#fff', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <Image size={14} />
+                    </button>
+                  </div>
+                  <input ref={wallpaperFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleWallpaperFileSelect} />
+                  <button
+                    onClick={() => wallpaperFileInputRef.current?.click()}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+                    style={{
+                      width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
+                      color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    <Upload size={13} />
+                    Importar imagem
+                  </button>
+                </div>
+
+                {/* Recentes */}
+                {recentWallpapers.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Clock size={11} />
+                      Recentes
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                      {recentWallpapers.map((wp, i) => {
+                        const isActive = wallpaper === wp
+                        return (
+                          <button key={i} onClick={() => applyWallpaper(wp)}
+                            style={{
+                              width: '100%', aspectRatio: '1', borderRadius: 8, cursor: 'pointer',
+                              backgroundImage: `url(${wp})`,
+                              backgroundSize: 'cover', backgroundPosition: 'center',
+                              border: isActive ? '2px solid #25D066' : '1px solid rgba(255,255,255,0.08)',
+                              boxShadow: isActive ? '0 0 0 1px rgba(37,208,102,0.3)' : 'none',
+                              transition: 'transform 0.15s, border-color 0.15s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)' }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                          />
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Restaurar */}
                 <button
-                  onClick={() => wallpaperFileInputRef.current?.click()}
-                  className="w-full py-2.5 rounded-lg text-xs font-semibold transition-colors mb-2"
-                  style={{ background: 'rgba(87,157,255,0.10)', border: '1px solid rgba(87,157,255,0.2)', color: '#579dff' }}
+                  onClick={() => applyWallpaper('')}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                  style={{
+                    width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#8C96A3', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'background 0.15s',
+                  }}
                 >
-                  Importar imagem do computador (quadro)
-                </button>
-                <button onClick={() => applyWallpaper('')} className="w-full py-2.5 rounded-lg text-xs font-semibold transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}>
+                  <RotateCcw size={12} />
                   Restaurar padrão
                 </button>
 
+                {/* Separador */}
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
 
                 {/* Etiquetas */}
-                <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Tag size={14} style={{ color: '#579dff' }} />
-                    <span className="font-bold text-xs" style={{ color: '#b6c2cf' }}>Etiquetas do Board</span>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <Tag size={13} style={{ color: '#25D066' }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Etiquetas
+                    </span>
                   </div>
                   <button
                     onClick={() => { setShowLabelsManager(true); fetchBoardLabels().then(setBoardLabels).catch(console.error) }}
-                    className="w-full py-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2"
-                    style={{ background: 'rgba(87,157,255,0.12)', border: '1px solid rgba(87,157,255,0.25)', color: '#579dff' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+                    style={{
+                      width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
+                      color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      transition: 'background 0.15s',
+                    }}
                   >
-                    <Pencil size={13} />
+                    <Pencil size={12} />
                     Gerenciar Etiquetas
                   </button>
                 </div>
