@@ -456,7 +456,7 @@ body {
 /* ===== BOTTOM BAR FLUTUANTE (TRELLO STYLE) ===== */
 .bottom-bar-outer {
   position: fixed;
-  bottom: 0;
+  bottom: 14px;
   left: 0;
   right: 0;
   z-index: 200;
@@ -468,27 +468,31 @@ body {
 .bottom-bar {
   pointer-events: all;
   background: #1d2125;
-  border-radius: 12px 12px 0 0;
+  border-radius: 100px;
   display: flex;
   align-items: center;
-  height: 50px;
-  padding: 0;
-  overflow: hidden;
+  height: 52px;
+  padding: 4px;
+  gap: 2px;
+  overflow: visible;
+  border: 1px solid rgba(166,197,226,0.12);
   box-shadow:
-    0 -1px 0 rgba(166,197,226,0.12),
-    0 -6px 24px rgba(0,0,0,0.55);
+    0 4px 6px rgba(0,0,0,0.3),
+    0 8px 28px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .nav-item {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 0 24px;
-  height: 100%;
+  gap: 7px;
+  padding: 0 18px;
+  height: 44px;
+  border-radius: 100px;
   color: #9fadbc;
-  font-size: 11px;
-  font-weight: 400;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.01em;
   white-space: nowrap;
   cursor: pointer;
@@ -496,36 +500,30 @@ body {
   background: transparent;
   border: none;
   position: relative;
-  transition: color 0.12s;
+  transition: color 0.15s, background 0.15s;
 }
 .nav-item svg {
-  width: 18px;
-  height: 18px;
-  stroke-width: 1.6;
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
   flex-shrink: 0;
 }
 .nav-item:hover {
   color: #b6c2cf;
+  background: rgba(255,255,255,0.07);
 }
 .nav-item-active {
   color: #579dff !important;
+  background: rgba(87,157,255,0.13) !important;
 }
 .nav-item-active svg {
   color: #579dff;
 }
 .nav-item-active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  background: #579dff;
-  border-radius: 2px 2px 0 0;
+  display: none;
 }
 .nav-item + .nav-item {
-  border-left: 1px solid rgba(166,197,226,0.06);
+  border-left: none;
 }
 
 /* =========================================
@@ -991,10 +989,46 @@ body {
   background-clip: padding-box;
   transition: box-shadow 0.3s ease;
   background-image: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
+
+/* ── Custom scrollbar no topo do board ── */
+.board-top-scrollbar {
+  width: 100%;
+  height: 8px;
+  flex-shrink: 0;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(166,197,226,0.28) transparent;
+  border-radius: 4px;
+}
+.board-top-scrollbar::-webkit-scrollbar {
+  height: 5px;
+}
+.board-top-scrollbar::-webkit-scrollbar-track {
+  background: rgba(166,197,226,0.05);
+  border-radius: 10px;
+}
+.board-top-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(166,197,226,0.28);
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+.board-top-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(166,197,226,0.5);
+}
+.board-top-scrollbar__inner {
+  height: 1px;
+  min-width: 100%;
+}
+
 .board-main__scroller {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-gutter: stable;
