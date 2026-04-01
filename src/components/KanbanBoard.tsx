@@ -1,22 +1,22 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { DndContext, DragOverlay, closestCenter, closestCorners, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
-import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { useState, useCallback, useEffect, useRef, useMemo, memo } from 'react'
+import { DndContext, DragOverlay, closestCenter, closestCorners, pointerWithin, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, LayoutGrid, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
-import { supabase, fetchTickets, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment } from '../lib/supabase'
+import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../hooks/useKanban'
-import type { Ticket, TicketStatus, UserProfile } from '../lib/supabase'
+import type { Ticket, TicketStatus, UserProfile, BoardLabel } from '../lib/supabase'
 
-interface KanbanBoardProps { user: string; onLogout: () => void }
+interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null }
 
 function buildFallbackColumns(): BoardColumn[] {
   return COLUMNS.map((c, i) => ({
@@ -35,7 +35,7 @@ function buildLocalColumn(title: string, position: number): BoardColumn {
     id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     title: title.trim(),
     position,
-    dot_color: '#579dff',
+    dot_color: '#101204',
     is_archived: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -47,9 +47,9 @@ function DroppableColumn({ id, children, isOver }: { id: string; children: React
   return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
 }
 
-function SortableCard({ ticket, onClick, onUpdate, onArchive, isOverCard, activeTicket }: {
+function SortableCardInner({ ticket, onClick, onUpdate, onArchive, isOverCard, activeTicket }: {
   ticket: any
-  onClick: () => void
+  onClick: (ticket: any) => void
   onUpdate: (u: any) => void
   onArchive: (id: string) => void
   isOverCard: boolean
@@ -63,6 +63,7 @@ function SortableCard({ ticket, onClick, onUpdate, onArchive, isOverCard, active
     transform: CSS.Transform.toString(transform),
     transition,
   }
+  const handleClick = useCallback(() => onClick(ticket), [onClick, ticket])
 
   return (
     <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
@@ -71,7 +72,7 @@ function SortableCard({ ticket, onClick, onUpdate, onArchive, isOverCard, active
       )}
       <Card
         card={ticket}
-        onClick={onClick}
+        onClick={handleClick}
         onUpdate={onUpdate}
         onArchive={onArchive}
         isDragging={isDragging}
@@ -80,11 +81,14 @@ function SortableCard({ ticket, onClick, onUpdate, onArchive, isOverCard, active
   )
 }
 
-function SortableBoardColumn({ id, children }: { id: string; children: (drag: { attributes: Record<string, any>; listeners: Record<string, any>; isDragging: boolean }) => React.ReactNode }) {
+const SortableCard = memo(SortableCardInner)
+
+function SortableBoardColumn({ id, accentColor, children }: { id: string; accentColor?: string; children: (drag: { attributes: Record<string, any>; listeners: Record<string, any>; isDragging: boolean }) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { type: 'column', columnId: id } })
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
+    ...(accentColor ? { '--col-accent': accentColor } as React.CSSProperties : {}),
   }
 
   return (
@@ -94,7 +98,9 @@ function SortableBoardColumn({ id, children }: { id: string; children: (drag: { 
   )
 }
 
-export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
+const LABEL_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
+
+export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null)
@@ -113,6 +119,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [allMembers, setAllMembers] = useState<UserProfile[]>([])
   const [wallpaper, setWallpaper] = useState<string>('')
   const [wallpaperInput, setWallpaperInput] = useState('')
+  const [recentWallpapers, setRecentWallpapers] = useState<string[]>([])
   const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
   const [inlineTitle, setInlineTitle] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -125,6 +132,15 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
   const [editingColumnTitle, setEditingColumnTitle] = useState('')
   const [colorPickerColumnId, setColorPickerColumnId] = useState<string | null>(null)
+  const [colorPickerPos, setColorPickerPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  const [colMenuView, setColMenuView] = useState<'main' | 'color' | 'sort'>('main')
+  const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
+  const [showLabelsManager, setShowLabelsManager] = useState(false)
+  const [newLabelName, setNewLabelName] = useState('')
+  const [newLabelColor, setNewLabelColor] = useState('#579dff')
+  const [editingLabel, setEditingLabel] = useState<BoardLabel | null>(null)
+  const [editLabelName, setEditLabelName] = useState('')
+  const [editLabelColor, setEditLabelColor] = useState('')
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -167,8 +183,8 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   // --- Load tickets from Supabase ---
   const loadTickets = useCallback(async () => {
     try {
-      const data = await fetchTickets()
-      setTickets(data)
+      const [data, attCounts] = await Promise.all([fetchTickets(), fetchAttachmentCounts()])
+      setTickets(data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 })))
     } catch (err) {
       console.error('Failed to load tickets:', err)
       showToast('Erro ao carregar tickets', 'err')
@@ -185,14 +201,22 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => {
           if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
-          return [...prev, payload.new as Ticket]
+          return [...prev, { ...(payload.new as Ticket), attachment_count: 0 }]
         })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, payload => {
-        setTickets(prev => prev.map(t => t.id === (payload.new as Ticket).id ? (payload.new as Ticket) : t))
+        setTickets(prev => prev.map(t => {
+          if (t.id !== (payload.new as Ticket).id) return t
+          return { ...(payload.new as Ticket), attachment_count: (t as any).attachment_count || 0 }
+        }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => prev.filter(t => t.id !== (payload.old as any).id))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments' }, () => {
+        fetchAttachmentCounts().then(counts => {
+          setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
+        })
       })
       .subscribe((status) => {
         setIsConnected(status === 'SUBSCRIBED')
@@ -202,6 +226,13 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
     return () => { supabase.removeChannel(channel) }
   }, [loadTickets])
+
+  // Open a specific ticket when openTicketId is set (e.g. from Inbox notification)
+  useEffect(() => {
+    if (!openTicketId || tickets.length === 0) return
+    const found = tickets.find(t => t.id === openTicketId)
+    if (found) setSelectedTicket(found)
+  }, [openTicketId, tickets])
 
   // --- Presence tracking ---
   useEffect(() => {
@@ -226,13 +257,20 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   // --- Fetch all members ---
   useEffect(() => {
     fetchUserProfiles().then(setAllMembers)
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
     const ch = supabase
       .channel('user_profiles_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
-        fetchUserProfiles().then(setAllMembers)
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => {
+          fetchUserProfiles().then(setAllMembers)
+        }, 30000)
       })
       .subscribe()
-    return () => { supabase.removeChannel(ch) }
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      supabase.removeChannel(ch)
+    }
   }, [])
 
   // --- Toast helper ---
@@ -242,8 +280,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   }
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
   const getColumnTickets = useCallback((status: string) => {
@@ -279,14 +316,20 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     fetchCols()
   }, [])
 
+  const recentWallpapersKey = `chatpro-recent-wallpapers:${user.toLowerCase()}`
+
   useEffect(() => {
     const saved = localStorage.getItem(wallpaperStorageKey) || ''
     setWallpaper(saved)
-  }, [wallpaperStorageKey])
+    try {
+      const recent = JSON.parse(localStorage.getItem(recentWallpapersKey) || '[]') as string[]
+      setRecentWallpapers(recent)
+    } catch { /* ignore */ }
+  }, [wallpaperStorageKey, recentWallpapersKey])
 
-  const allColumnsById = new Map(columns.map(col => [col.id, col]))
-  const allColumns = columnOrder.map(id => allColumnsById.get(id)).filter((col): col is NonNullable<typeof col> => Boolean(col))
-  const columnIds = allColumns.map(col => col.id)
+  const allColumnsById = useMemo(() => new Map(columns.map(col => [col.id, col])), [columns])
+  const allColumns = useMemo(() => columnOrder.map(id => allColumnsById.get(id)).filter((col): col is NonNullable<typeof col> => Boolean(col)), [columnOrder, allColumnsById])
+  const columnIds = useMemo(() => allColumns.map(col => col.id), [allColumns])
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
     const dragType = args.active.data.current?.type
@@ -333,7 +376,6 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     if (!over) { setOverColumn(null); setOverCardId(null); return }
 
     const overId = String(over.id)
-    const activeId = String(active.id)
 
     // Determine which column the over target belongs to
     let targetColumn: string | undefined
@@ -345,36 +387,6 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
 
     setOverColumn(targetColumn ?? null)
     setOverCardId(allColumnsById.has(overId) ? null : overId)
-
-    if (!targetColumn) return
-
-    const activeTicketData = tickets.find(t => t.id === activeId)
-    if (!activeTicketData) return
-
-    // If moving to a different column, update status optimistically during drag
-    if (activeTicketData.status !== targetColumn) {
-      setTickets(prev => {
-        const idx = prev.findIndex(t => t.id === activeId)
-        if (idx < 0) return prev
-        const next = [...prev]
-        next[idx] = { ...next[idx], status: targetColumn as TicketStatus }
-
-        // If hovering over a card, insert near it
-        const overIdx = next.findIndex(t => t.id === overId)
-        if (overIdx >= 0 && overIdx !== idx) {
-          return arrayMove(next, idx, overIdx)
-        }
-        return next
-      })
-    } else if (overId !== activeId && !allColumnsById.has(overId)) {
-      // Same column reordering
-      setTickets(prev => {
-        const oldIndex = prev.findIndex(t => t.id === activeId)
-        const newIndex = prev.findIndex(t => t.id === overId)
-        if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return prev
-        return arrayMove(prev, oldIndex, newIndex)
-      })
-    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -408,23 +420,46 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     dragOriginalStatusRef.current = null
 
     if (!over) {
-      loadTickets() // rollback
       return
     }
 
-    // The ticket's status was already updated in handleDragOver
-    const ticket = tickets.find(t => t.id === active.id)
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    // Determine the target column
+    let targetColumn: string | undefined
+    if (allColumnsById.has(overId)) {
+      targetColumn = overId
+    } else {
+      targetColumn = tickets.find(t => t.id === overId)?.status
+    }
+    if (!targetColumn) return
+
+    const ticket = tickets.find(t => t.id === activeId)
     if (!ticket) return
 
-    const newStatus = ticket.status
+    // Apply the move in state (only once, on drop)
+    setTickets(prev => {
+      const idx = prev.findIndex(t => t.id === activeId)
+      if (idx < 0) return prev
+      const next = [...prev]
+      next[idx] = { ...next[idx], status: targetColumn as TicketStatus }
+      const overIdx = next.findIndex(t => t.id === overId)
+      if (overIdx >= 0 && overIdx !== idx) {
+        return arrayMove(next, idx, overIdx)
+      }
+      return next
+    })
+
+    const newStatus = targetColumn
     const fromLabel = allColumnsById.get(originalStatus || '')?.title || originalStatus || ''
     const toLabel = allColumnsById.get(newStatus)?.title || newStatus
 
     // Persist to Supabase
-    updateTicket(active.id as string, { status: newStatus as TicketStatus })
+    updateTicket(activeId, { status: newStatus as TicketStatus })
       .then(() => {
         if (originalStatus && originalStatus !== newStatus) {
-          insertActivityLog(active.id as string, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
+          insertActivityLog(activeId, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
         }
       })
       .catch(() => {
@@ -473,22 +508,26 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     setRefreshing(false)
   }
 
-  const staleCount = tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 2 * 60 * 60 * 1000 && t.status !== 'resolved').length
-  const visibleUsers = onlineUsers.length > 0 ? onlineUsers : [user]
+  const staleCount = useMemo(() => tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 12 * 60 * 60 * 1000 && t.status !== 'resolved').length, [tickets])
+  const visibleUsers = useMemo(() => onlineUsers.length > 0 ? onlineUsers : [user], [onlineUsers, user])
 
   const handleCardClick = useCallback((ticket: Ticket) => {
     setSelectedTicket(ticket)
   }, [])
 
-  const handleTicketUpdate = (updated: Ticket) => {
-    setTickets(prev => prev.map(t => t.id === updated.id ? updated : t))
+  const handleTicketUpdate = useCallback((updated: Ticket) => {
+    setTickets(prev => prev.map(t => t.id === updated.id ? { ...updated, attachment_count: (t as any).attachment_count || 0 } : t))
     setSelectedTicket(updated)
-  }
+  }, [])
 
-  const handleTicketDelete = (id: string) => {
+  const handleTicketDelete = useCallback((id: string) => {
     setTickets(prev => prev.filter(t => t.id !== id))
     setSelectedTicket(null)
-  }
+  }, [])
+
+  const handleTicketArchive = useCallback((id: string) => {
+    setTickets(prev => prev.filter(t => t.id !== id))
+  }, [])
 
   const applyWallpaper = (url: string) => {
     setWallpaper(url)
@@ -496,6 +535,14 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       localStorage.setItem(wallpaperStorageKey, url)
     } catch {
       showToast('Sem espaço local para salvar este fundo', 'err')
+    }
+    // Salvar nos recentes se for imagem importada (data: ou http)
+    if (url && (url.startsWith('data:') || url.startsWith('http'))) {
+      setRecentWallpapers(prev => {
+        const updated = [url, ...prev.filter(w => w !== url)].slice(0, 4)
+        try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+        return updated
+      })
     }
   }
 
@@ -605,10 +652,16 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   // ── Scroll lateral segurando o fundo do board ──
   const handleBoardMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
-    // Só ativa se clicar no fundo do scroller/board (não em cards ou listas)
-    if (target !== scrollerRef.current && !target.classList.contains('board-columns') && !target.classList.contains('board-main__scroller')) return
+    // Só ativa se clicar no fundo do scroller/board (não em cards, colunas ou botões)
+    if (target.closest('.trello-col')) return
+    const isBoard = target === scrollerRef.current
+      || target.classList.contains('board-columns')
+      || target.classList.contains('board-main__scroller')
+      || target.classList.contains('board-main')
+      || (target.closest('.board-main__scroller') === scrollerRef.current)
+    if (!isBoard) return
     boardDragRef.current.isDragging = true
-    boardDragRef.current.startX = e.pageX - (scrollerRef.current?.offsetLeft ?? 0)
+    boardDragRef.current.startX = e.clientX
     boardDragRef.current.scrollLeft = scrollerRef.current?.scrollLeft ?? 0
     if (scrollerRef.current) scrollerRef.current.style.cursor = 'grabbing'
   }, [])
@@ -616,8 +669,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   const handleBoardMouseMove = useCallback((e: React.MouseEvent) => {
     if (!boardDragRef.current.isDragging || !scrollerRef.current) return
     e.preventDefault()
-    const x = e.pageX - scrollerRef.current.offsetLeft
-    const walk = (x - boardDragRef.current.startX) * 1.5
+    const walk = (e.clientX - boardDragRef.current.startX) * 1.5
     scrollerRef.current.scrollLeft = boardDragRef.current.scrollLeft - walk
   }, [])
 
@@ -627,7 +679,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
   }, [])
 
   // ── Cores disponíveis para dot das colunas ──
-  const COL_COLORS = ['#579dff', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4', '#22c55e', '#ec4899', '#a855f7', '#f97316', '#64748b']
+  const COL_COLORS = ['#101204', '#579dff', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4', '#22c55e', '#ec4899', '#a855f7', '#f97316', '#64748b']
 
   const handleSaveColumnTitle = useCallback(async (colId: string, newTitle: string) => {
     const trimmed = newTitle.trim()
@@ -649,6 +701,30 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
     } catch {
       showToast('Erro ao mudar cor da lista', 'err')
     }
+  }, [])
+
+  const handleSortColumn = useCallback((colId: string, sortType: 'newest' | 'oldest' | 'alpha' | 'due') => {
+    setTickets(prev => {
+      const colTickets = prev.filter(t => t.status === colId)
+      const rest = prev.filter(t => t.status !== colId)
+      const sorted = [...colTickets].sort((a, b) => {
+        switch (sortType) {
+          case 'newest': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          case 'oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          case 'alpha': return a.title.localeCompare(b.title, 'pt-BR')
+          case 'due': {
+            const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity
+            const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity
+            return aDate - bDate
+          }
+          default: return 0
+        }
+      })
+      sorted.forEach((t, i) => { t.position = i })
+      return [...rest, ...sorted]
+    })
+    setColorPickerColumnId(null)
+    showToast('Lista ordenada', 'ok')
   }, [])
 
   const boardWrapperStyle: React.CSSProperties = {
@@ -683,10 +759,6 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       {/* Nav */}
       <header className="board-header">
         <div className="trello-board-header__left">
-          <div className="trello-board-header__badge" aria-hidden>
-            <LayoutGrid size={16} style={{ color: 'rgba(255,255,255,0.8)' }} />
-          </div>
-
           <button className="trello-board-chip trello-board-chip--title" type="button">
             <span className="trello-board-chip__title">Suporte chatPro</span>
           </button>
@@ -723,7 +795,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
               className="trello-alert-chip"
             >
               <span className="trello-alert-chip__dot" />
-              {staleCount} sem resposta +2h
+              {staleCount} sem resposta +12h
             </motion.div>
           )}
         </div>
@@ -764,7 +836,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
             <Settings size={16} />
           </button>
 
-          <button onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
+          <button onClick={() => { setNewTicket(p => ({ ...p, status: (allColumns[0]?.id || 'backlog') as TicketStatus })); setShowAddModal(true) }} className="trello-create-btn" type="button">
             Criar
           </button>
 
@@ -945,37 +1017,11 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                 const colTickets = getColumnTickets(col.id)
                 return (
                   <div key={col.id}>
-                    <SortableBoardColumn id={col.id}>
+                    <SortableBoardColumn id={col.id} accentColor={col.dot_color}>
                       {({ attributes, listeners }) => (
                         <>
                           {/* Column header (drag handle) */}
                           <div className="trello-col__head cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
-                            {/* Dot - click para trocar cor */}
-                            <div className="relative flex-shrink-0">
-                              <button
-                                type="button"
-                                className="w-2 h-2 rounded-full flex-shrink-0 border-0 p-0 cursor-pointer"
-                                style={{ background: col.dot_color, boxShadow: `0 0 6px ${col.dot_color}44` }}
-                                onClick={e => { e.stopPropagation(); setColorPickerColumnId(prev => prev === col.id ? null : col.id) }}
-                                title="Mudar cor"
-                              />
-                              {colorPickerColumnId === col.id && (
-                                <>
-                                  <div className="fixed inset-0 z-[99]" onClick={() => setColorPickerColumnId(null)} />
-                                  <div className="col-color-picker" onClick={e => e.stopPropagation()}>
-                                    {COL_COLORS.map(c => (
-                                      <button
-                                        key={c}
-                                        type="button"
-                                        className="col-color-picker__swatch"
-                                        style={{ background: c, outline: c === col.dot_color ? '2px solid #fff' : 'none' }}
-                                        onClick={e => { e.stopPropagation(); handleSaveColumnColor(col.id, c) }}
-                                      />
-                                    ))}
-                                  </div>
-                                </>
-                              )}
-                            </div>
                             {/* Title - duplo clique para editar */}
                             {editingColumnId === col.id ? (
                               <input
@@ -998,23 +1044,123 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                                 onDoubleClick={e => { e.stopPropagation(); setEditingColumnId(col.id); setEditingColumnTitle(col.title) }}
                               >{col.title}</span>
                             )}
-                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${col.dot_color}15`, color: col.dot_color }}>{colTickets.length}</span>
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                if (colTickets.length > 0 && !confirm(`A lista "${col.title}" tem ${colTickets.length} cartão(s). Excluir mesmo assim?`)) return
-                                if (colTickets.length === 0 && !confirm(`Excluir a lista "${col.title}"?`)) return
-                                setColumns(prev => prev.filter(cc => cc.id !== col.id))
-                                setColumnOrder(prev => prev.filter(id => id !== col.id))
-                                setTickets(prev => prev.filter(t => t.status !== col.id))
-                                archiveBoardColumn(col.id).catch(() => {})
-                                showToast('Lista excluída', 'ok')
-                              }}
-                              className="p-1 rounded hover:bg-red-500/20 transition-colors ml-1 opacity-0 group-hover:opacity-100"
-                              title="Excluir lista"
-                            >
-                              <Trash2 size={12} className="text-red-400" />
-                            </button>
+                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.12)', color: '#ffffff' }}>{colTickets.length}</span>
+
+                            {/* 3-dots menu */}
+                            <div className="relative flex-shrink-0" onPointerDown={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="col-dots-btn"
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  if (colorPickerColumnId === col.id) {
+                                    setColorPickerColumnId(null)
+                                  } else {
+                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                    setColorPickerPos({ top: rect.bottom + 6, left: rect.right - 200 })
+                                    setColMenuView('main')
+                                    setColorPickerColumnId(col.id)
+                                  }
+                                }}
+                                title="Opções da lista"
+                              >
+                                <span className="col-dots-btn__dot" />
+                                <span className="col-dots-btn__dot" />
+                                <span className="col-dots-btn__dot" />
+                              </button>
+
+                              {colorPickerColumnId === col.id && (
+                                <>
+                                  <div className="fixed inset-0 z-[199]" onClick={() => setColorPickerColumnId(null)} />
+                                  <div
+                                    className="col-menu"
+                                    style={{ top: colorPickerPos.top, left: colorPickerPos.left }}
+                                    onClick={e => e.stopPropagation()}
+                                    onPointerDown={e => e.stopPropagation()}
+                                  >
+                                    {/* ── Main view ── */}
+                                    {colMenuView === 'main' && (
+                                      <>
+                                        <button className="col-menu__item" onClick={() => setColMenuView('color')}>
+                                          <Palette size={14} />
+                                          <span>Cor da lista</span>
+                                        </button>
+                                        <button className="col-menu__item" onClick={() => setColMenuView('sort')}>
+                                          <ArrowUpDown size={14} />
+                                          <span>Ordenar lista</span>
+                                        </button>
+                                        <div className="col-menu__sep" />
+                                        <button className="col-menu__item" onClick={e => { e.stopPropagation(); setEditingColumnId(col.id); setEditingColumnTitle(col.title); setColorPickerColumnId(null) }}>
+                                          <Pencil size={14} />
+                                          <span>Renomear</span>
+                                        </button>
+                                        <button
+                                          className="col-menu__item col-menu__item--danger"
+                                          onClick={() => {
+                                            setColorPickerColumnId(null)
+                                            if (colTickets.length > 0 && !confirm(`A lista "${col.title}" tem ${colTickets.length} cartão(s). Excluir mesmo assim?`)) return
+                                            if (colTickets.length === 0 && !confirm(`Excluir a lista "${col.title}"?`)) return
+                                            setColumns(prev => prev.filter(cc => cc.id !== col.id))
+                                            setColumnOrder(prev => prev.filter(id => id !== col.id))
+                                            setTickets(prev => prev.filter(t => t.status !== col.id))
+                                            archiveBoardColumn(col.id).catch(() => {})
+                                            showToast('Lista excluída', 'ok')
+                                          }}
+                                        >
+                                          <Trash2 size={14} />
+                                          <span>Excluir lista</span>
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {/* ── Color view ── */}
+                                    {colMenuView === 'color' && (
+                                      <>
+                                        <div className="col-menu__header">
+                                          <button className="col-menu__back" onClick={() => setColMenuView('main')}><ChevronLeft size={16} /></button>
+                                          <span>Cor da lista</span>
+                                          <button className="col-menu__close" onClick={() => setColorPickerColumnId(null)}><X size={14} /></button>
+                                        </div>
+                                        <div className="col-menu__colors">
+                                          {COL_COLORS.map(c => (
+                                            <button
+                                              key={c}
+                                              type="button"
+                                              className="col-color-picker__swatch"
+                                              style={{ background: c, outline: c === col.dot_color ? '2px solid #fff' : 'none' }}
+                                              onClick={e => { e.stopPropagation(); handleSaveColumnColor(col.id, c) }}
+                                            />
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
+
+                                    {/* ── Sort view ── */}
+                                    {colMenuView === 'sort' && (
+                                      <>
+                                        <div className="col-menu__header">
+                                          <button className="col-menu__back" onClick={() => setColMenuView('main')}><ChevronLeft size={16} /></button>
+                                          <span>Ordenar lista</span>
+                                          <button className="col-menu__close" onClick={() => setColorPickerColumnId(null)}><X size={14} /></button>
+                                        </div>
+                                        <button className="col-menu__item" onClick={() => handleSortColumn(col.id, 'newest')}>
+                                          Data de criação (mais recente primeiro)
+                                        </button>
+                                        <button className="col-menu__item" onClick={() => handleSortColumn(col.id, 'oldest')}>
+                                          Data de criação (mais antigo primeiro)
+                                        </button>
+                                        <button className="col-menu__item" onClick={() => handleSortColumn(col.id, 'alpha')}>
+                                          Nome do cartão (ordem alfabética)
+                                        </button>
+                                        <button className="col-menu__item" onClick={() => handleSortColumn(col.id, 'due')}>
+                                          Data de entrega
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
 
                           {/* Cards area */}
@@ -1025,9 +1171,9 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                                     <SortableCard
                                       key={ticket.id}
                                       ticket={ticket}
-                                      onClick={() => handleCardClick(ticket)}
+                                      onClick={handleCardClick}
                                       onUpdate={handleTicketUpdate}
-                                      onArchive={(id) => setTickets(prev => prev.filter(t => t.id !== id))}
+                                      onArchive={handleTicketArchive}
                                       isOverCard={overCardId === ticket.id}
                                       activeTicket={activeTicket}
                                     />
@@ -1198,7 +1344,7 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9fadbc' }}>Coluna</label>
                     <select value={newTicket.status} onChange={e => setNewTicket(p => ({ ...p, status: e.target.value as TicketStatus }))} className="instance-modal__input">
-                      {allColumns.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                      {allColumns.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1225,86 +1371,389 @@ export default function KanbanBoard({ user, onLogout }: KanbanBoardProps) {
       <AnimatePresence>
         {showSettings && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={e => e.target === e.currentTarget && setShowSettings(false)}>
-            <motion.div initial={{ x: 320 }} animate={{ x: 0 }} exit={{ x: 320 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="w-80 h-full overflow-y-auto p-6" style={{ background: theme.bgSecondary, borderLeft: '1px solid ' + theme.borderSubtle }}>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-bold text-lg" style={{ color: theme.textPrimary }}>Aparência</h2>
-                <button onClick={() => setShowSettings(false)} className="p-1.5 rounded-lg transition-colors" style={{ color: theme.textMuted }}>
-                  <X size={16} />
-                </button>
-              </div>
+            <motion.div initial={{ x: 340 }} animate={{ x: 0 }} exit={{ x: 340 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              style={{
+                width: 320, height: '100%', overflowY: 'auto',
+                background: '#1d2125', borderLeft: '1px solid rgba(255,255,255,0.06)',
+              }}>
 
-              {/* Board background */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: theme.textMuted }}>Fundo do Quadro</label>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {WALLPAPER_PRESETS.map(wp => (
-                    <button key={wp.label} onClick={() => applyWallpaper(wp.value)}
-                      className="h-[72px] rounded-[10px] text-[12px] font-semibold transition-all flex items-end justify-center pb-2 hover:scale-[1.03]"
-                      style={{
-                        background: wp.value,
-                        border: wallpaper === wp.value ? '2px solid #4CAF50' : '1px solid ' + theme.borderSubtle,
-                        color: '#fff',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.6)',
-                      }}>
-                      {wp.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 mb-3">
-                  <input
-                    type="color"
-                    value={wallpaper.startsWith('#') ? wallpaper : '#0f3b73'}
-                    onChange={(e) => applyWallpaper(e.target.value)}
-                    className="w-9 h-9 rounded cursor-pointer border-0"
-                    style={{ background: 'none' }}
-                    title="Cor sólida do quadro"
-                  />
-                  <span className="text-[11px]" style={{ color: theme.textMuted }}>Escolher cor sólida</span>
-                </div>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    placeholder="URL da imagem do quadro..."
-                    value={wallpaperInput}
-                    onChange={e => setWallpaperInput(e.target.value)}
-                    className="dark-input flex-1 rounded-lg px-3 py-2 text-xs"
-                  />
-                  <button onClick={() => { if (wallpaperInput.trim()) { applyWallpaper(wallpaperInput.trim()); setWallpaperInput('') } }}
-                    className="px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ background: '#25D066' }}>
-                    <Image size={14} />
+              {/* Header */}
+              <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 10,
+                      background: 'rgba(37,208,102,0.12)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Palette size={16} style={{ color: '#25D066' }} />
+                    </div>
+                    <h2 style={{ fontSize: 15, fontWeight: 900, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>
+                      Aparência
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    style={{
+                      width: 28, height: 28, borderRadius: 8, border: 'none',
+                      background: 'transparent', color: '#596773', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+                  >
+                    <X size={15} />
                   </button>
                 </div>
-                <input
-                  ref={wallpaperFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleWallpaperFileSelect}
-                />
+              </div>
+
+              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+                {/* Temas prontos */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Temas
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {WALLPAPER_PRESETS.map(wp => {
+                      const isActive = wallpaper === wp.value
+                      return (
+                        <button key={wp.label} onClick={() => applyWallpaper(wp.value)}
+                          style={{
+                            height: 64, borderRadius: 10, fontSize: 12, fontWeight: 600,
+                            fontFamily: "'Space Grotesk', sans-serif",
+                            display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8,
+                            background: wp.value,
+                            border: isActive ? '2px solid #25D066' : '1px solid rgba(255,255,255,0.08)',
+                            color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+                            cursor: 'pointer', transition: 'transform 0.15s, border-color 0.15s',
+                            boxShadow: isActive ? '0 0 0 1px rgba(37,208,102,0.3)' : 'none',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)' }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                        >
+                          {wp.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Cor sólida + URL */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Personalizar
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <input
+                      type="color"
+                      value={wallpaper.startsWith('#') ? wallpaper : '#0f3b73'}
+                      onChange={(e) => applyWallpaper(e.target.value)}
+                      style={{
+                        width: 36, height: 36, borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'none', padding: 0,
+                      }}
+                      title="Cor sólida"
+                    />
+                    <span style={{ fontSize: 12, color: '#8C96A3', fontFamily: "'Space Grotesk', sans-serif" }}>Cor sólida</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    <input
+                      placeholder="URL da imagem..."
+                      value={wallpaperInput}
+                      onChange={e => setWallpaperInput(e.target.value)}
+                      style={{
+                        flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 12,
+                        fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB',
+                        background: '#22272B', border: '1px solid rgba(255,255,255,0.08)',
+                        outline: 'none', transition: 'border-color 0.15s',
+                      }}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)' }}
+                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
+                    />
+                    <button
+                      onClick={() => { if (wallpaperInput.trim()) { applyWallpaper(wallpaperInput.trim()); setWallpaperInput('') } }}
+                      style={{
+                        padding: '8px 12px', borderRadius: 8, border: 'none',
+                        background: '#25D066', color: '#fff', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <Image size={14} />
+                    </button>
+                  </div>
+                  <input ref={wallpaperFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleWallpaperFileSelect} />
+                  <button
+                    onClick={() => wallpaperFileInputRef.current?.click()}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+                    style={{
+                      width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
+                      color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    <Upload size={13} />
+                    Importar imagem
+                  </button>
+
+                  {/* Excluir wallpaper ativo */}
+                  {wallpaper && (wallpaper.startsWith('data:') || wallpaper.startsWith('http')) && (
+                    <button
+                      onClick={() => {
+                        const wpToRemove = wallpaper
+                        setWallpaper('')
+                        try { localStorage.setItem(wallpaperStorageKey, '') } catch { /* ignore */ }
+                        setRecentWallpapers(prev => {
+                          const updated = prev.filter(w => w !== wpToRemove)
+                          try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+                          return updated
+                        })
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,85,85,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,85,85,0.3)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,85,85,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,85,85,0.15)' }}
+                      style={{
+                        width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                        fontFamily: "'Space Grotesk', sans-serif", marginTop: 8,
+                        background: 'rgba(255,85,85,0.06)', border: '1px solid rgba(255,85,85,0.15)',
+                        color: '#ff5555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        transition: 'background 0.15s, border-color 0.15s',
+                      }}
+                    >
+                      <Trash2 size={13} />
+                      Excluir wallpaper
+                    </button>
+                  )}
+                </div>
+
+                {/* Recentes */}
+                {recentWallpapers.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 10px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: 0, fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Clock size={11} />
+                        Recentes
+                      </p>
+                      <button
+                        onClick={() => {
+                          setRecentWallpapers([])
+                          try { localStorage.removeItem(recentWallpapersKey) } catch { /* ignore */ }
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#ff5555' }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#8C96A3' }}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer', color: '#8C96A3',
+                          fontSize: 10, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600,
+                          display: 'flex', alignItems: 'center', gap: 4, padding: 0,
+                          transition: 'color 0.15s',
+                        }}
+                      >
+                        <Trash2 size={10} />
+                        Limpar
+                      </button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                      {recentWallpapers.map((wp, i) => {
+                        const isActive = wallpaper === wp
+                        return (
+                          <div key={i} style={{ position: 'relative' }}>
+                            <button onClick={() => applyWallpaper(wp)}
+                              style={{
+                                width: '100%', aspectRatio: '1', borderRadius: 8, cursor: 'pointer',
+                                backgroundImage: `url(${wp})`,
+                                backgroundSize: 'cover', backgroundPosition: 'center',
+                                border: isActive ? '2px solid #25D066' : '1px solid rgba(255,255,255,0.08)',
+                                boxShadow: isActive ? '0 0 0 1px rgba(37,208,102,0.3)' : 'none',
+                                transition: 'transform 0.15s, border-color 0.15s',
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)' }}
+                              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const updated = recentWallpapers.filter((_, idx) => idx !== i)
+                                setRecentWallpapers(updated)
+                                try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,50,50,0.9)' }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.65)' }}
+                              style={{
+                                position: 'absolute', top: -4, right: -4,
+                                width: 18, height: 18, borderRadius: '50%',
+                                background: 'rgba(0,0,0,0.65)', border: '1.5px solid rgba(255,255,255,0.2)',
+                                color: '#fff', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                padding: 0, transition: 'background 0.15s',
+                              }}
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Restaurar */}
                 <button
-                  onClick={() => wallpaperFileInputRef.current?.click()}
-                  className="w-full py-2.5 rounded-lg text-xs font-semibold transition-colors mb-2"
-                  style={{ background: 'rgba(87,157,255,0.10)', border: '1px solid rgba(87,157,255,0.2)', color: '#579dff' }}
+                  onClick={() => applyWallpaper('')}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                  style={{
+                    width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#8C96A3', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'background 0.15s',
+                  }}
                 >
-                  Importar imagem do computador (quadro)
-                </button>
-                <button onClick={() => applyWallpaper('')} className="w-full py-2.5 rounded-lg text-xs font-semibold transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}>
+                  <RotateCcw size={12} />
                   Restaurar padrão
                 </button>
+
+                {/* Separador */}
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
+
+                {/* Etiquetas */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <Tag size={13} style={{ color: '#25D066' }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Etiquetas
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { setShowLabelsManager(true); fetchBoardLabels().then(setBoardLabels).catch(console.error) }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+                    style={{
+                      width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
+                      color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    <Pencil size={12} />
+                    Gerenciar Etiquetas
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Card Detail Modal */}
+      {/* Labels Manager Modal */}
+      {showLabelsManager && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }} onClick={e => e.target === e.currentTarget && setShowLabelsManager(false)}>
+          <div className="w-full max-w-sm mx-4 rounded-xl shadow-2xl overflow-hidden" style={{ background: '#282e33', border: '1px solid rgba(166,197,226,0.16)' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5" style={{ background: '#1d2125', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-center gap-2">
+                <Tag size={15} style={{ color: '#579dff' }} />
+                <h3 className="font-bold text-sm" style={{ color: '#b6c2cf' }}>Gerenciar Etiquetas</h3>
+              </div>
+              <button onClick={() => { setShowLabelsManager(false); setEditingLabel(null) }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: '#596773' }} /></button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 space-y-2 max-h-[55vh] overflow-y-auto">
+              {boardLabels.map(label => (
+                editingLabel?.id === label.id ? (
+                  <div key={label.id} className="rounded-lg p-3.5 space-y-3" style={{ background: '#1d2125', border: '1px solid rgba(87,157,255,0.2)' }}>
+                    <input
+                      value={editLabelName}
+                      onChange={e => setEditLabelName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-xs font-medium outline-none"
+                      style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.15)', color: '#b6c2cf' }}
+                      placeholder="Nome da etiqueta..."
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {LABEL_COLORS.map(c => (
+                        <button key={c} type="button" onClick={() => setEditLabelColor(c)}
+                          className="rounded-full transition-transform hover:scale-110"
+                          style={{ width: 24, height: 24, background: c, border: editLabelColor === c ? '2.5px solid #fff' : '2.5px solid transparent', boxShadow: editLabelColor === c ? '0 0 0 2px ' + c : 'none' }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={async () => { if (!editLabelName.trim()) return; await updateBoardLabel(label.id, { name: editLabelName.trim(), color: editLabelColor }); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) }}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold"
+                        style={{ background: '#579dff', color: '#1d2125' }}>Salvar</button>
+                      <button onClick={async () => { if (confirm('Excluir esta etiqueta?')) { await deleteBoardLabel(label.id); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) } }}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold"
+                        style={{ background: 'rgba(239,68,68,0.15)', color: '#ef5c48' }}>Excluir</button>
+                      <button onClick={() => setEditingLabel(null)}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-white/5"
+                        style={{ color: '#596773' }}>Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={label.id} className="flex items-center gap-2 group">
+                    <div className="flex-1 px-3.5 py-2.5 rounded-lg text-xs font-bold text-white" style={{ background: label.color }}>{label.name}</div>
+                    <button onClick={() => { setEditingLabel(label); setEditLabelName(label.name); setEditLabelColor(label.color) }}
+                      className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-white/10"
+                      title="Editar"><Pencil size={14} style={{ color: '#9fadbc' }} /></button>
+                  </div>
+                )
+              ))}
+
+              {boardLabels.length === 0 && !editingLabel && (
+                <div className="text-center py-6">
+                  <Tag size={28} style={{ color: '#596773', margin: '0 auto 8px' }} />
+                  <p className="text-xs" style={{ color: '#596773' }}>Nenhuma etiqueta criada ainda</p>
+                </div>
+              )}
+            </div>
+
+            {/* Create new label footer */}
+            <div className="p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: '#1d2125' }}>
+              <div className="text-[11px] font-semibold mb-2.5" style={{ color: '#596773' }}>Criar nova etiqueta</div>
+              <input
+                value={newLabelName}
+                onChange={e => setNewLabelName(e.target.value)}
+                placeholder="Nome da etiqueta..."
+                className="w-full px-3 py-2 rounded-lg text-xs font-medium outline-none mb-3"
+                style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.15)', color: '#b6c2cf' }}
+                onKeyDown={async e => { if (e.key === 'Enter' && newLabelName.trim()) { await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') } }}
+              />
+              <div className="flex flex-wrap gap-2 mb-3">
+                {LABEL_COLORS.map(c => (
+                  <button key={c} type="button" onClick={() => setNewLabelColor(c)}
+                    className="rounded-full transition-transform hover:scale-110"
+                    style={{ width: 24, height: 24, background: c, border: newLabelColor === c ? '2.5px solid #fff' : '2.5px solid transparent', boxShadow: newLabelColor === c ? '0 0 0 2px ' + c : 'none' }}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={async () => { if (!newLabelName.trim()) return; await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') }}
+                className="w-full py-2 rounded-lg text-xs font-bold transition-colors"
+                style={{ background: newLabelName.trim() ? '#579dff' : 'rgba(87,157,255,0.15)', color: newLabelName.trim() ? '#1d2125' : '#579dff' }}
+              >Criar etiqueta</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+            {/* Card Detail Modal */}
       <AnimatePresence>
         {selectedTicket && (
           <CardDetailModal
             ticket={selectedTicket}
             user={user}
-            onClose={() => setSelectedTicket(null)}
+            onClose={() => {
+              setSelectedTicket(null)
+              // Recarregar contagem de anexos ao fechar o modal
+              fetchAttachmentCounts().then(counts => {
+                setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
+              })
+            }}
             onUpdate={handleTicketUpdate}
             onDelete={handleTicketDelete}
           />

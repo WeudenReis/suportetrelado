@@ -37,6 +37,7 @@ export interface Ticket {
   observacao?: string | null
   due_date?: string | null
   cover_image_url?: string | null
+  cover_thumb_url?: string | null
 }
 
 export interface Comment {
@@ -77,6 +78,50 @@ export type TicketInsert = {
   link_retaguarda?: string | null
   link_sessao?: string | null
   observacao?: string | null
+}
+
+// ── Board Labels (etiquetas reutilizáveis) ──
+export interface BoardLabel {
+  id: string
+  name: string
+  color: string
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchBoardLabels(): Promise<BoardLabel[]> {
+  const { data, error } = await supabase
+    .from('board_labels')
+    .select('*')
+    .order('name', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as BoardLabel[]
+}
+
+export async function insertBoardLabel(name: string, color: string): Promise<BoardLabel> {
+  const { data, error } = await supabase
+    .from('board_labels')
+    .insert({ name, color })
+    .select()
+    .single()
+  if (error) throw error
+  return data as BoardLabel
+}
+
+export async function updateBoardLabel(id: string, updates: { name?: string; color?: string }): Promise<void> {
+  const { error } = await supabase
+    .from('board_labels')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteBoardLabel(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('board_labels')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
 }
 
 export async function fetchTickets(): Promise<Ticket[]> {
@@ -156,6 +201,18 @@ export async function deleteComment(id: string): Promise<void> {
 }
 
 // --- Attachments ---
+export async function fetchAttachmentCounts(): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('attachments')
+    .select('ticket_id')
+  if (error) { console.warn('attachments count error:', error.message); return {} }
+  const counts: Record<string, number> = {}
+  for (const row of data ?? []) {
+    counts[row.ticket_id] = (counts[row.ticket_id] || 0) + 1
+  }
+  return counts
+}
+
 export async function fetchAttachments(ticketId: string): Promise<Attachment[]> {
   const { data, error } = await supabase
     .from('attachments')
@@ -235,10 +292,24 @@ export interface UserProfile {
   created_at: string
 }
 
+export async function checkAuthorizedUser(email: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+  if (error) { console.warn('checkAuthorizedUser:', error.message); return false }
+  return !!data
+}
+
 const AVATAR_COLORS = ['#579dff', '#4bce97', '#f5a623', '#ef5c48', '#a259ff', '#20c997', '#6366f1', '#ec4899']
 
 export async function upsertUserProfile(email: string): Promise<void> {
-  const name = email.includes('@') ? email.split('@')[0] : email
+  // Tenta pegar o nome real do Google
+  const { data: { session } } = await supabase.auth.getSession()
+  const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
+  const firstName = fullName ? fullName.split(' ')[0] : (email.includes('@') ? email.split('@')[0] : email)
+  const name = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
   const { error } = await supabase
     .from('user_profiles')
@@ -264,4 +335,152 @@ export async function fetchUserProfiles(): Promise<UserProfile[]> {
     .order('last_seen_at', { ascending: false })
   if (error) { console.warn('user_profiles table may not exist:', error.message); return [] }
   return (data ?? []) as UserProfile[]
+}
+
+// --- Notifications ---
+export interface Notification {
+  id: string
+  recipient_email: string
+  sender_name: string
+  type: 'mention' | 'assignment' | 'move' | 'comment' | 'announcement'
+  ticket_id: string | null
+  ticket_title: string
+  message: string
+  is_read: boolean
+  created_at: string
+}
+
+export async function fetchNotifications(email: string): Promise<Notification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('recipient_email', email)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) { console.warn('notifications table may not exist:', error.message); return [] }
+  return (data ?? []) as Notification[]
+}
+
+export async function insertNotification(notif: Omit<Notification, 'id' | 'is_read' | 'created_at'>): Promise<void> {
+  const { error } = await supabase.from('notifications').insert(notif)
+  if (error) console.warn('insertNotification:', error.message)
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+}
+
+export async function markAllNotificationsRead(email: string): Promise<void> {
+  await supabase.from('notifications').update({ is_read: true }).eq('recipient_email', email).eq('is_read', false)
+}
+
+export function extractMentionNames(text: string): string[] {
+  const regex = /@([\w\u00C0-\u024F]+)/g
+  const names: string[] = []
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
+    names.push(match[1].toLowerCase())
+  }
+  return [...new Set(names)]
+}
+
+export async function resolveMentionsToEmails(names: string[]): Promise<string[]> {
+  if (names.length === 0) return []
+  const profiles = await fetchUserProfiles()
+  const emails: string[] = []
+  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  for (const name of names) {
+    const n = normalize(name)
+    const match = profiles.find(p =>
+      normalize(p.name) === n ||
+      normalize(p.email.split('@')[0]) === n
+    )
+    if (match) emails.push(match.email)
+  }
+  return emails
+}
+
+// ── Announcements (Avisos do Supervisor) ──
+export type AnnouncementSeverity = 'info' | 'warning' | 'critical'
+
+export interface Announcement {
+  id: string
+  title: string
+  content: string
+  severity: AnnouncementSeverity
+  author: string
+  is_pinned: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchAnnouncements(): Promise<Announcement[]> {
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*')
+    .eq('is_active', true)
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) { console.warn('announcements error:', error.message); return [] }
+  return (data ?? []) as Announcement[]
+}
+
+export async function insertAnnouncement(ann: { title: string; content: string; severity: AnnouncementSeverity; author: string; is_pinned?: boolean }): Promise<Announcement | null> {
+  const { data, error } = await supabase
+    .from('announcements')
+    .insert(ann)
+    .select()
+    .single()
+  if (error) { console.error('insert announcement error:', error.message); return null }
+  return data as Announcement
+}
+
+export async function updateAnnouncement(id: string, updates: Partial<Announcement>): Promise<void> {
+  await supabase.from('announcements').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+}
+
+export async function deleteAnnouncement(id: string): Promise<void> {
+  await supabase.from('announcements').delete().eq('id', id)
+}
+
+// ── Useful Links (Links Úteis) ──
+export interface UsefulLink {
+  id: string
+  title: string
+  url: string
+  description: string
+  category: string
+  icon: string
+  added_by: string
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchUsefulLinks(): Promise<UsefulLink[]> {
+  const { data, error } = await supabase
+    .from('useful_links')
+    .select('*')
+    .order('category', { ascending: true })
+    .order('title', { ascending: true })
+  if (error) { console.warn('useful_links error:', error.message); return [] }
+  return (data ?? []) as UsefulLink[]
+}
+
+export async function insertUsefulLink(link: { title: string; url: string; description?: string; category: string; added_by: string }): Promise<UsefulLink | null> {
+  const { data, error } = await supabase
+    .from('useful_links')
+    .insert(link)
+    .select()
+    .single()
+  if (error) { console.error('insert link error:', error.message); return null }
+  return data as UsefulLink
+}
+
+export async function updateUsefulLink(id: string, updates: Partial<UsefulLink>): Promise<void> {
+  await supabase.from('useful_links').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+}
+
+export async function deleteUsefulLink(id: string): Promise<void> {
+  await supabase.from('useful_links').delete().eq('id', id)
 }

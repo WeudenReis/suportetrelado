@@ -31,10 +31,11 @@
 }
 
 .title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #b6c2cf;
+  font-size: 15px;
+  font-weight: 900;
+  color: #E5E7EB;
   margin: 0;
+  font-family: 'Paytone One', sans-serif;
 }
 
 .closeBtn {
@@ -66,15 +67,16 @@
   border-bottom: 2px solid transparent;
   color: #8c9bab;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: color 0.12s, border-color 0.12s;
   margin-bottom: -1px;
+  font-family: 'Space Grotesk', sans-serif;
 }
 
 .tabActive {
-  color: #579dff;
-  border-bottom-color: #579dff;
+  color: #25D066;
+  border-bottom-color: #25D066;
 }
 
 .content {
@@ -91,6 +93,7 @@
   font-size: 13px;
   padding: 32px 0;
   margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
 }
 
 .item {
@@ -99,25 +102,26 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(166,197,226,0.08);
-  background: #22272b;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.02);
   margin-bottom: 6px;
   transition: background 0.12s;
 }
 
-.item:hover { background: #282e33; }
+.item:hover { background: rgba(255,255,255,0.04); }
 
 .itemInfo { flex: 1; min-width: 0; }
 
 .itemTitle {
   font-size: 13px;
-  font-weight: 500;
-  color: #b6c2cf;
+  font-weight: 600;
+  color: #E5E7EB;
   margin: 0 0 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: 'Space Grotesk', sans-serif;
 }
 
 .itemDate {
@@ -148,18 +152,19 @@
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
-  background: rgba(87,157,255,0.15);
-  border: 1px solid rgba(87,157,255,0.3);
-  border-radius: 4px;
-  color: #579dff;
+  background: rgba(37,208,102,0.12);
+  border: 1px solid rgba(37,208,102,0.3);
+  border-radius: 6px;
+  color: #25D066;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.12s;
+  font-family: 'Space Grotesk', sans-serif;
 }
 
-.restoreBtn:hover { background: rgba(87,157,255,0.25); }
+.restoreBtn:hover { background: rgba(37,208,102,0.22); }
 
 .deleteBtn {
   width: 28px;
@@ -169,7 +174,7 @@
   justify-content: center;
   background: none;
   border: 1px solid rgba(239,92,72,0.2);
-  border-radius: 4px;
+  border-radius: 6px;
   color: #596773;
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
