@@ -14,7 +14,7 @@ import AnnouncementsView from './components/AnnouncementsView'
 import LinksView from './components/LinksView'
 import DashboardView from './components/DashboardView'
 import BottomNav from './components/BottomNav'
-import { fetchTickets, upsertUserProfile, updateLastSeen } from './lib/supabase'
+import { fetchTickets, upsertUserProfile, updateLastSeen, checkAuthorizedUser } from './lib/supabase'
 import type { Ticket } from './lib/supabase'
 
 export default function App() {
@@ -23,15 +23,31 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'>('board')
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
   const [openTicketId, setOpenTicketId] = useState<string | null>(null)
+  const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null)
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null)
+    async function checkSession(email: string | null) {
+      if (!email) { setUser(null); setLoading(false); return }
+      const authorized = await checkAuthorizedUser(email)
+      if (!authorized) {
+        setUnauthorizedEmail(email)
+        await supabase.auth.signOut()
+        setUser(null)
+      } else {
+        setUnauthorizedEmail(null)
+        setUser(email)
+      }
       setLoading(false)
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
+      checkSession(email)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null)
-      setLoading(false)
+      const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
+      checkSession(email)
     })
 
     return () => subscription.unsubscribe()
@@ -54,6 +70,7 @@ export default function App() {
 
   const handleLogin = (email: string) => {
     setUser(email)
+    setUnauthorizedEmail(null)
   }
 
   const handleLogout = async () => {
@@ -72,7 +89,7 @@ export default function App() {
   return (
     <ThemeProvider>
       {!user ? (
-        <Login onLogin={handleLogin} />
+        <Login onLogin={handleLogin} unauthorizedEmail={unauthorizedEmail} />
       ) : (
         <NotificationProvider user={user!}>
           <AppContent

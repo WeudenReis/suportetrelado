@@ -292,6 +292,16 @@ export interface UserProfile {
   created_at: string
 }
 
+export async function checkAuthorizedUser(email: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+  if (error) { console.warn('checkAuthorizedUser:', error.message); return false }
+  return !!data
+}
+
 const AVATAR_COLORS = ['#579dff', '#4bce97', '#f5a623', '#ef5c48', '#a259ff', '#20c997', '#6366f1', '#ec4899']
 
 export async function upsertUserProfile(email: string): Promise<void> {

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, AlertTriangle, CheckCircle2, X } from 'lucide-react'
+import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface LoginProps {
-  onLogin: (email: string, password: string) => void
+  onLogin: (email: string) => void
+  unauthorizedEmail: string | null
 }
 
 type ToastType = 'error' | 'success' | 'warning'
@@ -42,10 +43,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   )
 }
 
-export default function Login({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loadingEmail, setLoadingEmail] = useState(false)
+export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
   const [loadingGoogle, setLoadingGoogle] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -66,24 +64,6 @@ export default function Login({ onLogin }: LoginProps) {
   }
   function dismissToast(id: string) { setToasts(prev => prev.filter(t => t.id !== id)) }
 
-  async function handleEmailLogin(e: React.FormEvent) {
-    e.preventDefault()
-    if (!email || !password) return
-    setLoadingEmail(true)
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        pushToast('error', 'Login inválido', error.message)
-        setLoadingEmail(false)
-        return
-      }
-      onLogin(email, password)
-    } catch {
-      pushToast('error', 'Erro de rede', 'Verifique sua conexão e tente novamente.')
-      setLoadingEmail(false)
-    }
-  }
-
   async function handleGoogleLogin() {
     setLoadingGoogle(true)
     try {
@@ -100,8 +80,6 @@ export default function Login({ onLogin }: LoginProps) {
       setLoadingGoogle(false)
     }
   }
-
-  const isLoading = loadingEmail || loadingGoogle
 
   return (
     <div style={{
@@ -121,7 +99,7 @@ export default function Login({ onLogin }: LoginProps) {
         </AnimatePresence>
       </div>
 
-      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 380 }}>
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 360 }}>
         {/* Logo + Marca */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
@@ -167,97 +145,56 @@ export default function Login({ onLogin }: LoginProps) {
             boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
           }}
         >
+          {/* Aviso de acesso negado */}
+          {unauthorizedEmail && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 10,
+              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+              marginBottom: 20,
+            }}>
+              <ShieldX size={18} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#fca5a5', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                  Acesso não autorizado
+                </p>
+                <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0', fontFamily: "'Space Grotesk', sans-serif", lineHeight: 1.4 }}>
+                  A conta <strong style={{ color: '#E5E7EB' }}>{unauthorizedEmail}</strong> não tem permissão. Peça acesso ao administrador.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Botão Google */}
           <button
             onClick={handleGoogleLogin}
-            disabled={isLoading}
-            onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+            disabled={loadingGoogle}
+            onMouseEnter={e => { if (!loadingGoogle) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              padding: '12px 0', borderRadius: 12, fontWeight: 600, fontSize: 13,
-              fontFamily: "'Space Grotesk', sans-serif", cursor: isLoading ? 'not-allowed' : 'pointer',
+              padding: '13px 0', borderRadius: 12, fontWeight: 600, fontSize: 14,
+              fontFamily: "'Space Grotesk', sans-serif", cursor: loadingGoogle ? 'not-allowed' : 'pointer',
               background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-              color: '#E5E7EB', opacity: isLoading ? 0.4 : 1, transition: 'background 0.15s',
+              color: '#E5E7EB', opacity: loadingGoogle ? 0.4 : 1, transition: 'background 0.15s',
             }}
           >
             {loadingGoogle ? (
               <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
             ) : (
-              <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
             )}
             {loadingGoogle ? 'Conectando...' : 'Entrar com Google'}
           </button>
 
-          {/* Divisor */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-            <span style={{ fontSize: 11, fontWeight: 500, color: '#596773', textTransform: 'uppercase', letterSpacing: 1.5, fontFamily: "'Space Grotesk', sans-serif" }}>ou</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-          </div>
-
-          {/* Formulário */}
-          <form onSubmit={handleEmailLogin} noValidate>
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#8C96A3', marginBottom: 6, fontFamily: "'Space Grotesk', sans-serif" }}>
-                Email
-              </label>
-              <input
-                type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="voce@empresa.com" autoComplete="email" disabled={isLoading}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.08)' }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13,
-                  fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB',
-                  background: '#1d2125', border: '1px solid rgba(255,255,255,0.08)',
-                  outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
-                  opacity: isLoading ? 0.5 : 1,
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#8C96A3', marginBottom: 6, fontFamily: "'Space Grotesk', sans-serif" }}>
-                Senha
-              </label>
-              <input
-                type="password" value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••" autoComplete="current-password" disabled={isLoading}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.08)' }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13,
-                  fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB',
-                  background: '#1d2125', border: '1px solid rgba(255,255,255,0.08)',
-                  outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
-                  opacity: isLoading ? 0.5 : 1,
-                }}
-              />
-            </div>
-            <motion.button
-              type="submit" disabled={isLoading || !email || !password}
-              whileHover={!isLoading ? { scale: 1.01 } : {}}
-              whileTap={!isLoading ? { scale: 0.99 } : {}}
-              style={{
-                width: '100%', padding: '12px 0', borderRadius: 12, border: 'none',
-                fontWeight: 700, fontSize: 14, color: '#fff', cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontFamily: "'Space Grotesk', sans-serif",
-                background: '#25D066', boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
-                opacity: (isLoading || !email || !password) ? 0.4 : 1,
-                transition: 'opacity 0.2s',
-              }}
-            >
-              {loadingEmail ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
-                  Entrando...
-                </span>
-              ) : 'Entrar'}
-            </motion.button>
-          </form>
+          <p style={{
+            textAlign: 'center', marginTop: 16, marginBottom: 0, fontSize: 11, color: '#596773',
+            fontFamily: "'Space Grotesk', sans-serif", lineHeight: 1.5,
+          }}>
+            Somente contas autorizadas pelo administrador podem acessar a plataforma.
+          </p>
         </motion.div>
 
-        {/* Rodapé mínimo */}
+        {/* Rodapé */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
