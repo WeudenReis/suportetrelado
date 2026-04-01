@@ -21,6 +21,7 @@ export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'>('board')
+
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
   const [openTicketId, setOpenTicketId] = useState<string | null>(null)
   const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null)

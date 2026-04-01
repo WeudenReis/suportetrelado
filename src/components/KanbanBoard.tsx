@@ -146,39 +146,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
   const dragOriginalStatusRef = useRef<string | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
-  const topScrollRef = useRef<HTMLDivElement | null>(null)
   const boardDragRef = useRef({ isDragging: false, startX: 0, scrollLeft: 0 })
 
   const wallpaperStorageKey = `chatpro-wallpaper:${user.toLowerCase()}`
-
-  // --- Sync top scrollbar with board scroller ---
-  useEffect(() => {
-    const scroller = scrollerRef.current
-    const top = topScrollRef.current
-    if (!scroller || !top) return
-
-    const inner = top.firstChild as HTMLDivElement | null
-
-    const updateWidth = () => {
-      if (inner) inner.style.width = `${scroller.scrollWidth}px`
-    }
-
-    const syncTop = () => { top.scrollLeft = scroller.scrollLeft }
-    const syncBoard = () => { scroller.scrollLeft = top.scrollLeft }
-
-    scroller.addEventListener('scroll', syncTop, { passive: true })
-    top.addEventListener('scroll', syncBoard, { passive: true })
-
-    const ro = new ResizeObserver(updateWidth)
-    ro.observe(scroller)
-    updateWidth()
-
-    return () => {
-      scroller.removeEventListener('scroll', syncTop)
-      top.removeEventListener('scroll', syncBoard)
-      ro.disconnect()
-    }
-  }, [])
 
   // --- Load tickets from Supabase ---
   const loadTickets = useCallback(async () => {
@@ -992,10 +962,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
 
       {/* Board */}
       <main className="board-main" style={boardSurfaceStyle}>
-        {/* Scrollbar customizada no topo */}
-        <div ref={topScrollRef} className="board-top-scrollbar">
-          <div className="board-top-scrollbar__inner" />
-        </div>
         <div
           ref={scrollerRef}
           className="board-main__scroller"
