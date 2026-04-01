@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, AlertTriangle, CheckCircle2, Shield, Zap, Activity, X } from 'lucide-react'
+import { Loader2, AlertTriangle, CheckCircle2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface LoginProps {
@@ -25,19 +25,22 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   }, [toast.id, onDismiss])
   return (
     <motion.div layout initial={{ opacity: 0, y: -16, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.95 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="flex items-start gap-3 px-4 py-3.5 rounded-xl pointer-events-auto"
-      style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: '320px', maxWidth: '420px' }}>
-      <Icon size={17} style={{ color: cfg.iconColor, marginTop: '1px', flexShrink: 0 }} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold leading-tight" style={{ color: cfg.titleColor }}>{toast.title}</p>
-        <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{toast.message}</p>
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 12, pointerEvents: 'auto',
+        background: cfg.bg, border: `1px solid ${cfg.border}`, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: 300, maxWidth: 400,
+      }}>
+      <Icon size={17} style={{ color: cfg.iconColor, marginTop: 1, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: cfg.titleColor, margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>{toast.title}</p>
+        <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0', fontFamily: "'Space Grotesk', sans-serif" }}>{toast.message}</p>
       </div>
-      <button onClick={() => onDismiss(toast.id)} className="p-0.5 rounded text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0"><X size={13} /></button>
+      <button onClick={() => onDismiss(toast.id)} style={{ padding: 2, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', flexShrink: 0 }}>
+        <X size={13} />
+      </button>
     </motion.div>
   )
 }
-
-const statusItems = [{ label: 'API', ok: true }, { label: 'Supabase', ok: true }, { label: 'Realtime', ok: true }]
 
 export default function Login({ onLogin }: LoginProps) {
   const [email, setEmail] = useState('')
@@ -100,114 +103,172 @@ export default function Login({ onLogin }: LoginProps) {
 
   const isLoading = loadingEmail || loadingGoogle
 
-  const inputStyle = {
-    background: 'var(--bg-input)',
-    border: '1px solid var(--border-subtle)',
-    outline: 'none',
-    transition: 'border-color 0.2s, box-shadow 0.2s',
-  }
-  const onFocusInput = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)'
-    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.08)'
-  }
-  const onBlurInput = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
-    e.currentTarget.style.boxShadow = 'none'
-  }
-
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
-      {/* Subtle bg */}
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `radial-gradient(ellipse 80% 60% at 15% 15%, rgba(37,208,102,0.07) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 85% 20%, rgba(27,173,83,0.05) 0%, transparent 55%), radial-gradient(ellipse 70% 60% at 50% 90%, rgba(36,255,114,0.03) 0%, transparent 60%)` }} />
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: 24, background: '#1d2125', position: 'relative', overflow: 'hidden',
+    }}>
+      {/* Fundo sutil */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'radial-gradient(ellipse 70% 50% at 50% 20%, rgba(37,208,102,0.06) 0%, transparent 70%)',
+      }} />
 
-      {/* Toast stack */}
-      <div className="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+      {/* Toasts */}
+      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
         <AnimatePresence mode="popLayout">
           {toasts.map(t => <ToastItem key={t.id} toast={t} onDismiss={dismissToast} />)}
         </AnimatePresence>
       </div>
 
-      <div className="relative z-10 w-full max-w-[420px]">
-        {/* Brand */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col items-center mb-8">
-          <div className="mb-4 relative">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: '#25D066', boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(37,208,102,0.25)' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 12h6M9 16h4" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round"/></svg>
-            </div>
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 bg-green-400" style={{ borderColor: 'var(--bg-primary)' }} />
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 380 }}>
+        {/* Logo + Marca */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 32 }}
+        >
+          <div style={{
+            width: 56, height: 56, borderRadius: 16, background: '#25D066',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+            boxShadow: '0 8px 24px rgba(37,208,102,0.3)',
+          }}>
+            <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+              <rect x="4" y="4" width="92" height="68" rx="12" ry="12" fill="white" />
+              <polygon points="50,92 40,68 60,68" fill="white" />
+              <circle cx="30" cy="40" r="6" fill="#25D066" />
+              <circle cx="50" cy="40" r="6" fill="#25D066" />
+              <circle cx="70" cy="40" r="6" fill="#25D066" />
+            </svg>
           </div>
-          <h1 className="text-[28px] text-white leading-none mb-2" style={{ fontFamily: "'Paytone One', sans-serif" }}>
-            Suporte chatPro
+          <h1 style={{
+            fontFamily: "'Paytone One', sans-serif", fontSize: 26, color: '#fff',
+            margin: 0, lineHeight: 1,
+          }}>
+            chatPro
           </h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Gerencie seus chamados com eficiência.</p>
+          <p style={{
+            fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: '#8C96A3',
+            margin: '6px 0 0', fontWeight: 400,
+          }}>
+            Suporte interno
+          </p>
         </motion.div>
 
         {/* Card */}
-        <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-          className="rounded-2xl p-8"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}>
-
-          {/* Google login */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            borderRadius: 16, padding: 28,
+            background: '#22272B', border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+          }}
+        >
+          {/* Botão Google */}
           <button
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors hover:bg-white/[0.08]"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)' }}
+            onMouseEnter={e => { if (!isLoading) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              padding: '12px 0', borderRadius: 12, fontWeight: 600, fontSize: 13,
+              fontFamily: "'Space Grotesk', sans-serif", cursor: isLoading ? 'not-allowed' : 'pointer',
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+              color: '#E5E7EB', opacity: isLoading ? 0.4 : 1, transition: 'background 0.15s',
+            }}
           >
             {loadingGoogle ? (
-              <Loader2 size={18} className="animate-spin" />
+              <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
             ) : (
-              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+              <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
             )}
             {loadingGoogle ? 'Conectando...' : 'Entrar com Google'}
           </button>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-1">
-            <div className="flex-1 h-px" style={{ background: 'var(--border-subtle)' }} />
-            <span className="text-[11px] font-medium uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>ou</span>
-            <div className="flex-1 h-px" style={{ background: 'var(--border-subtle)' }} />
+          {/* Divisor */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+            <span style={{ fontSize: 11, fontWeight: 500, color: '#596773', textTransform: 'uppercase', letterSpacing: 1.5, fontFamily: "'Space Grotesk', sans-serif" }}>ou</span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
           </div>
 
-          {/* Email form */}
-          <form onSubmit={handleEmailLogin} className="space-y-4" noValidate>
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Email corporativo</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="voce@empresa.com" autoComplete="email" disabled={isLoading}
-                className="w-full rounded-xl px-4 py-3 text-sm placeholder-slate-600 disabled:opacity-50"
-                style={{ ...inputStyle, color: 'var(--text-primary)' }} onFocus={onFocusInput} onBlur={onBlurInput} />
+          {/* Formulário */}
+          <form onSubmit={handleEmailLogin} noValidate>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#8C96A3', marginBottom: 6, fontFamily: "'Space Grotesk', sans-serif" }}>
+                Email
+              </label>
+              <input
+                type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="voce@empresa.com" autoComplete="email" disabled={isLoading}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.08)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13,
+                  fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB',
+                  background: '#1d2125', border: '1px solid rgba(255,255,255,0.08)',
+                  outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
+                  opacity: isLoading ? 0.5 : 1,
+                }}
+              />
             </div>
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Senha</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" disabled={isLoading}
-                className="w-full rounded-xl px-4 py-3 text-sm placeholder-slate-600 disabled:opacity-50"
-                style={{ ...inputStyle, color: 'var(--text-primary)' }} onFocus={onFocusInput} onBlur={onBlurInput} />
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#8C96A3', marginBottom: 6, fontFamily: "'Space Grotesk', sans-serif" }}>
+                Senha
+              </label>
+              <input
+                type="password" value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••" autoComplete="current-password" disabled={isLoading}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.08)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13,
+                  fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB',
+                  background: '#1d2125', border: '1px solid rgba(255,255,255,0.08)',
+                  outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
+                  opacity: isLoading ? 0.5 : 1,
+                }}
+              />
             </div>
-            <motion.button type="submit" disabled={isLoading || !email || !password} whileHover={!isLoading ? { scale: 1.015 } : {}} whileTap={!isLoading ? { scale: 0.985 } : {}}
-              className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: '#25D066', boxShadow: '0 4px 16px rgba(37,208,102,0.25)' }}>
-              {loadingEmail ? <span className="flex items-center justify-center gap-2"><Loader2 size={15} className="animate-spin" />Autenticando…</span> : 'Acessar Plataforma'}
+            <motion.button
+              type="submit" disabled={isLoading || !email || !password}
+              whileHover={!isLoading ? { scale: 1.01 } : {}}
+              whileTap={!isLoading ? { scale: 0.99 } : {}}
+              style={{
+                width: '100%', padding: '12px 0', borderRadius: 12, border: 'none',
+                fontWeight: 700, fontSize: 14, color: '#fff', cursor: isLoading ? 'not-allowed' : 'pointer',
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: '#25D066', boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
+                opacity: (isLoading || !email || !password) ? 0.4 : 1,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              {loadingEmail ? (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
+                  Entrando...
+                </span>
+              ) : 'Entrar'}
             </motion.button>
           </form>
         </motion.div>
 
-        {/* Footer */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45, duration: 0.55 }} className="mt-6 flex flex-col items-center gap-3">
-          <div className="flex items-center gap-4 px-4 py-2 rounded-full" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-            {statusItems.map(s => (
-              <div key={s.label} className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={s.ok ? { background: '#25D066', boxShadow: '0 0 4px rgba(37,208,102,0.5)' } : { background: '#ef4444' }} />{s.label}
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-4 text-[11px]" style={{ color: '#555' }}>
-            <span className="flex items-center gap-1.5"><Shield size={11} />SaaS Interno</span>
-            <span className="w-1 h-1 rounded-full" style={{ background: '#333' }} />
-            <span className="flex items-center gap-1.5"><Activity size={11} />24/7 Monitoring</span>
-            <span className="w-1 h-1 rounded-full" style={{ background: '#333' }} />
-            <span className="flex items-center gap-1.5"><Zap size={11} />Realtime Sync</span>
-          </div>
-        </motion.div>
+        {/* Rodapé mínimo */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          style={{
+            textAlign: 'center', marginTop: 24, fontSize: 11, color: '#4B5563',
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}
+        >
+          chatPro · Suporte Interno
+        </motion.p>
       </div>
     </div>
   )
