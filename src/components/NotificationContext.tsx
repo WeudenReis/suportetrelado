@@ -9,6 +9,8 @@ interface NotificationContextProps {
   refreshNotifications: () => void;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  toastNotification: Notification | null;
+  dismissToast: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextProps | undefined>(undefined);
@@ -22,6 +24,19 @@ export const useNotificationContext = () => {
 export const NotificationProvider: React.FC<{ user: string; children: React.ReactNode }> = ({ user, children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toastNotification, setToastNotification] = useState<Notification | null>(null);
+  const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismissToast = useCallback(() => {
+    setToastNotification(null);
+    if (toastTimer.current) { clearTimeout(toastTimer.current); toastTimer.current = null; }
+  }, []);
+
+  const showToast = useCallback((notif: Notification) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastNotification(notif);
+    toastTimer.current = setTimeout(() => setToastNotification(null), 6000);
+  }, []);
 
   const refreshNotifications = useCallback(async () => {
     const data = await fetchNotifications(user);
@@ -47,6 +62,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
         const notif = payload.new as Notification;
         if (notif.recipient_email === user) {
           setNotifications(prev => [notif, ...prev]);
+          showToast(notif);
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, payload => {
@@ -59,7 +75,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, loading, refreshNotifications, markRead, markAllRead }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, loading, refreshNotifications, markRead, markAllRead, toastNotification, dismissToast }}>
       {children}
     </NotificationContext.Provider>
   );

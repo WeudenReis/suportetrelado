@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CalendarDays, AlertTriangle, Link2, BarChart3, ChevronsRight, ChevronsLeft } from 'lucide-react'
+import { Inbox, CalendarDays, Megaphone, Link2, BarChart3, ChevronsRight, ChevronsLeft, X, AtSign, UserPlus, MessageSquare, ArrowRight } from 'lucide-react'
 import gsap from 'gsap'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
@@ -102,7 +102,7 @@ interface AppContentProps {
 }
 
 function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketId, setOpenTicketId, onLogout }: AppContentProps) {
-  const { unreadCount } = useNotificationContext()
+  const { unreadCount, toastNotification, dismissToast } = useNotificationContext()
   const sidebarRef = useRef<HTMLDivElement>(null)
   const isAnimating = useRef(false)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
@@ -211,7 +211,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
               title="Avisos"
               type="button"
             >
-              <AlertTriangle size={17} />
+              <Megaphone size={17} />
             </button>
             <button
               onClick={() => handleTabChange('links')}
@@ -290,6 +290,117 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
         </AnimatePresence>
         <BottomNav active={activeTab} onChange={handleTabChange} />
       </div>
+
+      {/* ── Toast de notificação on-screen ── */}
+      <AnimatePresence>
+        {toastNotification && (
+          <NotificationToast notif={toastNotification} onDismiss={dismissToast} onClickOpen={() => { dismissToast(); handleTabChange('inbox') }} />
+        )}
+      </AnimatePresence>
     </div>
+  )
+}
+
+/* ── Toast flutuante de notificação ── */
+import type { Notification } from './lib/supabase'
+
+const TOAST_TYPE_ICON: Record<string, React.ReactNode> = {
+  mention:      <AtSign size={16} />,
+  assignment:   <UserPlus size={16} />,
+  comment:      <MessageSquare size={16} />,
+  move:         <ArrowRight size={16} />,
+  announcement: <Megaphone size={16} />,
+}
+
+const TOAST_TYPE_LABEL: Record<string, string> = {
+  mention: 'Menção',
+  assignment: 'Atribuição',
+  comment: 'Comentário',
+  move: 'Movido',
+  announcement: 'Novo Aviso',
+}
+
+function NotificationToast({ notif, onDismiss, onClickOpen }: { notif: Notification; onDismiss: () => void; onClickOpen: () => void }) {
+  const icon = TOAST_TYPE_ICON[notif.type] || <Inbox size={16} />
+  const label = TOAST_TYPE_LABEL[notif.type] || 'Notificação'
+
+  return (
+    <motion.div
+      initial={{ x: 340, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 340, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+      style={{
+        position: 'fixed', top: 20, right: 20, zIndex: 9999,
+        width: 320, borderRadius: 12,
+        background: '#22272B',
+        border: '1px solid rgba(37,208,102,0.25)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(37,208,102,0.08)',
+        cursor: 'pointer',
+        overflow: 'hidden',
+      }}
+      onClick={onClickOpen}
+    >
+      {/* Barra verde no topo */}
+      <div style={{ height: 3, background: 'linear-gradient(90deg, #25D066, #24FF72)', borderRadius: '12px 12px 0 0' }} />
+
+      <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        {/* Ícone */}
+        <div style={{
+          width: 34, height: 34, borderRadius: 8,
+          background: 'rgba(37,208,102,0.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#25D066', flexShrink: 0,
+        }}>
+          {icon}
+        </div>
+
+        {/* Conteúdo */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px',
+              color: '#25D066', fontFamily: "'Space Grotesk', sans-serif",
+            }}>
+              {label}
+            </span>
+            <span style={{ fontSize: 10, color: '#6B7280', fontFamily: "'Space Grotesk', sans-serif" }}>
+              · {notif.sender_name}
+            </span>
+          </div>
+          <p style={{
+            margin: 0, fontSize: 13, fontWeight: 500, color: '#E5E7EB',
+            fontFamily: "'Space Grotesk', sans-serif",
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {notif.ticket_title || notif.message}
+          </p>
+          {notif.message && notif.ticket_title && (
+            <p style={{
+              margin: '2px 0 0', fontSize: 11, color: '#8C96A3',
+              fontFamily: "'Space Grotesk', sans-serif",
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {notif.message}
+            </p>
+          )}
+        </div>
+
+        {/* Fechar */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onDismiss() }}
+          style={{
+            width: 24, height: 24, borderRadius: 6, border: 'none',
+            background: 'transparent', color: '#6B7280', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#E5E7EB' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#6B7280' }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+    </motion.div>
   )
 }

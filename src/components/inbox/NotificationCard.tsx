@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Check, ExternalLink, Ticket, AtSign, UserPlus, MessageSquare, ArrowRight } from 'lucide-react'
+import { Check, ExternalLink, Ticket, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'
 import type { Notification } from '../../lib/supabase'
 
 /* ── Helpers ── */
@@ -39,10 +39,11 @@ function formatFull(iso: string): string {
 /* ── Type config ── */
 
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; borderColor: string; label: string; labelBg: string; labelColor: string }> = {
-  mention:    { icon: <AtSign size={14} />,        borderColor: '#25D066', label: 'Menção',     labelBg: 'rgba(37,208,102,0.15)', labelColor: '#25D066' },
-  assignment: { icon: <UserPlus size={14} />,      borderColor: '#3B82F6', label: 'Atribuição', labelBg: 'rgba(59,130,246,0.15)', labelColor: '#3B82F6' },
-  comment:    { icon: <MessageSquare size={14} />, borderColor: '#F59E0B', label: 'Comentário', labelBg: 'rgba(245,158,11,0.15)', labelColor: '#F59E0B' },
-  move:       { icon: <ArrowRight size={14} />,    borderColor: '#8B5CF6', label: 'Movido',     labelBg: 'rgba(139,92,246,0.15)', labelColor: '#8B5CF6' },
+  mention:      { icon: <AtSign size={14} />,        borderColor: '#25D066', label: 'Menção',       labelBg: 'rgba(37,208,102,0.15)', labelColor: '#25D066' },
+  assignment:   { icon: <UserPlus size={14} />,      borderColor: '#3B82F6', label: 'Atribuição',   labelBg: 'rgba(59,130,246,0.15)', labelColor: '#3B82F6' },
+  comment:      { icon: <MessageSquare size={14} />, borderColor: '#F59E0B', label: 'Comentário',   labelBg: 'rgba(245,158,11,0.15)', labelColor: '#F59E0B' },
+  move:         { icon: <ArrowRight size={14} />,    borderColor: '#8B5CF6', label: 'Movido',       labelBg: 'rgba(139,92,246,0.15)', labelColor: '#8B5CF6' },
+  announcement: { icon: <Megaphone size={14} />,     borderColor: '#25D066', label: 'Aviso',        labelBg: 'rgba(37,208,102,0.15)', labelColor: '#25D066' },
 }
 
 /* ── Animation ── */

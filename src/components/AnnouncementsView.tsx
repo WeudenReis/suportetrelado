@@ -2,6 +2,7 @@
 import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone } from 'lucide-react'
 import {
   fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
+  fetchUserProfiles, insertNotification,
   type Announcement, type AnnouncementSeverity,
 } from '../lib/supabase'
 
@@ -59,6 +60,22 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
     if (ann) {
       setAnnouncements(prev => [ann, ...prev])
       setTitle(''); setContent(''); setSeverity('info'); setIsPinned(false); setShowForm(false)
+
+      // Enviar notificação para todos os usuários
+      const profiles = await fetchUserProfiles()
+      const authorName = user.includes('@') ? user.split('@')[0] : user
+      const sevLabel = SEVERITY[severity].label
+      for (const p of profiles) {
+        if (p.email === user) continue
+        await insertNotification({
+          recipient_email: p.email,
+          sender_name: authorName,
+          type: 'announcement',
+          ticket_id: null,
+          ticket_title: `[${sevLabel}] ${ann.title}`,
+          message: ann.content || ann.title,
+        })
+      }
     }
   }
 

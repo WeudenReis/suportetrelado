@@ -92,38 +92,39 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
         {/* ══════ HEADER ══════ */}
-        <div data-gsap-child style={{ padding: '18px 20px 14px' }}>
+        <div data-gsap-child style={{ padding: '20px 20px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h2 style={{
-                fontSize: 16, fontWeight: 900, color: '#E5E7EB', margin: 0,
-                fontFamily: "'Paytone One', sans-serif",
-                letterSpacing: '-0.2px',
+              <div style={{
+                width: 32, height: 32, borderRadius: 10,
+                background: 'rgba(37,208,102,0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                Caixa de Entrada
-              </h2>
-              {unreadCount > 0 && (
-                <span style={{
-                  fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                  background: '#25D066', color: '#000',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  lineHeight: '18px',
+                <Inbox size={16} style={{ color: '#25D066' }} />
+              </div>
+              <div>
+                <h2 style={{
+                  fontSize: 15, fontWeight: 900, color: '#E5E7EB', margin: 0,
+                  fontFamily: "'Paytone One', sans-serif",
                 }}>
-                  {unreadCount}
-                </span>
-              )}
+                  Caixa de Entrada
+                </h2>
+                <p style={{ fontSize: 11, color: '#596773', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                  {unreadCount > 0 ? `${unreadCount} não lida${unreadCount !== 1 ? 's' : ''}` : 'Tudo em dia'}
+                </p>
+              </div>
             </div>
             <button
               onClick={onClose}
               title="Fechar"
               style={{
-                width: 28, height: 28, borderRadius: 7, border: 'none',
-                background: 'transparent', color: '#8C96A3', cursor: 'pointer',
+                width: 28, height: 28, borderRadius: 8, border: 'none',
+                background: 'transparent', color: '#596773', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#E5E7EB' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#8C96A3' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
             >
               <X size={15} />
             </button>

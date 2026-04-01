@@ -332,7 +332,7 @@ export interface Notification {
   id: string
   recipient_email: string
   sender_name: string
-  type: 'mention' | 'assignment' | 'move' | 'comment'
+  type: 'mention' | 'assignment' | 'move' | 'comment' | 'announcement'
   ticket_id: string | null
   ticket_title: string
   message: string

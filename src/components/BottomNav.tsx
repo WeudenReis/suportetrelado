@@ -1,4 +1,4 @@
-import { Inbox, Calendar, LayoutGrid, AlertTriangle, Link2, BarChart3 } from 'lucide-react'
+import { Inbox, Calendar, LayoutGrid, Megaphone, Link2, BarChart3 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNotificationContext } from './NotificationContext'
 
@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { id: 'inbox',         label: 'Caixa de entrada', icon: <Inbox size={18} strokeWidth={1.6} /> },
   { id: 'planner',       label: 'Planejador',       icon: <Calendar size={18} strokeWidth={1.6} /> },
   { id: 'board',         label: 'Quadro',           icon: <LayoutGrid size={18} strokeWidth={1.6} /> },
-  { id: 'announcements', label: 'Avisos',           icon: <AlertTriangle size={18} strokeWidth={1.6} /> },
+  { id: 'announcements', label: 'Avisos',           icon: <Megaphone size={18} strokeWidth={1.6} /> },
   { id: 'links',         label: 'Links',            icon: <Link2 size={18} strokeWidth={1.6} /> },
   { id: 'dashboard',     label: 'Dashboard',        icon: <BarChart3 size={18} strokeWidth={1.6} /> },
 ]
@@ -42,7 +42,7 @@ export default function BottomBar({ active, onChange }: BottomBarProps) {
                     exit={{ scale: 0, opacity: 0 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                     className="absolute -top-1.5 -right-2 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white px-1 inbox-badge-pulse"
-                    style={{ background: '#ef4444' }}
+                    style={{ background: '#25D066' }}
                   >
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </motion.span>
