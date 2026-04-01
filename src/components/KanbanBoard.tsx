@@ -1352,7 +1352,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 20 }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}
-          style={{ height: '100%', overflow: 'auto', padding: '20px 24px' }}
+          style={{ height: '100%', overflow: 'auto', padding: '24px 32px' }}
           className="modal-scroll"
         >
           {loading ? (
@@ -1361,13 +1361,80 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
               <span className="text-sm">Carregando tickets...</span>
             </div>
           ) : (
-            <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+              {/* Stats bar */}
+              <div style={{
+                display: 'flex', gap: 12, flexWrap: 'wrap',
+              }}>
+                {allColumns.map(col => {
+                  const count = getColumnTickets(col.id).length
+                  return (
+                    <div key={col.id} style={{
+                      flex: '1 1 0', minWidth: 140,
+                      background: '#22272B', borderRadius: 10,
+                      padding: '12px 16px',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                    }}>
+                      <div style={{
+                        width: 10, height: 10, borderRadius: '50%',
+                        background: col.dot_color, flexShrink: 0,
+                      }} />
+                      <span style={{
+                        fontSize: 12, fontWeight: 600, color: '#8C96A3',
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        flex: 1,
+                      }}>{col.title}</span>
+                      <span style={{
+                        fontSize: 18, fontWeight: 800, color: '#25D066',
+                        fontFamily: "'Paytone One', sans-serif",
+                      }}>{count}</span>
+                    </div>
+                  )
+                })}
+                <div style={{
+                  flex: '1 1 0', minWidth: 140,
+                  background: 'linear-gradient(135deg, rgba(37,208,102,0.12), rgba(37,208,102,0.04))',
+                  borderRadius: 10, padding: '12px 16px',
+                  border: '1px solid rgba(37,208,102,0.15)',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <span style={{
+                    fontSize: 12, fontWeight: 600, color: '#25D066',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    flex: 1,
+                  }}>Total</span>
+                  <span style={{
+                    fontSize: 18, fontWeight: 800, color: '#25D066',
+                    fontFamily: "'Paytone One', sans-serif",
+                  }}>{tickets.filter(t => !t.is_archived).length}</span>
+                </div>
+              </div>
+
+              {/* Table header */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '44px 1fr 120px 90px 80px 70px 36px',
+                gap: 8, padding: '8px 16px',
+                borderBottom: '1px solid rgba(37,208,102,0.15)',
+              }}>
+                {['', 'Título', 'Etiquetas', 'Prioridade', 'Tempo', 'Coluna', ''].map((h, i) => (
+                  <span key={i} style={{
+                    fontSize: 10, fontWeight: 700, color: '#25D066',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    textTransform: 'uppercase', letterSpacing: '0.06em',
+                  }}>{h}</span>
+                ))}
+              </div>
+
+              {/* Column groups */}
               {allColumns.map(col => {
                 const colTickets = getColumnTickets(col.id)
                 const isCollapsed = collapsedColumns.has(col.id)
                 return (
                   <div key={col.id} style={{
-                    background: 'rgba(255,255,255,0.03)', borderRadius: 12,
+                    background: '#22272B', borderRadius: 12,
                     border: '1px solid rgba(255,255,255,0.06)',
                     overflow: 'hidden',
                   }}>
@@ -1379,26 +1446,34 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                         else next.add(col.id)
                         return next
                       })}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                       style={{
-                        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '12px 16px', background: 'none', border: 'none',
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '14px 20px', background: 'transparent', border: 'none',
                         cursor: 'pointer', color: '#B6C2CF',
                         fontFamily: "'Space Grotesk', sans-serif",
+                        transition: 'background 0.15s',
                       }}
                     >
                       <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
-                        <ChevronRight size={14} style={{ color: '#596773' }} />
+                        <ChevronRight size={14} style={{ color: '#25D066' }} />
                       </motion.div>
                       <div style={{
-                        width: 8, height: 8, borderRadius: '50%',
+                        width: 10, height: 10, borderRadius: '50%',
                         background: col.dot_color, flexShrink: 0,
+                        boxShadow: `0 0 6px ${col.dot_color}44`,
                       }} />
-                      <span style={{ fontWeight: 700, fontSize: 13 }}>{col.title}</span>
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>{col.title}</span>
                       <span style={{
-                        fontSize: 11, fontWeight: 600, color: '#596773',
-                        background: 'rgba(255,255,255,0.06)',
-                        padding: '1px 8px', borderRadius: 10,
+                        fontSize: 11, fontWeight: 700, color: '#25D066',
+                        background: 'rgba(37,208,102,0.1)',
+                        padding: '2px 10px', borderRadius: 10,
                       }}>{colTickets.length}</span>
+                      <span style={{ flex: 1 }} />
+                      <span style={{ fontSize: 10, color: '#596773', fontWeight: 500 }}>
+                        {isCollapsed ? 'Expandir' : 'Recolher'}
+                      </span>
                     </button>
 
                     {/* Cards list */}
@@ -1411,17 +1486,20 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                           transition={{ duration: 0.2, ease: 'easeInOut' }}
                           style={{ overflow: 'hidden' }}
                         >
-                          <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <div style={{
+                            padding: '0 8px 10px',
+                            display: 'flex', flexDirection: 'column', gap: 1,
+                          }}>
                             {colTickets.length === 0 && (
                               <div style={{
-                                padding: '16px', textAlign: 'center',
+                                padding: '24px', textAlign: 'center',
                                 color: '#596773', fontSize: 12,
                                 fontFamily: "'Space Grotesk', sans-serif",
                               }}>
                                 Nenhum card nesta coluna
                               </div>
                             )}
-                            {colTickets.map(ticket => {
+                            {colTickets.map((ticket, tIdx) => {
                               const prioColors: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#06b6d4' }
                               const prioLabels: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
                               const elapsed = (() => {
@@ -1432,88 +1510,149 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                                 if (diffH < 24) return `${Math.max(diffH, 0)}h`
                                 return `${diffD}d`
                               })()
+                              const pColor = prioColors[ticket.priority] || '#596773'
 
                               return (
                                 <button
                                   key={ticket.id}
                                   onClick={() => handleCardClick(ticket)}
-                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
-                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = 'rgba(37,208,102,0.06)'
+                                    e.currentTarget.style.borderColor = 'rgba(37,208,102,0.15)'
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = tIdx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'
+                                    e.currentTarget.style.borderColor = 'transparent'
+                                  }}
                                   style={{
-                                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                                    padding: '10px 12px', borderRadius: 8, border: 'none',
-                                    background: 'rgba(255,255,255,0.02)', cursor: 'pointer',
-                                    textAlign: 'left', transition: 'background 0.15s',
+                                    width: '100%',
+                                    display: 'grid',
+                                    gridTemplateColumns: '44px 1fr 120px 90px 80px 70px 36px',
+                                    gap: 8,
+                                    alignItems: 'center',
+                                    padding: '10px 12px',
+                                    borderRadius: 8,
+                                    border: '1px solid transparent',
+                                    background: tIdx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'background 0.15s, border-color 0.15s',
                                     fontFamily: "'Space Grotesk', sans-serif",
                                   }}
                                 >
-                                  {/* Priority dot */}
-                                  <div style={{
-                                    width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                                    background: prioColors[ticket.priority] || '#596773',
-                                  }} />
-
-                                  {/* Title */}
-                                  <span style={{
-                                    flex: 1, fontSize: 13, fontWeight: 500,
-                                    color: ticket.is_completed ? '#596773' : '#B6C2CF',
-                                    textDecoration: ticket.is_completed ? 'line-through' : 'none',
-                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                  }}>
-                                    {ticket.title}
-                                  </span>
-
-                                  {/* Tags */}
-                                  {ticket.tags && ticket.tags.length > 0 && (
-                                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                                      {ticket.tags.slice(0, 2).map(raw => {
-                                        const { name, color } = parseTag(raw)
-                                        return (
-                                          <span key={raw} style={{
-                                            fontSize: 10, fontWeight: 600, padding: '1px 6px',
-                                            borderRadius: 4, background: `${color}22`, color,
-                                          }}>{name}</span>
-                                        )
-                                      })}
-                                      {ticket.tags.length > 2 && (
-                                        <span style={{ fontSize: 10, color: '#596773' }}>+{ticket.tags.length - 2}</span>
+                                  {/* Checkbox visual */}
+                                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                    <div style={{
+                                      width: 18, height: 18, borderRadius: 5,
+                                      border: ticket.is_completed ? '2px solid #25D066' : '2px solid rgba(255,255,255,0.15)',
+                                      background: ticket.is_completed ? '#25D066' : 'transparent',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      transition: 'all 0.15s',
+                                    }}>
+                                      {ticket.is_completed && (
+                                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                          <path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
                                       )}
                                     </div>
-                                  )}
+                                  </div>
 
-                                  {/* Priority badge */}
-                                  <span style={{
-                                    fontSize: 10, fontWeight: 700, padding: '2px 6px',
-                                    borderRadius: 4, flexShrink: 0,
-                                    background: `${prioColors[ticket.priority] || '#596773'}18`,
-                                    color: prioColors[ticket.priority] || '#596773',
-                                    textTransform: 'uppercase',
-                                  }}>
-                                    {prioLabels[ticket.priority] || ticket.priority}
-                                  </span>
+                                  {/* Title + client */}
+                                  <div style={{ overflow: 'hidden', minWidth: 0 }}>
+                                    <div style={{
+                                      fontSize: 13, fontWeight: 600,
+                                      color: ticket.is_completed ? '#596773' : '#E5E7EB',
+                                      textDecoration: ticket.is_completed ? 'line-through' : 'none',
+                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>
+                                      {ticket.title}
+                                    </div>
+                                    {ticket.cliente && (
+                                      <div style={{
+                                        fontSize: 10, color: '#596773', fontWeight: 500,
+                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        marginTop: 1,
+                                      }}>
+                                        {ticket.cliente}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Tags */}
+                                  <div style={{ display: 'flex', gap: 3, overflow: 'hidden' }}>
+                                    {ticket.tags && ticket.tags.slice(0, 2).map(raw => {
+                                      const { name, color } = parseTag(raw)
+                                      return (
+                                        <span key={raw} style={{
+                                          fontSize: 9, fontWeight: 700, padding: '2px 6px',
+                                          borderRadius: 4, background: `${color}20`, color,
+                                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                          maxWidth: 55,
+                                        }}>{name}</span>
+                                      )
+                                    })}
+                                    {ticket.tags && ticket.tags.length > 2 && (
+                                      <span style={{ fontSize: 9, color: '#596773', fontWeight: 600 }}>+{ticket.tags.length - 2}</span>
+                                    )}
+                                  </div>
+
+                                  {/* Priority */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <div style={{
+                                      width: 7, height: 7, borderRadius: '50%',
+                                      background: pColor, flexShrink: 0,
+                                      boxShadow: `0 0 4px ${pColor}44`,
+                                    }} />
+                                    <span style={{
+                                      fontSize: 11, fontWeight: 700, color: pColor,
+                                    }}>
+                                      {prioLabels[ticket.priority] || ticket.priority}
+                                    </span>
+                                  </div>
 
                                   {/* Elapsed */}
-                                  {elapsed && (
+                                  <div style={{
+                                    fontSize: 11, color: '#8C96A3',
+                                    display: 'flex', alignItems: 'center', gap: 4,
+                                  }}>
+                                    <Clock size={11} style={{ color: '#596773' }} />
+                                    {elapsed || '—'}
+                                  </div>
+
+                                  {/* Column dot */}
+                                  <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 4,
+                                  }}>
+                                    <div style={{
+                                      width: 6, height: 6, borderRadius: '50%',
+                                      background: col.dot_color, flexShrink: 0,
+                                    }} />
                                     <span style={{
-                                      fontSize: 10, color: '#596773', flexShrink: 0,
-                                      display: 'flex', alignItems: 'center', gap: 3,
-                                    }}>
-                                      <Clock size={10} />
-                                      {elapsed}
-                                    </span>
-                                  )}
+                                      fontSize: 9, color: '#596773', fontWeight: 600,
+                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>{col.title.slice(0, 6)}</span>
+                                  </div>
 
                                   {/* Assignee avatar */}
-                                  {ticket.assignee && (
-                                    <div style={{
-                                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                      fontSize: 9, fontWeight: 700, color: '#fff',
-                                      background: `hsl(${(ticket.assignee.charCodeAt(0) * 47) % 360}, 55%, 45%)`,
-                                    }}>
-                                      {ticket.assignee.slice(0, 2).toUpperCase()}
-                                    </div>
-                                  )}
+                                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                    {ticket.assignee ? (
+                                      <div style={{
+                                        width: 24, height: 24, borderRadius: '50%',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: 9, fontWeight: 700, color: '#fff',
+                                        background: `hsl(${(ticket.assignee.charCodeAt(0) * 47) % 360}, 55%, 45%)`,
+                                        border: '2px solid #22272B',
+                                      }}>
+                                        {ticket.assignee.slice(0, 2).toUpperCase()}
+                                      </div>
+                                    ) : (
+                                      <div style={{
+                                        width: 24, height: 24, borderRadius: '50%',
+                                        background: 'rgba(255,255,255,0.04)',
+                                        border: '1px dashed rgba(255,255,255,0.1)',
+                                      }} />
+                                    )}
+                                  </div>
                                 </button>
                               )
                             })}
