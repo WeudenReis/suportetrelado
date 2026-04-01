@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Link2, Plus, Trash2, X, ExternalLink, Search, FolderOpen } from 'lucide-react'
+﻿import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Plus, Trash2, X, ExternalLink, Search, Link2, FolderOpen } from 'lucide-react'
 import { fetchUsefulLinks, insertUsefulLink, deleteUsefulLink, type UsefulLink } from '../lib/supabase'
 
 interface LinksViewProps {
@@ -10,11 +10,8 @@ interface LinksViewProps {
 const DEFAULT_CATEGORIES = ['Geral', 'Documentação', 'Ferramentas', 'Suporte', 'Treinamento']
 
 function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '')
-  } catch {
-    return ''
-  }
+  try { return new URL(url).hostname.replace('www.', '') }
+  catch { return '' }
 }
 
 export default function LinksView({ user, onClose }: LinksViewProps) {
@@ -27,7 +24,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
   const [category, setCategory] = useState('Geral')
   const [customCategory, setCustomCategory] = useState('')
   const [search, setSearch] = useState('')
-  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -45,21 +42,15 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
   }, [links])
 
   const filtered = useMemo(() => {
-    let result = links
-    if (filterCategory !== 'all') {
-      result = result.filter(l => l.category === filterCategory)
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      result = result.filter(l =>
-        l.title.toLowerCase().includes(q) ||
-        l.description.toLowerCase().includes(q) ||
-        l.url.toLowerCase().includes(q) ||
-        l.category.toLowerCase().includes(q)
-      )
-    }
-    return result
-  }, [links, filterCategory, search])
+    if (!search.trim()) return links
+    const q = search.toLowerCase()
+    return links.filter(l =>
+      l.title.toLowerCase().includes(q) ||
+      l.description.toLowerCase().includes(q) ||
+      l.url.toLowerCase().includes(q) ||
+      l.category.toLowerCase().includes(q)
+    )
+  }, [links, search])
 
   const grouped = useMemo(() => {
     const map: Record<string, UsefulLink[]> = {}
@@ -82,12 +73,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
     })
     if (link) {
       setLinks(prev => [...prev, link])
-      setTitle('')
-      setUrl('')
-      setDescription('')
-      setCategory('Geral')
-      setCustomCategory('')
-      setShowForm(false)
+      setTitle(''); setUrl(''); setDescription(''); setCategory('Geral'); setCustomCategory(''); setShowForm(false)
     }
   }
 
@@ -96,160 +82,117 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
     await deleteUsefulLink(id)
   }
 
+  const font = "'Space Grotesk', sans-serif"
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
-      {/* ══════ HEADER ══════ */}
-      <div data-gsap-child style={{ padding: '18px 20px 14px' }}>
+      {/* HEADER */}
+      <div data-gsap-child style={{ padding: '20px 20px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h2 style={{
-              fontSize: 16, fontWeight: 900, color: '#E5E7EB', margin: 0,
-              fontFamily: "'Paytone One', sans-serif",
-              letterSpacing: '-0.2px',
+            <div style={{
+              width: 32, height: 32, borderRadius: 10,
+              background: 'rgba(37,208,102,0.12)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              Links Úteis
-            </h2>
-            {links.length > 0 && (
-              <span style={{
-                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                background: '#25D066', color: '#000',
-                fontFamily: "'Space Grotesk', sans-serif",
-                lineHeight: '18px',
+              <Link2 size={16} style={{ color: '#25D066' }} />
+            </div>
+            <div>
+              <h2 style={{
+                fontSize: 15, fontWeight: 900, color: '#E5E7EB', margin: 0,
+                fontFamily: "'Paytone One', sans-serif",
               }}>
-                {links.length}
-              </span>
-            )}
+                Links Úteis
+              </h2>
+              <p style={{ fontSize: 11, color: '#596773', margin: 0, fontFamily: font }}>
+                {links.length} recurso{links.length !== 1 ? 's' : ''} salvo{links.length !== 1 ? 's' : ''}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
             title="Fechar"
             style={{
-              width: 28, height: 28, borderRadius: 7, border: 'none',
-              background: 'transparent', color: '#8C96A3', cursor: 'pointer',
+              width: 28, height: 28, borderRadius: 8, border: 'none',
+              background: 'transparent', color: '#596773', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'all 0.15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#E5E7EB' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#8C96A3' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
           >
             <X size={15} />
           </button>
         </div>
-        <p style={{
-          fontSize: 12, color: '#6B7A8D', margin: '4px 0 0',
-          fontFamily: "'Space Grotesk', sans-serif",
-        }}>
-          Recursos e referências da equipe
-        </p>
       </div>
 
-      {/* ══════ BUSCA ══════ */}
-      <div data-gsap-child style={{
-        padding: '0 20px 10px',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
-      }}>
+      {/* BUSCA */}
+      <div data-gsap-child style={{ padding: '0 20px 12px' }}>
         <div style={{ position: 'relative' }}>
           <Search size={14} style={{
-            position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-            color: '#6B7A8D',
+            position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#596773',
           }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar links..."
             style={{
-              width: '100%', padding: '8px 14px 8px 34px', borderRadius: 10,
-              fontSize: 12, outline: 'none',
-              fontFamily: "'Space Grotesk', sans-serif",
-              background: '#22272B', color: '#E5E7EB',
+              width: '100%', padding: '9px 14px 9px 34px', borderRadius: 10,
+              fontSize: 12, outline: 'none', fontFamily: font,
+              background: '#282E33', color: '#E5E7EB',
               border: '1px solid rgba(255,255,255,0.06)',
+              transition: 'border 0.15s',
             }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)' }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
           />
         </div>
       </div>
 
-      {/* ══════ FILTRO POR CATEGORIA ══════ */}
-      <div data-gsap-child style={{
-        display: 'flex', gap: 6, padding: '10px 20px 10px',
-        overflowX: 'auto',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
-      }}>
-        <button
-          onClick={() => setFilterCategory('all')}
-          style={{
-            padding: '5px 12px', borderRadius: 8, border: 'none',
-            fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-            fontFamily: "'Space Grotesk', sans-serif",
-            background: filterCategory === 'all' ? 'rgba(37,208,102,0.12)' : 'transparent',
-            color: filterCategory === 'all' ? '#25D066' : '#6B7A8D',
-            transition: 'all 0.15s',
-          }}
-        >
-          Todos
-        </button>
-        {categories.map(cat => {
-          const isActive = filterCategory === cat
-          return (
-            <button
-              key={cat}
-              onClick={() => setFilterCategory(cat)}
-              style={{
-                padding: '5px 12px', borderRadius: 8, border: 'none',
-                fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-                fontFamily: "'Space Grotesk', sans-serif",
-                background: isActive ? 'rgba(37,208,102,0.12)' : 'transparent',
-                color: isActive ? '#25D066' : '#6B7A8D',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
-            >
-              {cat}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ══════ BOTÃO ADICIONAR ══════ */}
-      <div data-gsap-child style={{ padding: '12px 20px 8px' }}>
+      {/* BOTAO ADICIONAR */}
+      <div data-gsap-child style={{ padding: '0 20px 14px' }}>
         <button
           onClick={() => setShowForm(!showForm)}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 6, padding: '10px 0', borderRadius: 10, cursor: 'pointer',
-            fontSize: 12, fontWeight: 700,
-            fontFamily: "'Space Grotesk', sans-serif",
-            background: 'rgba(37,208,102,0.08)', color: '#25D066',
-            border: '1px dashed rgba(37,208,102,0.30)',
-            transition: 'all 0.15s',
+            gap: 7, padding: '10px 0', borderRadius: 10, cursor: 'pointer',
+            fontSize: 13, fontWeight: 700, fontFamily: font,
+            background: showForm ? 'rgba(255,255,255,0.04)' : '#25D066',
+            color: showForm ? '#8C96A3' : '#000',
+            border: 'none', transition: 'all 0.2s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+          onMouseEnter={e => {
+            if (!showForm) e.currentTarget.style.background = '#1BAD53'
+            else e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+          }}
+          onMouseLeave={e => {
+            if (!showForm) e.currentTarget.style.background = '#25D066'
+            else e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+          }}
         >
-          <Plus size={14} />
-          Adicionar Link
+          {showForm ? <X size={14} /> : <Plus size={14} />}
+          {showForm ? 'Cancelar' : 'Adicionar Link'}
         </button>
       </div>
 
-      {/* ══════ FORMULÁRIO ══════ */}
+      {/* FORMULARIO */}
       {showForm && (
-        <div data-gsap-child style={{
-          padding: '0 20px 14px',
-          borderBottom: '1px solid rgba(255,255,255,0.04)',
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div data-gsap-child style={{ padding: '0 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Nome do link"
+              autoFocus
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 10,
-                fontSize: 13, fontWeight: 600, outline: 'none',
-                fontFamily: "'Space Grotesk', sans-serif",
-                background: '#22272B', color: '#E5E7EB',
-                border: '1px solid rgba(255,255,255,0.06)',
+                fontSize: 13, fontWeight: 600, outline: 'none', fontFamily: font,
+                background: '#282E33', color: '#E5E7EB',
+                border: '1px solid rgba(255,255,255,0.06)', transition: 'border 0.15s',
               }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)' }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
             />
             <input
               value={url}
@@ -258,11 +201,12 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
               type="url"
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 10,
-                fontSize: 12, outline: 'none',
-                fontFamily: "'Space Grotesk', sans-serif",
-                background: '#22272B', color: '#B6C2CF',
-                border: '1px solid rgba(255,255,255,0.06)',
+                fontSize: 12, outline: 'none', fontFamily: font,
+                background: '#282E33', color: '#B6C2CF',
+                border: '1px solid rgba(255,255,255,0.06)', transition: 'border 0.15s',
               }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)' }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
             />
             <input
               value={description}
@@ -270,21 +214,21 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
               placeholder="Descrição (opcional)"
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 10,
-                fontSize: 12, outline: 'none',
-                fontFamily: "'Space Grotesk', sans-serif",
-                background: '#22272B', color: '#B6C2CF',
-                border: '1px solid rgba(255,255,255,0.06)',
+                fontSize: 12, outline: 'none', fontFamily: font,
+                background: '#282E33', color: '#B6C2CF',
+                border: '1px solid rgba(255,255,255,0.06)', transition: 'border 0.15s',
               }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)' }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
             />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               <select
                 value={category}
                 onChange={e => { setCategory(e.target.value); setCustomCategory('') }}
                 style={{
                   flex: 1, padding: '10px 14px', borderRadius: 10,
-                  fontSize: 12, outline: 'none',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  background: '#22272B', color: '#B6C2CF',
+                  fontSize: 12, outline: 'none', fontFamily: font,
+                  background: '#282E33', color: '#B6C2CF',
                   border: '1px solid rgba(255,255,255,0.06)',
                 }}
               >
@@ -300,9 +244,8 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
                   placeholder="Nome da categoria"
                   style={{
                     flex: 1, padding: '10px 14px', borderRadius: 10,
-                    fontSize: 12, outline: 'none',
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    background: '#22272B', color: '#B6C2CF',
+                    fontSize: 12, outline: 'none', fontFamily: font,
+                    background: '#282E33', color: '#B6C2CF',
                     border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 />
@@ -310,26 +253,14 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
               <button
-                onClick={() => setShowForm(false)}
-                style={{
-                  padding: '6px 14px', borderRadius: 8, border: 'none',
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  background: 'transparent', color: '#6B7A8D',
-                }}
-              >
-                Cancelar
-              </button>
-              <button
                 onClick={handleSubmit}
                 disabled={!title.trim() || !url.trim()}
                 style={{
-                  padding: '6px 16px', borderRadius: 8, border: 'none',
-                  fontSize: 11, fontWeight: 700,
+                  padding: '8px 20px', borderRadius: 8, border: 'none',
+                  fontSize: 12, fontWeight: 700, fontFamily: font,
                   cursor: (title.trim() && url.trim()) ? 'pointer' : 'default',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  background: (title.trim() && url.trim()) ? '#25D066' : 'rgba(37,208,102,0.3)',
-                  color: '#000',
+                  background: (title.trim() && url.trim()) ? '#25D066' : '#2A3038',
+                  color: (title.trim() && url.trim()) ? '#000' : '#596773',
                   transition: 'all 0.15s',
                 }}
               >
@@ -340,119 +271,112 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
         </div>
       )}
 
-      {/* ══════ LISTA DE LINKS ══════ */}
-      <div
-        className="inbox-scroll"
-        style={{
-          flex: 1, overflowY: 'auto', padding: '8px 20px 80px',
-          display: 'flex', flexDirection: 'column', gap: 16,
-        }}
-      >
+      {/* LISTA DE LINKS */}
+      <div className="inbox-scroll"
+        style={{ flex: 1, overflowY: 'auto', padding: '6px 20px 80px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {loading ? (
-          <p style={{
-            textAlign: 'center', padding: '40px 0',
-            fontSize: 12, color: '#6B7A8D',
-            fontFamily: "'Space Grotesk', sans-serif",
-          }}>
-            Carregando links...
-          </p>
-        ) : grouped.length === 0 ? (
-          <div data-gsap-child style={{ textAlign: 'center', padding: '48px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
             <div style={{
-              width: 56, height: 56, borderRadius: 16, margin: '0 auto 12px',
-              background: 'rgba(255,255,255,0.03)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
+              width: 24, height: 24, border: '2px solid #25D06630',
+              borderTop: '2px solid #25D066', borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+            }} />
+          </div>
+        ) : grouped.length === 0 ? (
+          <div data-gsap-child style={{ textAlign: 'center', padding: '52px 24px' }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16, margin: '0 auto 14px',
+              background: 'rgba(37,208,102,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <FolderOpen size={24} style={{ color: '#454F59' }} />
+              <FolderOpen size={24} style={{ color: '#25D066', opacity: 0.6 }} />
             </div>
-            <p style={{
-              fontSize: 13, fontWeight: 700, color: '#8C96A3', margin: '0 0 4px',
-              fontFamily: "'Space Grotesk', sans-serif",
-            }}>
-              Nenhum link encontrado
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#8C96A3', margin: '0 0 4px', fontFamily: font }}>
+              {search ? 'Nenhum resultado' : 'Nenhum link salvo'}
             </p>
-            <p style={{
-              fontSize: 11, color: '#596773',
-              fontFamily: "'Space Grotesk', sans-serif",
-            }}>
-              Adicione links úteis para a equipe consultar.
+            <p style={{ fontSize: 11, color: '#596773', fontFamily: font, lineHeight: '1.5' }}>
+              {search ? 'Tente buscar com termos diferentes.' : 'Adicione links úteis para a equipe.'}
             </p>
           </div>
         ) : (
           grouped.map(([cat, catLinks]) => (
             <div key={cat} data-gsap-child>
-              <p style={{
-                fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 8px',
-                fontFamily: "'Space Grotesk', sans-serif",
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
               }}>
-                {cat}{' '}
-                <span style={{ color: '#454F59' }}>({catLinks.length})</span>
-              </p>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: font,
+                  textTransform: 'uppercase', letterSpacing: '0.04em',
+                }}>
+                  {cat}
+                </span>
+                <span style={{
+                  fontSize: 10, color: '#596773', fontFamily: font,
+                }}>
+                  ({catLinks.length})
+                </span>
+                <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.04)' }} />
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {catLinks.map(link => (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: 10,
-                      padding: '10px 12px', borderRadius: 10, textDecoration: 'none',
-                      border: '1px solid rgba(255,255,255,0.04)',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                  >
-                    <div style={{
-                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                      background: 'rgba(37,208,102,0.10)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <ExternalLink size={13} style={{ color: '#25D066' }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{
-                        fontSize: 13, fontWeight: 700, color: '#E5E7EB', margin: 0,
-                        fontFamily: "'Space Grotesk', sans-serif",
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                {catLinks.map(link => {
+                  const hovered = hoveredId === link.id
+                  return (
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onMouseEnter={() => setHoveredId(link.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 12px', borderRadius: 10, textDecoration: 'none',
+                        background: hovered ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                        background: 'rgba(37,208,102,0.10)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        {link.title}
-                      </p>
-                      {link.description && (
+                        <ExternalLink size={14} style={{ color: '#25D066' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{
-                          fontSize: 11, color: '#6B7A8D', margin: '2px 0 0',
-                          fontFamily: "'Space Grotesk', sans-serif",
+                          fontSize: 13, fontWeight: 700, color: '#E5E7EB', margin: 0,
+                          fontFamily: font,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }}>
-                          {link.description}
+                          {link.title}
                         </p>
-                      )}
-                      <p style={{
-                        fontSize: 10, color: '#454F59', margin: '2px 0 0',
-                        fontFamily: "'Space Grotesk', sans-serif",
-                      }}>
-                        {getDomain(link.url)}
-                      </p>
-                    </div>
-                    <button
-                      onClick={e => { e.preventDefault(); e.stopPropagation(); handleDelete(link.id) }}
-                      title="Remover link"
-                      style={{
-                        width: 24, height: 24, borderRadius: 6, border: 'none',
-                        background: 'transparent', color: '#596773', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        opacity: 0, transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,92,72,0.08)'; e.currentTarget.style.color = '#ef5c48' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
-                      onFocus={e => { e.currentTarget.style.opacity = '1' }}
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </a>
-                ))}
+                        <p style={{
+                          fontSize: 11, color: '#596773', margin: '2px 0 0',
+                          fontFamily: font,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {link.description || getDomain(link.url)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); handleDelete(link.id) }}
+                        title="Remover"
+                        style={{
+                          width: 26, height: 26, borderRadius: 6, border: 'none',
+                          background: 'rgba(255,255,255,0.06)', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#8C96A3',
+                          opacity: hovered ? 1 : 0,
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,92,72,0.15)'; e.currentTarget.style.color = '#ef5c48' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </a>
+                  )
+                })}
               </div>
             </div>
           ))
