@@ -8,7 +8,7 @@ import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, P
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
-import CardDetailModal from './CardDetailModal'
+import CardDetailModal, { parseTag } from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
 import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../lib/supabase'
@@ -141,6 +141,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
   const [editingLabel, setEditingLabel] = useState<BoardLabel | null>(null)
   const [editLabelName, setEditLabelName] = useState('')
   const [editLabelColor, setEditLabelColor] = useState('')
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>(() => (localStorage.getItem('chatpro-view-mode') as 'kanban' | 'list') || 'kanban')
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set())
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -807,6 +809,38 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
           >
             <Share2 size={16} />
           </button>
+
+          {/* Toggle Kanban / Lista */}
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 2, gap: 2 }}>
+            <button
+              onClick={() => { setViewMode('kanban'); localStorage.setItem('chatpro-view-mode', 'kanban') }}
+              style={{
+                padding: '4px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: viewMode === 'kanban' ? 'rgba(37,208,102,0.15)' : 'transparent',
+                color: viewMode === 'kanban' ? '#25D066' : '#8C96A3',
+                display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600,
+                transition: 'all 0.15s',
+              }}
+              title="Kanban"
+              type="button"
+            >
+              <LayoutGrid size={14} />
+            </button>
+            <button
+              onClick={() => { setViewMode('list'); localStorage.setItem('chatpro-view-mode', 'list') }}
+              style={{
+                padding: '4px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: viewMode === 'list' ? 'rgba(37,208,102,0.15)' : 'transparent',
+                color: viewMode === 'list' ? '#25D066' : '#8C96A3',
+                display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600,
+                transition: 'all 0.15s',
+              }}
+              title="Lista"
+              type="button"
+            >
+              <List size={14} />
+            </button>
+          </div>
 
           <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configuracoes">
             <Settings size={16} />
