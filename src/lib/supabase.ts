@@ -484,3 +484,70 @@ export async function updateUsefulLink(id: string, updates: Partial<UsefulLink>)
 export async function deleteUsefulLink(id: string): Promise<void> {
   await supabase.from('useful_links').delete().eq('id', id)
 }
+
+// ── Demands (Coach Profile) ──
+export type DemandStatus = 'pendente' | 'em_andamento' | 'concluido'
+export type DemandActivityType = 'training' | '1:1' | 'operational_support' | 'studying' | 'dashboard_creation' | 'other'
+
+export interface Demand {
+  id: string
+  title: string
+  description: string
+  status: DemandStatus
+  coach_email: string | null
+  requester_email: string
+  activity_type: DemandActivityType
+  time_spent_minutes: number
+  is_self_assigned: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type DemandInsert = Omit<Demand, 'id' | 'created_at' | 'updated_at'>
+
+export async function fetchDemands(): Promise<Demand[]> {
+  const { data, error } = await supabase
+    .from('demands')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) { console.warn('demands error:', error.message); return [] }
+  return (data ?? []) as Demand[]
+}
+
+export async function insertDemand(demand: DemandInsert, currentUserName: string): Promise<Demand | null> {
+  const { data, error } = await supabase
+    .from('demands')
+    .insert(demand)
+    .select()
+    .single()
+  if (error) { console.error('insert demand error:', error.message); return null }
+  
+  // Se for auto-atribuída, criar notificação para alertar outros membros/dashboards
+  if (demand.is_self_assigned) {
+    // Usamos um recipient genérico ou enviamos para todos os admins
+    // Como simplificação, pegamos admins e enviamos:
+    fetchUserProfiles().then(profiles => {
+      const admins = profiles.filter(p => p.role === 'admin' && p.email !== demand.coach_email)
+      admins.forEach(admin => {
+        insertNotification({
+          recipient_email: admin.email,
+          sender_name: currentUserName,
+          type: 'assignment',
+          ticket_id: data.id,
+          ticket_title: data.title,
+          message: `Nova demanda auto-atribuída (${demand.activity_type}) iniciada.`,
+        })
+      })
+    })
+  }
+
+  return data as Demand
+}
+
+export async function updateDemand(id: string, updates: Partial<Demand>): Promise<void> {
+  await supabase.from('demands').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+}
+
+export async function deleteDemand(id: string): Promise<void> {
+  await supabase.from('demands').delete().eq('id', id)
+}

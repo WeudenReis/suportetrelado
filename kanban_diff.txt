@@ -1,0 +1,28 @@
+﻿diff --cc src/components/KanbanBoard.tsx
+index bf965f9,ee9abc6..0000000
+--- a/src/components/KanbanBoard.tsx
++++ b/src/components/KanbanBoard.tsx
+@@@ -962,6 -1031,20 +1001,23 @@@ export default function KanbanBoard({ u
+  
+        {/* Board */}
+        <main className="board-main" style={boardSurfaceStyle}>
+++<<<<<<< HEAD
+++=======
++         <AnimatePresence mode="wait">
++         {viewMode === 'kanban' ? (
++         <motion.div
++           key="kanban"
++           initial={{ opacity: 0, x: -20 }}
++           animate={{ opacity: 1, x: 0 }}
++           exit={{ opacity: 0, x: -20 }}
++           transition={{ duration: 0.25, ease: 'easeInOut' }}
++           style={{ display: 'contents' }}
++         >
++         {/* Scrollbar customizada no topo */}
++         <div ref={topScrollRef} className="board-top-scrollbar">
++           <div className="board-top-scrollbar__inner" />
++         </div>
+++>>>>>>> c478d2dde6ef737fe21a6da89c07bd74eac86d3e
+          <div
+            ref={scrollerRef}
+            className="board-main__scroller"

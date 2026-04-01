@@ -1,0 +1,80 @@
+﻿diff --cc src/App.tsx
+index cea8b05,2277f71..0000000
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@@ -20,29 -14,15 +20,30 @@@ import type { Ticket } from './lib/supa
+  export default function App() {
+    const [user, setUser] = useState<string | null>(null)
+    const [loading, setLoading] = useState(true)
+ -  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+ -  const [plannerCollapsed, setPlannerCollapsed] = useState(false)
+ -  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'boards'>('board')
+ +  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'>('board')
+++
+    const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
+ +  const [openTicketId, setOpenTicketId] = useState<string | null>(null)
+ +  const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null)
+  
+    useEffect(() => {
+ -    supabase.auth.getSession().then(({ data: { session } }) => {
+ -      setUser(session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null)
+ +    async function checkSession(email: string | null) {
+ +      if (!email) { setUser(null); setLoading(false); return }
+ +      const authorized = await checkAuthorizedUser(email)
+ +      if (!authorized) {
+ +        setUnauthorizedEmail(email)
+ +        await supabase.auth.signOut()
+ +        setUser(null)
+ +      } else {
+ +        setUnauthorizedEmail(null)
+ +        setUser(email)
+ +      }
+        setLoading(false)
+ +    }
+ +
+ +    supabase.auth.getSession().then(({ data: { session } }) => {
+ +      const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
+ +      checkSession(email)
+      })
+  
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+diff --cc src/components/BottomNav.tsx
+index 33d4b21,c7e05be..0000000
+--- a/src/components/BottomNav.tsx
++++ b/src/components/BottomNav.tsx
+diff --cc src/styles.css
+index 8ed9e9c,ce380a7..0000000
+--- a/src/styles.css
++++ b/src/styles.css
+@@@ -1038,18 -713,23 +1013,23 @@@ body 
+    position: relative;
+    border-radius: calc(var(--float-radius) - 4px);
+    background-clip: padding-box;
+ -  /* scrollbar fina, vis├¡vel, elegante */
+++  /* scrollbar fina, elegante, verde chatPro */
+    scrollbar-width: thin;
+-   scrollbar-color: rgba(255,255,255,0.18) transparent;
+-   cursor: grab;
++   scrollbar-color: rgba(37,208,102,0.25) transparent;
++ }
++ .board-main__scroller::-webkit-scrollbar {
++   height: 5px;
++ }
++ .board-main__scroller::-webkit-scrollbar-track {
++   background: transparent;
+  }
+- .board-main__scroller::-webkit-scrollbar { height: 8px; }
+- .board-main__scroller::-webkit-scrollbar-track { background: transparent; }
+  .board-main__scroller::-webkit-scrollbar-thumb {
+-   background: rgba(255,255,255,0.18);
+-   border-radius: 4px;
++   background: rgba(37,208,102,0.25);
++   border-radius: 10px;
++   transition: background 0.2s;
+  }
+  .board-main__scroller::-webkit-scrollbar-thumb:hover {
+-   background: rgba(255,255,255,0.3);
++   background: rgba(37,208,102,0.55);
+  }
+  .board-main__scroller[style*="grabbing"] { user-select: none; }
+  .board-columns {
