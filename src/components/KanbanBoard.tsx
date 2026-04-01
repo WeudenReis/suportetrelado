@@ -1470,26 +1470,76 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                 {/* Recentes */}
                 {recentWallpapers.length > 0 && (
                   <div>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Clock size={11} />
-                      Recentes
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 10px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: 0, fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Clock size={11} />
+                        Recentes
+                      </p>
+                      <button
+                        onClick={() => {
+                          setRecentWallpapers([])
+                          try { localStorage.removeItem(recentWallpapersKey) } catch { /* ignore */ }
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#ff5555' }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#8C96A3' }}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer', color: '#8C96A3',
+                          fontSize: 10, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600,
+                          display: 'flex', alignItems: 'center', gap: 4, padding: 0,
+                          transition: 'color 0.15s',
+                        }}
+                      >
+                        <Trash2 size={10} />
+                        Limpar
+                      </button>
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
                       {recentWallpapers.map((wp, i) => {
                         const isActive = wallpaper === wp
                         return (
-                          <button key={i} onClick={() => applyWallpaper(wp)}
-                            style={{
-                              width: '100%', aspectRatio: '1', borderRadius: 8, cursor: 'pointer',
-                              backgroundImage: `url(${wp})`,
-                              backgroundSize: 'cover', backgroundPosition: 'center',
-                              border: isActive ? '2px solid #25D066' : '1px solid rgba(255,255,255,0.08)',
-                              boxShadow: isActive ? '0 0 0 1px rgba(37,208,102,0.3)' : 'none',
-                              transition: 'transform 0.15s, border-color 0.15s',
+                          <div key={i} style={{ position: 'relative' }}
+                            onMouseEnter={e => {
+                              const xBtn = e.currentTarget.querySelector('[data-remove-btn]') as HTMLElement
+                              if (xBtn) xBtn.style.opacity = '1'
                             }}
-                            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)' }}
-                            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                          />
+                            onMouseLeave={e => {
+                              const xBtn = e.currentTarget.querySelector('[data-remove-btn]') as HTMLElement
+                              if (xBtn) xBtn.style.opacity = '0'
+                            }}
+                          >
+                            <button onClick={() => applyWallpaper(wp)}
+                              style={{
+                                width: '100%', aspectRatio: '1', borderRadius: 8, cursor: 'pointer',
+                                backgroundImage: `url(${wp})`,
+                                backgroundSize: 'cover', backgroundPosition: 'center',
+                                border: isActive ? '2px solid #25D066' : '1px solid rgba(255,255,255,0.08)',
+                                boxShadow: isActive ? '0 0 0 1px rgba(37,208,102,0.3)' : 'none',
+                                transition: 'transform 0.15s, border-color 0.15s',
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)' }}
+                              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                            />
+                            <button
+                              data-remove-btn
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const updated = recentWallpapers.filter((_, idx) => idx !== i)
+                                setRecentWallpapers(updated)
+                                try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+                              }}
+                              style={{
+                                position: 'absolute', top: 3, right: 3,
+                                width: 16, height: 16, borderRadius: '50%',
+                                background: 'rgba(0,0,0,0.7)', border: 'none',
+                                color: '#fff', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                opacity: 0, transition: 'opacity 0.15s',
+                                padding: 0,
+                              }}
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
                         )
                       })}
                     </div>
