@@ -1465,6 +1465,34 @@ export default function KanbanBoard({ user, onLogout, openTicketId }: KanbanBoar
                     <Upload size={13} />
                     Importar imagem
                   </button>
+
+                  {/* Excluir wallpaper ativo */}
+                  {wallpaper && (wallpaper.startsWith('data:') || wallpaper.startsWith('http')) && (
+                    <button
+                      onClick={() => {
+                        const wpToRemove = wallpaper
+                        setWallpaper('')
+                        try { localStorage.setItem(wallpaperStorageKey, '') } catch { /* ignore */ }
+                        setRecentWallpapers(prev => {
+                          const updated = prev.filter(w => w !== wpToRemove)
+                          try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+                          return updated
+                        })
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,85,85,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,85,85,0.3)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,85,85,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,85,85,0.15)' }}
+                      style={{
+                        width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                        fontFamily: "'Space Grotesk', sans-serif", marginTop: 8,
+                        background: 'rgba(255,85,85,0.06)', border: '1px solid rgba(255,85,85,0.15)',
+                        color: '#ff5555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        transition: 'background 0.15s, border-color 0.15s',
+                      }}
+                    >
+                      <Trash2 size={13} />
+                      Excluir wallpaper
+                    </button>
+                  )}
                 </div>
 
                 {/* Recentes */}
