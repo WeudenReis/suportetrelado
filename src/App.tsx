@@ -202,6 +202,23 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
       {/* ── Sidebar Panel (icons inside) ── */}
       {showSidebar && (
         <div ref={sidebarRef} className="sidebar-panel" style={{ width: sidebarWidth, transition: 'width 0.3s ease' }}>
+          {/* ▸ Nav icons row (moved to top) */}
+          <div className="sidebar-panel__nav hidden-nav-bar-top" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+
+            {/* Spacer */}
+            <span style={{ flex: 1 }} />
+
+            {/* Expandir / Recolher */}
+            <button
+              onClick={() => setSidebarExpanded(!sidebarExpanded)}
+              className="sidebar-nav-btn"
+              title={sidebarExpanded ? 'Recolher painel' : 'Expandir painel'}
+              type="button"
+            >
+              {sidebarExpanded ? <ChevronsLeft size={17} /> : <ChevronsRight size={17} />}
+            </button>
+          </div>
+
           {/* ▸ Sidebar content */}
           <div className="sidebar-panel__content">
             {activeTab === 'inbox' && (
@@ -235,23 +252,6 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
                 onClose={() => handleTabChange('board')}
               />
             )}
-          </div>
-
-          {/* ▸ Nav icons row (moved to bottom) */}
-          <div className="sidebar-panel__nav hidden-nav-bar-bottom" style={{ borderBottom: 'none', borderTop: '1px solid rgba(166,197,226,0.08)' }}>
-
-            {/* Spacer */}
-            <span style={{ flex: 1 }} />
-
-            {/* Expandir / Recolher */}
-            <button
-              onClick={() => setSidebarExpanded(!sidebarExpanded)}
-              className="sidebar-nav-btn"
-              title={sidebarExpanded ? 'Recolher painel' : 'Expandir painel'}
-              type="button"
-            >
-              {sidebarExpanded ? <ChevronsLeft size={17} /> : <ChevronsRight size={17} />}
-            </button>
           </div>
         </div>
       )}
