@@ -225,7 +225,7 @@ body {
   flex-direction: column;
   background: color-mix(in srgb, var(--col-accent, #101204) 35%, #101204);
   border-radius: 12px;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 165px);
   padding-bottom: 0;
   border: none;
   box-shadow: none;
