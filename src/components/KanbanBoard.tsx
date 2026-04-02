@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable,
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock, LayoutGrid, List, ChevronDown, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2 } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock, LayoutGrid, List, ChevronDown, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2, FileText, Copy } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -117,6 +117,55 @@ function SortableBoardColumn({ id, accentColor, children }: { id: string; accent
 
 const LABEL_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
 
+interface TicketTemplate {
+  id: string
+  name: string
+  title: string
+  description: string
+  priority: 'low' | 'medium' | 'high'
+  status: string
+}
+
+function loadTemplates(): TicketTemplate[] {
+  try {
+    const raw = localStorage.getItem('chatpro-templates')
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveTemplates(templates: TicketTemplate[]): void {
+  localStorage.setItem('chatpro-templates', JSON.stringify(templates))
+}
+
+interface AutoRule {
+  id: string
+  name: string
+  condition: 'priority_high' | 'priority_medium' | 'priority_low' | 'no_assignee' | 'overdue_12h' | 'overdue_24h'
+  action: 'move_to'
+  targetColumn: string
+  enabled: boolean
+}
+
+function loadAutoRules(): AutoRule[] {
+  try {
+    const raw = localStorage.getItem('chatpro-auto-rules')
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveAutoRules(rules: AutoRule[]): void {
+  localStorage.setItem('chatpro-auto-rules', JSON.stringify(rules))
+}
+
+const AUTO_RULE_CONDITIONS: Record<string, string> = {
+  priority_high: 'Prioridade Alta',
+  priority_medium: 'Prioridade Média',
+  priority_low: 'Prioridade Baixa',
+  no_assignee: 'Sem responsável',
+  overdue_12h: 'Parado há +12h',
+  overdue_24h: 'Parado há +24h',
+}
+
 export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTicketId }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
@@ -168,6 +217,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
   const [bulkMode, setBulkMode] = useState(false)
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set())
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [showAutoRules, setShowAutoRules] = useState(false)
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -182,7 +233,50 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const loadTickets = useCallback(async () => {
     try {
       const [data, attCounts] = await Promise.all([fetchTickets(), fetchAttachmentCounts()])
-      setTickets(data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 })))
+      const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
+      setTickets(loaded)
+
+      // Processar regras automáticas
+      const rules = loadAutoRules().filter(r => r.enabled)
+      if (rules.length > 0) {
+        const updates: { id: string; newStatus: string }[] = []
+        for (const ticket of loaded) {
+          if (ticket.is_archived) continue
+          for (const rule of rules) {
+            if (ticket.status === rule.targetColumn) continue
+            let match = false
+            switch (rule.condition) {
+              case 'priority_high': match = ticket.priority === 'high'; break
+              case 'priority_medium': match = ticket.priority === 'medium'; break
+              case 'priority_low': match = ticket.priority === 'low'; break
+              case 'no_assignee': match = !ticket.assignee; break
+              case 'overdue_12h': {
+                const hoursIdle = (Date.now() - new Date(ticket.updated_at).getTime()) / 3_600_000
+                match = hoursIdle >= 12 && ticket.status !== 'resolved'
+                break
+              }
+              case 'overdue_24h': {
+                const hoursIdle = (Date.now() - new Date(ticket.updated_at).getTime()) / 3_600_000
+                match = hoursIdle >= 24 && ticket.status !== 'resolved'
+                break
+              }
+            }
+            if (match) {
+              updates.push({ id: ticket.id, newStatus: rule.targetColumn })
+              break
+            }
+          }
+        }
+        if (updates.length > 0) {
+          setTickets(prev => prev.map(t => {
+            const upd = updates.find(u => u.id === t.id)
+            return upd ? { ...t, status: upd.newStatus as TicketStatus } : t
+          }))
+          for (const upd of updates) {
+            updateTicket(upd.id, { status: upd.newStatus as TicketStatus }).catch(console.error)
+          }
+        }
+      }
     } catch (err) {
       console.error('Failed to load tickets:', err)
       showToast('Erro ao carregar tickets', 'err')
@@ -2060,6 +2154,83 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                 <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-lg transition-colors" style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}><X size={16} /></button>
               </div>
 
+              {/* Templates rápidos */}
+              {(() => {
+                const templates = loadTemplates()
+                if (templates.length === 0 && !showTemplates) return null
+                return (
+                  <div style={{ padding: '8px 24px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <button
+                      onClick={() => setShowTemplates(p => !p)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+                        borderRadius: 8, background: showTemplates ? 'rgba(37,208,102,0.08)' : 'transparent',
+                        border: '1px solid rgba(37,208,102,0.15)', color: '#25D066',
+                        fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        fontFamily: "'Space Grotesk', sans-serif", transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = showTemplates ? 'rgba(37,208,102,0.08)' : 'transparent' }}
+                    >
+                      <FileText size={12} />
+                      Templates ({templates.length})
+                      <ChevronDown size={12} style={{ transform: showTemplates ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                    </button>
+                    {showTemplates && (
+                      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {templates.map(tmpl => (
+                          <button
+                            key={tmpl.id}
+                            onClick={() => {
+                              setNewTicket(p => ({
+                                ...p,
+                                title: tmpl.title,
+                                description: tmpl.description,
+                                priority: tmpl.priority as Ticket['priority'],
+                                status: (tmpl.status || p.status) as TicketStatus,
+                              }))
+                              setShowTemplates(false)
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 8,
+                              padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.02)',
+                              border: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer',
+                              color: '#B6C2CF', fontSize: 12, fontWeight: 500,
+                              fontFamily: "'Space Grotesk', sans-serif", textAlign: 'left',
+                              transition: 'all 0.15s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)'; e.currentTarget.style.borderColor = 'rgba(37,208,102,0.15)' }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)' }}
+                          >
+                            <Copy size={12} style={{ color: '#25D066', flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <span style={{ fontWeight: 700, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tmpl.name}</span>
+                              <span style={{ fontSize: 10, color: '#596773' }}>{tmpl.title}</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const updated = templates.filter(t => t.id !== tmpl.id)
+                                saveTemplates(updated)
+                              }}
+                              style={{
+                                background: 'transparent', border: 'none', color: '#596773', cursor: 'pointer',
+                                padding: 4, borderRadius: 4, display: 'flex', transition: 'color 0.15s',
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
+                              onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
+                              title="Remover template"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
               {/* Modal body */}
               <div className="px-6 py-5 space-y-5 max-h-[calc(100vh-220px)] overflow-y-auto modal-scroll">
                 <div>
@@ -2103,6 +2274,30 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
 
               {/* Modal footer */}
               <div className="px-6 py-4 flex gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <button
+                  onClick={() => {
+                    if (!newTicket.title.trim()) { showToast('Preencha o título para salvar como template', 'err'); return }
+                    const templateName = prompt('Nome do template:')
+                    if (!templateName?.trim()) return
+                    const templates = loadTemplates()
+                    templates.push({
+                      id: `tmpl-${Date.now()}`,
+                      name: templateName.trim(),
+                      title: newTicket.title,
+                      description: newTicket.description,
+                      priority: newTicket.priority,
+                      status: newTicket.status,
+                    })
+                    saveTemplates(templates)
+                    showToast('Template salvo!', 'ok')
+                  }}
+                  style={{ padding: '11px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#25D066', background: 'rgba(37,208,102,0.06)', border: '1px solid rgba(37,208,102,0.15)', cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif", display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)' }}
+                  title="Salvar como template"
+                >
+                  <FileText size={13} />
+                </button>
                 <button onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#8C96A3', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#E5E7EB' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#8C96A3' }}>Cancelar</button>
                 <button onClick={handleAddTicket} disabled={!newTicket.title.trim()} style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', background: newTicket.title.trim() ? '#25D066' : 'rgba(37,208,102,0.3)', border: 'none', cursor: newTicket.title.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif", boxShadow: newTicket.title.trim() ? '0 2px 12px rgba(37,208,102,0.3)' : 'none' }} onMouseEnter={e => { if (newTicket.title.trim()) e.currentTarget.style.background = '#1BAD53' }} onMouseLeave={e => { if (newTicket.title.trim()) e.currentTarget.style.background = '#25D066' }}>
                   <Plus size={15} className="inline mr-1" style={{ verticalAlign: '-2px' }} />Criar Ticket
@@ -2387,6 +2582,177 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                   >
                     <Pencil size={12} />
                     Gerenciar Etiquetas
+                  </button>
+                </div>
+
+                {/* Separador */}
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
+
+                {/* Regras Automáticas */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <Settings size={13} style={{ color: '#25D066' }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Regras Automáticas
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowAutoRules(true)}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+                    style={{
+                      width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
+                      color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    <Settings size={12} />
+                    Gerenciar Regras
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Auto Rules Manager Modal */}
+      <AnimatePresence>
+        {showAutoRules && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+            onClick={e => e.target === e.currentTarget && setShowAutoRules(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md rounded-xl shadow-2xl overflow-hidden"
+              style={{ background: '#1a1f23', border: '1px solid rgba(37,208,102,0.1)' }}
+            >
+              <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Settings size={15} style={{ color: '#25D066' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Regras Automáticas</h3>
+                  <p style={{ fontSize: 10, color: '#596773', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>Mover cards automaticamente</p>
+                </div>
+                <button onClick={() => setShowAutoRules(false)} style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8 }}><X size={15} /></button>
+              </div>
+              <div className="p-4" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                {(() => {
+                  const rules = loadAutoRules()
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {rules.map(rule => (
+                        <div key={rule.id} style={{
+                          display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
+                          borderRadius: 10, background: 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${rule.enabled ? 'rgba(37,208,102,0.15)' : 'rgba(255,255,255,0.04)'}`,
+                          fontFamily: "'Space Grotesk', sans-serif",
+                        }}>
+                          <button
+                            onClick={() => {
+                              const updated = rules.map(r => r.id === rule.id ? { ...r, enabled: !r.enabled } : r)
+                              saveAutoRules(updated)
+                              setShowAutoRules(false); setTimeout(() => setShowAutoRules(true), 10)
+                            }}
+                            style={{
+                              width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                              border: rule.enabled ? '2px solid #25D066' : '2px solid rgba(255,255,255,0.18)',
+                              background: rule.enabled ? '#25D066' : 'transparent',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              cursor: 'pointer', padding: 0,
+                            }}
+                          >
+                            {rule.enabled && <Check size={10} strokeWidth={3} color="#000" />}
+                          </button>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: rule.enabled ? '#E5E7EB' : '#596773', display: 'block' }}>{rule.name}</span>
+                            <span style={{ fontSize: 10, color: '#596773' }}>
+                              Se {AUTO_RULE_CONDITIONS[rule.condition]} → Mover para {allColumns.find(c => c.id === rule.targetColumn)?.title || rule.targetColumn}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const updated = rules.filter(r => r.id !== rule.id)
+                              saveAutoRules(updated)
+                              setShowAutoRules(false); setTimeout(() => setShowAutoRules(true), 10)
+                            }}
+                            style={{ background: 'transparent', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, borderRadius: 4 }}
+                            title="Remover regra"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      {rules.length === 0 && (
+                        <p style={{ fontSize: 12, color: '#596773', textAlign: 'center', padding: '20px 0', fontFamily: "'Space Grotesk', sans-serif" }}>
+                          Nenhuma regra criada ainda
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+              <div className="p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#596773', marginBottom: 8, fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase' }}>Nova regra</p>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <select
+                    id="rule-condition"
+                    defaultValue=""
+                    style={{
+                      flex: 1, minWidth: 120, padding: '7px 10px', borderRadius: 8, fontSize: 11,
+                      background: '#22272b', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF',
+                      outline: 'none', fontFamily: "'Space Grotesk', sans-serif",
+                    }}
+                  >
+                    <option value="" disabled>Condição...</option>
+                    {Object.entries(AUTO_RULE_CONDITIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                  <select
+                    id="rule-target"
+                    defaultValue=""
+                    style={{
+                      flex: 1, minWidth: 120, padding: '7px 10px', borderRadius: 8, fontSize: 11,
+                      background: '#22272b', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF',
+                      outline: 'none', fontFamily: "'Space Grotesk', sans-serif",
+                    }}
+                  >
+                    <option value="" disabled>Mover para...</option>
+                    {allColumns.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                  </select>
+                  <button
+                    onClick={() => {
+                      const condEl = document.getElementById('rule-condition') as HTMLSelectElement
+                      const targetEl = document.getElementById('rule-target') as HTMLSelectElement
+                      if (!condEl?.value || !targetEl?.value) { showToast('Selecione condição e destino', 'err'); return }
+                      const rules = loadAutoRules()
+                      const condLabel = AUTO_RULE_CONDITIONS[condEl.value] || condEl.value
+                      const targetLabel = allColumns.find(c => c.id === targetEl.value)?.title || targetEl.value
+                      rules.push({
+                        id: `rule-${Date.now()}`,
+                        name: `${condLabel} → ${targetLabel}`,
+                        condition: condEl.value as AutoRule['condition'],
+                        action: 'move_to',
+                        targetColumn: targetEl.value,
+                        enabled: true,
+                      })
+                      saveAutoRules(rules)
+                      setShowAutoRules(false); setTimeout(() => setShowAutoRules(true), 10)
+                      showToast('Regra criada!', 'ok')
+                    }}
+                    style={{
+                      padding: '7px 14px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                      background: '#25D066', border: 'none', color: '#000', cursor: 'pointer',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                    }}
+                  >
+                    Criar
                   </button>
                 </div>
               </div>
