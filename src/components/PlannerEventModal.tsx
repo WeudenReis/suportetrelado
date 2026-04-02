@@ -28,6 +28,7 @@ export default function PlannerEventModal({
 }: PlannerEventModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [date, setDate] = useState(selectedDate)
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [color, setColor] = useState(COLORS[0])
@@ -36,19 +37,21 @@ export default function PlannerEventModal({
     if (isOpen) {
       if (existingEvent) {
         setTitle(existingEvent.title)
-        setDescription(existingEvent.description)
+        setDescription(existingEvent.description || '')
+        setDate(existingEvent.date || selectedDate)
         setStartTime(existingEvent.start_time || '')
         setEndTime(existingEvent.end_time || '')
         setColor(existingEvent.color || COLORS[0])
       } else {
         setTitle('')
         setDescription('')
+        setDate(selectedDate)
         setStartTime('')
         setEndTime('')
         setColor(COLORS[0])
       }
     }
-  }, [isOpen, existingEvent])
+  }, [isOpen, existingEvent, selectedDate])
 
   const handleSave = () => {
     if (!title.trim()) return
@@ -56,7 +59,7 @@ export default function PlannerEventModal({
       user_email: userEmail,
       title: title.trim(),
       description: description.trim(),
-      date: selectedDate,
+      date,
       start_time: startTime || null,
       end_time: endTime || null,
       color,
@@ -136,13 +139,15 @@ export default function PlannerEventModal({
                 </label>
                 <input
                   type="date"
-                  value={selectedDate}
-                  readOnly
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
                   style={{
                     width: '100%', padding: '8px 12px', borderRadius: 8, background: '#1d2125',
-                    border: '1px solid rgba(255,255,255,0.06)', color: '#8C96A3', fontSize: 13, fontFamily: font,
-                    outline: 'none', cursor: 'default'
+                    border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 13, fontFamily: font,
+                    outline: 'none', colorScheme: 'dark'
                   }}
+                  onFocus={e => e.currentTarget.style.borderColor = '#579dff'}
+                  onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
                 />
               </div>
               <div style={{ flex: 1 }}>
