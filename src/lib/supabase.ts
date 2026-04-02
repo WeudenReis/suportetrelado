@@ -342,7 +342,7 @@ export interface Notification {
   id: string
   recipient_email: string
   sender_name: string
-  type: 'mention' | 'assignment' | 'move' | 'comment' | 'announcement'
+  type: 'mention' | 'assignment' | 'move' | 'comment' | 'announcement' | 'due_date_alert' | 'planner_event'
   ticket_id: string | null
   ticket_title: string
   message: string
@@ -482,6 +482,71 @@ export async function updateUsefulLink(id: string, updates: Partial<UsefulLink>)
 }
 
 export async function deleteUsefulLink(id: string): Promise<void> {
-  await supabase.from('useful_links').delete().eq('id', id)
+}
+  
+// ── Planner Events & Settings ──
+export interface PlannerEvent {
+  id: string
+  user_email: string
+  title: string
+  description: string
+  date: string
+  start_time: string | null
+  end_time: string | null
+  color: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PlannerNotificationSettings {
+  id: string
+  user_email: string
+  notify_days_before: number[]
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchPlannerEvents(email: string): Promise<PlannerEvent[]> {
+  const { data, error } = await supabase
+    .from('planner_events')
+    .select('*')
+    .eq('user_email', email)
+  if (error) { console.warn('planner_events table may not exist:', error.message); return [] }
+  return (data ?? []) as PlannerEvent[]
+}
+
+export async function insertPlannerEvent(event: Omit<PlannerEvent, 'id' | 'created_at' | 'updated_at'>): Promise<PlannerEvent | null> {
+  const { data, error } = await supabase
+    .from('planner_events')
+    .insert(event)
+    .select()
+    .single()
+  if (error) { console.error('insert planner event error:', error.message); return null }
+  return data as PlannerEvent
+}
+
+export async function updatePlannerEvent(id: string, updates: Partial<PlannerEvent>): Promise<void> {
+  await supabase.from('planner_events').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+}
+
+export async function deletePlannerEvent(id: string): Promise<void> {
+  await supabase.from('planner_events').delete().eq('id', id)
+}
+
+export async function fetchPlannerSettings(email: string): Promise<PlannerNotificationSettings | null> {
+  const { data, error } = await supabase
+    .from('planner_notification_settings')
+    .select('*')
+    .eq('user_email', email)
+    .maybeSingle()
+  if (error) { console.warn('planner_notification_settings table may not exist:', error.message); return null }
+  return data as PlannerNotificationSettings
+}
+
+export async function upsertPlannerSettings(settings: Omit<PlannerNotificationSettings, 'id' | 'created_at' | 'updated_at'>): Promise<void> {
+  const { error } = await supabase
+    .from('planner_notification_settings')
+    .upsert({ ...settings, updated_at: new Date().toISOString() }, { onConflict: 'user_email' })
+  if (error) console.error('upsert planner settings error:', error.message)
 }
 

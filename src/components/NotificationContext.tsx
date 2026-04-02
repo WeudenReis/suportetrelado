@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase, fetchNotifications, markNotificationRead, markAllNotificationsRead } from '../lib/supabase';
+import { supabase, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchTickets, fetchPlannerSettings, insertNotification } from '../lib/supabase';
 import type { Notification } from '../lib/supabase';
 
 interface NotificationContextProps {
@@ -52,6 +52,63 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   const markAllRead = useCallback(async () => {
     await markAllNotificationsRead(user);
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+  }, [user]);
+
+  // Polling for due date alerts
+  useEffect(() => {
+    const checkDueDates = async () => {
+      try {
+        const settings = await fetchPlannerSettings(user);
+        if (!settings || !settings.notify_days_before || settings.notify_days_before.length === 0) return;
+        
+        const tickets = await fetchTickets();
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        // Ensure we don't spam. Check localstorage for last run.
+        const cacheKey = `chatpro_notified_due_dates:${user}`;
+        const notifiedCache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+        const newCache = { ...notifiedCache };
+        let modified = false;
+
+        for (const t of tickets) {
+          if (!t.due_date || t.status === 'resolved') continue;
+          // Se o ticket nao tem assignee ou nao é meu (dependendo da regra de negocio, consideramos todos ou só meus)
+          // Mas vamos notificar apenas pro usuario q agendou os dias ou esta no board. 
+          const due = new Date(t.due_date);
+          const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+          const diffDays = Math.ceil((dueDay.getTime() - today.getTime()) / 86400000);
+          
+          if (settings.notify_days_before.includes(diffDays)) {
+            const notifId = `${t.id}_due_${diffDays}`;
+            if (!newCache[notifId]) {
+              // disparar notificação
+              await insertNotification({
+                recipient_email: user,
+                sender_name: 'Sistema',
+                type: 'due_date_alert',
+                ticket_id: t.id,
+                ticket_title: t.title,
+                message: diffDays === 0 ? 'Este cartão vence hoje!' : `Este cartão vence em ${diffDays} dia(s) (${t.due_date.slice(0, 10)}).`
+              });
+              newCache[notifId] = true;
+              modified = true;
+            }
+          }
+        }
+
+        
+        if (modified) {
+          localStorage.setItem(cacheKey, JSON.stringify(newCache));
+        }
+      } catch (e) {
+        console.error('Error checking due dates', e);
+      }
+    };
+
+    checkDueDates();
+    const interval = setInterval(checkDueDates, 30 * 60 * 1000); // Check every 30 mins
+    return () => clearInterval(interval);
   }, [user]);
 
   useEffect(() => {

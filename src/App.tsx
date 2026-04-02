@@ -232,6 +232,8 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
               <PlannerSidebar
                 tickets={plannerTickets}
                 onClose={() => handleTabChange('board')}
+                user={user}
+                onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
               />
             )}
             {activeTab === 'announcements' && (

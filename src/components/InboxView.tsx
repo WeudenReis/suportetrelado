@@ -51,10 +51,12 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
   const [scrolled, setScrolled] = useState(false)
 
   const mentionCount = useMemo(() => notifications.filter(n => n.type === 'mention').length, [notifications])
+  const plannerCount = useMemo(() => notifications.filter(n => n.type === 'due_date_alert' || n.type === 'planner_event').length, [notifications])
 
   const filtered = useMemo(() => {
     if (filter === 'unread') return notifications.filter(n => !n.is_read)
     if (filter === 'mentions') return notifications.filter(n => n.type === 'mention')
+    if (filter === 'planner') return notifications.filter(n => n.type === 'due_date_alert' || n.type === 'planner_event')
     return notifications
   }, [notifications, filter])
 
@@ -139,6 +141,7 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
           totalCount={notifications.length}
           unreadCount={unreadCount}
           mentionCount={mentionCount}
+          plannerCount={plannerCount}
         />
         </div>
 

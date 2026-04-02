@@ -1,11 +1,16 @@
-﻿import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, CalendarDays, X } from 'lucide-react'
-import type { Ticket } from '../lib/supabase'
+import React, { useState, useMemo, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronLeft, ChevronRight, CalendarDays, X, Settings, Plus, AlignLeft } from 'lucide-react'
+import type { Ticket, PlannerEvent } from '../lib/supabase'
+import { fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent } from '../lib/supabase'
+import PlannerEventModal from './PlannerEventModal'
+import PlannerSettingsPanel from './PlannerSettingsPanel'
 
 interface PlannerSidebarProps {
   tickets: Ticket[]
   onClose: () => void
+  user: string
+  onOpenTicket: (ticketId: string) => void
 }
 
 const DAYS_PT = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
@@ -16,11 +21,26 @@ const PRIO_LABELS: Record<string, string> = { high: 'ALTA', medium: 'MÉDIA', lo
 
 const font = "'Space Grotesk', sans-serif"
 
-export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps) {
+export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }: PlannerSidebarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [events, setEvents] = useState<PlannerEvent[]>([])
+  
+  // Modals
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [eventToEdit, setEventToEdit] = useState<PlannerEvent | null>(null)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
+
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+  const [selectedDate, setSelectedDate] = useState(todayStr)
+
+  useEffect(() => {
+    fetchPlannerEvents(user).then(setEvents)
+  }, [user])
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1)
@@ -49,24 +69,87 @@ export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps
     return days
   }, [year, month])
 
+  // Tickets organized by created date AND due date
   const ticketsByDate = useMemo(() => {
     const map: Record<string, Ticket[]> = {}
     tickets.forEach(t => {
-      const dateKey = t.created_at.slice(0, 10)
-      if (!map[dateKey]) map[dateKey] = []
-      map[dateKey].push(t)
+      // By creation
+      const createdKey = t.created_at.slice(0, 10)
+      if (!map[createdKey]) map[createdKey] = []
+      map[createdKey].push(t)
+      
+      // By due_date
+      if (t.due_date) {
+        const dueKey = t.due_date.slice(0, 10)
+        // Only push if it's different to avoid duplicate if created and due on same day
+        if (dueKey !== createdKey) {
+          if (!map[dueKey]) map[dueKey] = []
+          if (!map[dueKey].find(existing => existing.id === t.id)) {
+            map[dueKey].push(t)
+          }
+        }
+      }
     })
     return map
   }, [tickets])
 
-  const today = new Date()
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, PlannerEvent[]> = {}
+    events.forEach(e => {
+      if (!map[e.date]) map[e.date] = []
+      map[e.date].push(e)
+    })
+    return map
+  }, [events])
 
-  const [selectedDate, setSelectedDate] = useState(todayStr)
   const selectedTickets = ticketsByDate[selectedDate] || []
+  const selectedEvents = eventsByDate[selectedDate] || []
+
+  // Day click logic
+  const handleDayClick = (dateStr: string) => {
+    if (selectedDate === dateStr) {
+      // Abre modal se clicar duas vezes no mesmo dia
+      setEventToEdit(null)
+      setIsEventModalOpen(true)
+    } else {
+      setSelectedDate(dateStr)
+    }
+  }
+
+  const handleSaveEvent = async (eventData: Omit<PlannerEvent, 'id' | 'created_at' | 'updated_at'>) => {
+    if (eventToEdit) {
+      setEvents(prev => prev.map(e => e.id === eventToEdit.id ? { ...e, ...eventData } as PlannerEvent : e))
+      await updatePlannerEvent(eventToEdit.id, eventData)
+    } else {
+      const created = await insertPlannerEvent(eventData)
+      if (created) setEvents(prev => [...prev, created])
+    }
+  }
+
+  const handleDeleteEvent = async (id: string) => {
+    setEvents(prev => prev.filter(e => e.id !== id))
+    await deletePlannerEvent(id)
+  }
+
+  // Verificar se uma data tem cartões vencendo
+  const isDueToday = (fullDate: string) => {
+    if (fullDate !== todayStr) return false
+    const ticketsToday = ticketsByDate[fullDate] || []
+    return ticketsToday.some(t => t.due_date?.startsWith(fullDate))
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+      <PlannerSettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} userEmail={user} />
+      <PlannerEventModal 
+        isOpen={isEventModalOpen} 
+        onClose={() => setIsEventModalOpen(false)} 
+        userEmail={user}
+        selectedDate={selectedDate}
+        existingEvent={eventToEdit}
+        onSave={handleSaveEvent}
+        onDelete={handleDeleteEvent}
+      />
 
       {/* HEADER */}
       <div data-gsap-child style={{ padding: '20px 20px 16px' }}>
@@ -87,24 +170,40 @@ export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps
                 Planejador
               </h2>
               <p style={{ fontSize: 11, color: '#596773', margin: 0, fontFamily: font }}>
-                {tickets.length} cartão{tickets.length !== 1 ? 'es' : ''}
+                Eventos e Entregas
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            title="Fechar"
-            style={{
-              width: 28, height: 28, borderRadius: 8, border: 'none',
-              background: 'transparent', color: '#596773', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
-          >
-            <X size={15} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              title="Configurações"
+              style={{
+                width: 28, height: 28, borderRadius: 8, border: 'none',
+                background: 'transparent', color: '#596773', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+            >
+              <Settings size={15} />
+            </button>
+            <button
+              onClick={onClose}
+              title="Fechar"
+              style={{
+                width: 28, height: 28, borderRadius: 8, border: 'none',
+                background: 'transparent', color: '#596773', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+            >
+              <X size={15} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -160,116 +259,166 @@ export default function PlannerSidebar({ tickets, onClose }: PlannerSidebarProps
           ))}
           {calendarDays.map((day, i) => {
             const hasTickets = (ticketsByDate[day.fullDate] || []).length > 0
+            const hasEvents = (eventsByDate[day.fullDate] || []).length > 0
             const isToday = day.fullDate === todayStr
             const isSelected = day.fullDate === selectedDate
+            const hasDueToday = isDueToday(day.fullDate)
+
+            let borderColor = 'transparent'
+            if (hasDueToday && !isSelected) borderColor = 'rgba(245,166,35,0.5)'
+            
             return (
-              <button
-                key={i}
-                onClick={() => setSelectedDate(day.fullDate)}
-                style={{
-                  width: '100%', aspectRatio: '1', borderRadius: 8,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 11, fontWeight: 600, fontFamily: font,
-                  border: 'none', cursor: 'pointer', position: 'relative',
-                  color: !day.isCurrentMonth ? '#3B4754' : isSelected ? '#000' : isToday ? '#25D066' : '#B6C2CF',
-                  background: isSelected ? '#25D066' : isToday ? 'rgba(37,208,102,0.12)' : 'transparent',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isToday ? 'rgba(37,208,102,0.12)' : 'transparent' }}
-              >
-                {day.date}
-                {hasTickets && !isSelected && (
-                  <span style={{
-                    position: 'absolute', bottom: 2, left: '50%', transform: 'translateX(-50%)',
-                    width: 4, height: 4, borderRadius: '50%', background: '#25D066',
-                  }} />
-                )}
-              </button>
+              <div key={i} style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
+                <button
+                  onClick={() => handleDayClick(day.fullDate)}
+                  style={{
+                    width: '100%', height: '100%', borderRadius: 8,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 600, fontFamily: font,
+                    border: `1px solid ${borderColor}`, cursor: 'pointer',
+                    color: !day.isCurrentMonth ? '#3B4754' : isSelected ? '#000' : isToday ? '#25D066' : '#B6C2CF',
+                    background: isSelected ? '#25D066' : isToday ? 'rgba(37,208,102,0.12)' : 'transparent',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isToday ? 'rgba(37,208,102,0.12)' : 'transparent' }}
+                  title="Duplo clique para adicionar evento"
+                >
+                  {day.date}
+                </button>
+                {/* Dots container bottom center */}
+                <div style={{ position: 'absolute', bottom: 4, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 2, pointerEvents: 'none' }}>
+                  {hasTickets && !isSelected && (
+                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#25D066' }} />
+                  )}
+                  {hasEvents && !isSelected && (
+                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#579dff' }} />
+                  )}
+                </div>
+              </div>
             )
           })}
         </div>
       </div>
 
-      {/* SELECTED DAY TICKETS */}
+      {/* SELECTED DAY SECTION */}
       <div style={{
         borderTop: '1px solid rgba(255,255,255,0.05)',
-        padding: '12px 20px 8px',
+        padding: '12px 20px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
       }}>
         <p style={{
-          fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 8px',
+          fontSize: 11, fontWeight: 700, color: '#25D066', margin: 0,
           fontFamily: font, textTransform: 'uppercase', letterSpacing: '0.04em',
         }}>
           {selectedDate === todayStr ? 'Hoje' : new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
           {' '}
-          <span style={{ color: '#596773' }}>({selectedTickets.length} {selectedTickets.length === 1 ? 'cartão' : 'cartões'})</span>
+          <span style={{ color: '#596773' }}>({selectedTickets.length + selectedEvents.length} Itens)</span>
         </p>
+        <button
+          onClick={() => { setEventToEdit(null); setIsEventModalOpen(true) }}
+          style={{
+            background: 'rgba(87,157,255,0.1)', color: '#579dff', border: 'none', borderRadius: 6,
+            padding: '4px 8px', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+            fontFamily: font
+          }}
+        >
+          <Plus size={12} /> Evento
+        </button>
       </div>
 
       <div className="inbox-scroll" style={{
         flex: 1, overflowY: 'auto', padding: '0 20px 80px',
-        display: 'flex', flexDirection: 'column', gap: 4,
+        display: 'flex', flexDirection: 'column', gap: 12,
       }}>
-        {selectedTickets.length === 0 ? (
+        {(selectedTickets.length === 0 && selectedEvents.length === 0) ? (
           <p style={{
             textAlign: 'center', padding: '32px 0',
             fontSize: 12, color: '#596773', fontFamily: font,
           }}>
-            Nenhum cartão nesta data
+            Nenhum evento ou cartão nesta data
           </p>
         ) : (
-          selectedTickets.map(t => (
-            <motion.div
-              key={t.id}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              style={{
-                borderRadius: 10, padding: '10px 12px',
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.04)',
-                transition: 'all 0.15s',
-              }}
-              whileHover={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                  background: PRIO_COLORS[t.priority] || '#596773',
-                }} />
-                <p style={{
-                  fontSize: 12, fontWeight: 600, color: '#E5E7EB', margin: 0,
-                  fontFamily: font,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {t.title}
+          <>
+            {/* EVENTOS */}
+            {selectedEvents.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#8C96A3', textTransform: 'uppercase', marginBottom: 2, fontFamily: font }}>
+                  Meus Eventos
                 </p>
-                <span style={{ flex: 1 }} />
-                <span style={{
-                  fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-                  fontFamily: font,
-                  background: `${PRIO_COLORS[t.priority] || '#596773'}18`,
-                  color: PRIO_COLORS[t.priority] || '#596773',
-                }}>
-                  {PRIO_LABELS[t.priority] || t.priority}
-                </span>
+                {selectedEvents.map(e => (
+                  <motion.div
+                    key={e.id}
+                    initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                    onClick={() => { setEventToEdit(e); setIsEventModalOpen(true) }}
+                    style={{
+                      borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
+                      background: 'rgba(255,255,255,0.02)', borderLeft: `3px solid ${e.color}`,
+                      borderTop: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    }}
+                    whileHover={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: '#E5E7EB', margin: 0, fontFamily: font, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {e.title}
+                      </p>
+                      {e.start_time && (
+                        <p style={{ fontSize: 10, fontWeight: 600, color: '#8C96A3', margin: 0, fontFamily: font, flexShrink: 0 }}>
+                          {e.start_time} {e.end_time ? `- ${e.end_time}` : ''}
+                        </p>
+                      )}
+                    </div>
+                    {e.description && (
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 4 }}>
+                        <AlignLeft size={10} color="#596773" />
+                        <p style={{ fontSize: 11, color: '#8C96A3', margin: 0, fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {e.description}
+                        </p>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
               </div>
-              {t.description && (
-                <p style={{
-                  fontSize: 11, color: '#8C96A3', margin: '2px 0 0 12px',
-                  fontFamily: font,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {t.description}
+            )}
+
+            {/* CARTÕES */}
+            {selectedTickets.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#8C96A3', textTransform: 'uppercase', marginBottom: 2, fontFamily: font }}>
+                  Cartões
                 </p>
-              )}
-              <p style={{
-                fontSize: 10, color: '#596773', margin: '2px 0 0 12px',
-                fontFamily: font,
-              }}>
-                {new Date(t.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </motion.div>
-          ))
+                {selectedTickets.map(t => (
+                  <motion.div
+                    key={t.id}
+                    initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                    onClick={() => onOpenTicket(t.id)}
+                    style={{
+                      borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.04)',
+                      transition: 'all 0.15s',
+                    }}
+                    whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(37,208,102,0.3)' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: PRIO_COLORS[t.priority] || '#596773' }} />
+                      <p style={{ fontSize: 12, fontWeight: 600, color: '#E5E7EB', margin: 0, fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {t.title}
+                      </p>
+                      <span style={{ flex: 1 }} />
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, fontFamily: font, background: `${PRIO_COLORS[t.priority] || '#596773'}18`, color: PRIO_COLORS[t.priority] || '#596773' }}>
+                        {PRIO_LABELS[t.priority] || t.priority}
+                      </span>
+                    </div>
+                    {t.due_date && t.due_date.startsWith(selectedDate) && (
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#F5A623', margin: '4px 0 0 12px', fontFamily: font }}>
+                        Vence nesta data
+                      </p>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

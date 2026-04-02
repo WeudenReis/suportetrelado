@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import { Bell, Inbox, AtSign } from 'lucide-react'
+import { Bell, Inbox, AtSign, CalendarIcon } from 'lucide-react'
 
-export type TabFilter = 'all' | 'unread' | 'mentions'
+export type TabFilter = 'all' | 'unread' | 'mentions' | 'planner'
 
 interface TabDef {
   key: TabFilter
@@ -16,13 +16,15 @@ interface InboxTabsProps {
   totalCount: number
   unreadCount: number
   mentionCount: number
+  plannerCount: number
 }
 
-export default function InboxTabs({ active, onChange, totalCount, unreadCount, mentionCount }: InboxTabsProps) {
+export default function InboxTabs({ active, onChange, totalCount, unreadCount, mentionCount, plannerCount }: InboxTabsProps) {
   const tabs: TabDef[] = [
     { key: 'all', label: 'Todas', icon: <Bell size={13} />, count: totalCount },
     { key: 'unread', label: 'Não lidas', icon: <Inbox size={13} />, count: unreadCount },
     { key: 'mentions', label: 'Menções', icon: <AtSign size={13} />, count: mentionCount },
+    { key: 'planner', label: 'Datas', icon: <CalendarIcon size={13} />, count: plannerCount },
   ]
 
   return (
