@@ -38,8 +38,25 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
 
   const [selectedDate, setSelectedDate] = useState(todayStr)
 
+  const localKey = `plannerEvents:${user}`
+
   useEffect(() => {
-    fetchPlannerEvents(user).then(setEvents)
+    // Load local fallback first for instant UI
+    const localRaw = localStorage.getItem(localKey)
+    const localEvents: PlannerEvent[] = localRaw ? JSON.parse(localRaw) : []
+    if (localEvents.length > 0) setEvents(localEvents)
+
+    // Then load from Supabase and merge
+    fetchPlannerEvents(user).then(remoteEvents => {
+      if (remoteEvents.length > 0) {
+        // Merge: remote wins for same id, keep local-only ones
+        const remoteIds = new Set(remoteEvents.map(e => e.id))
+        const localOnly = localEvents.filter(e => !remoteIds.has(e.id))
+        const merged = [...remoteEvents, ...localOnly]
+        setEvents(merged)
+        localStorage.setItem(localKey, JSON.stringify(merged))
+      }
+    })
   }, [user])
 
   const calendarDays = useMemo(() => {
@@ -117,17 +134,48 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
   }
 
   const handleSaveEvent = async (eventData: Omit<PlannerEvent, 'id' | 'created_at' | 'updated_at'>) => {
+    const now = new Date().toISOString()
     if (eventToEdit) {
-      setEvents(prev => prev.map(e => e.id === eventToEdit.id ? { ...e, ...eventData } as PlannerEvent : e))
+      // Optimistic update always
+      const updated: PlannerEvent = { ...eventToEdit, ...eventData, updated_at: now }
+      setEvents(prev => {
+        const next = prev.map(e => e.id === eventToEdit.id ? updated : e)
+        localStorage.setItem(localKey, JSON.stringify(next))
+        return next
+      })
       await updatePlannerEvent(eventToEdit.id, eventData)
     } else {
+      // Always add optimistically with a temp local ID
+      const tempId = `local_${Date.now()}`
+      const localEvent: PlannerEvent = {
+        ...eventData, id: tempId, created_at: now, updated_at: now
+      }
+      setEvents(prev => {
+        const next = [...prev, localEvent]
+        localStorage.setItem(localKey, JSON.stringify(next))
+        return next
+      })
+      // Also jump to the event's date
+      setSelectedDate(eventData.date)
+
+      // Try to persist to Supabase and swap temp id for real one
       const created = await insertPlannerEvent(eventData)
-      if (created) setEvents(prev => [...prev, created])
+      if (created) {
+        setEvents(prev => {
+          const next = prev.map(e => e.id === tempId ? created : e)
+          localStorage.setItem(localKey, JSON.stringify(next))
+          return next
+        })
+      }
     }
   }
 
   const handleDeleteEvent = async (id: string) => {
-    setEvents(prev => prev.filter(e => e.id !== id))
+    setEvents(prev => {
+      const next = prev.filter(e => e.id !== id)
+      localStorage.setItem(localKey, JSON.stringify(next))
+      return next
+    })
     await deletePlannerEvent(id)
   }
 
