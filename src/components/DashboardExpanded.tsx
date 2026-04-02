@@ -5,8 +5,9 @@ import {
   X, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock,
   Users, Columns3, Target, Download, Filter, SortAsc,
   ArrowUpRight, ShieldAlert, Activity, Inbox, CalendarRange,
-  ExternalLink,
+  ExternalLink, FileText,
 } from 'lucide-react'
+import { jsPDF } from 'jspdf'
 import type { Ticket, UserProfile } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import CardDetailModal from './CardDetailModal'
@@ -216,6 +217,209 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     a.click()
   }, [sorted])
 
+  const handleExportPDF = useCallback(() => {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const W = 210, margin = 16, contentW = W - margin * 2
+    const dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+    let y = 0
+
+    // ── helpers ──
+    const hex2rgb = (hex: string) => {
+      const r = parseInt(hex.slice(1, 3), 16)
+      const g = parseInt(hex.slice(3, 5), 16)
+      const b = parseInt(hex.slice(5, 7), 16)
+      return [r, g, b] as [number, number, number]
+    }
+    const setColor = (hex: string) => doc.setTextColor(...hex2rgb(hex))
+    const setFill = (hex: string) => doc.setFillColor(...hex2rgb(hex))
+    const setDraw = (hex: string) => doc.setDrawColor(...hex2rgb(hex))
+
+    const pageH = 297
+    const checkPage = (need: number) => {
+      if (y + need > pageH - 20) { doc.addPage(); y = 20 }
+    }
+
+    // ── COVER HEADER ──
+    setFill('#0e1520'); doc.rect(0, 0, W, 42, 'F')
+    setFill('#1a2f1a'); doc.rect(0, 42, W, 2, 'F')
+    setFill('#25D066'); doc.rect(0, 44, W, 1.5, 'F')
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(22)
+    setColor('#E5E7EB')
+    doc.text('Dashboard Executivo', margin, 18)
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    setColor('#596773')
+    doc.text(`Relatório gerado em ${dateStr}`, margin, 26)
+    doc.text(`Período: ${dateRange === 'custom' ? `${customStart || '?'} até ${customEnd || '?'}` : dateRange === 'all' ? 'Todo o período' : `Últimos ${dateRange}`}`, margin, 32)
+    doc.text(`Total de tickets no filtro: ${total}`, margin, 38)
+
+    // Accent bar decoration
+    setFill('#25D066'); doc.roundedRect(W - margin - 28, 10, 28, 28, 3, 3, 'F')
+    setColor('#000000'); doc.setFontSize(20); doc.setFont('helvetica', 'bold')
+    doc.text(String(total), W - margin - 14, 27, { align: 'center' })
+    setColor('#002a0a'); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+    doc.text('TICKETS', W - margin - 14, 33, { align: 'center' })
+
+    y = 54
+
+    // ── KPI BOXES (2 per row) ──
+    const kpis = [
+      { label: 'Total de Tickets', value: String(total), sub: `${backlogCount} em backlog`, color: '#25D066' },
+      { label: 'Alta Prioridade', value: String(highCount), sub: 'tickets urgentes', color: '#ef5c48' },
+      { label: 'Taxa de Resolução', value: `${resolutionRate}%`, sub: `${resolvedCount} resolvidos`, color: '#4bce97' },
+      { label: 'Tempo Médio', value: `${avgHours}h`, sub: 'para resolver', color: '#e2b203' },
+    ]
+    const kpiW = (contentW - 6) / 2
+    const kpiH = 22
+    kpis.forEach((k, i) => {
+      const col = i % 2
+      const row = Math.floor(i / 2)
+      const kx = margin + col * (kpiW + 6)
+      const ky = y + row * (kpiH + 4)
+      setFill('#141c26'); doc.roundedRect(kx, ky, kpiW, kpiH, 3, 3, 'F')
+      setDraw(k.color); doc.setLineWidth(0.5); doc.roundedRect(kx, ky, kpiW, kpiH, 3, 3, 'S')
+      setFill(k.color); doc.rect(kx, ky, 2, kpiH, 'F')
+      setColor(k.color); doc.setFontSize(7); doc.setFont('helvetica', 'bold')
+      doc.text(k.label.toUpperCase(), kx + 5, ky + 6)
+      doc.setFontSize(16); doc.text(k.value, kx + 5, ky + 15)
+      setColor('#596773'); doc.setFontSize(6.5); doc.setFont('helvetica', 'normal')
+      doc.text(k.sub, kx + 5, ky + 19.5)
+    })
+    y += Math.ceil(kpis.length / 2) * (kpiH + 4) + 8
+
+    // ── STATUS DISTRIBUTION ──
+    checkPage(50)
+    setColor('#E5E7EB'); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+    doc.text('STATUS DO PIPELINE', margin, y); y += 5
+    setDraw('#1e2a3a'); doc.setLineWidth(0.3); doc.line(margin, y, W - margin, y); y += 4
+    const statusEntries = Object.entries(STATUS_L)
+    const maxSt = Math.max(...statusEntries.map(([k]) => statusDist[k] || 0), 1)
+    statusEntries.forEach(([k, label]) => {
+      const val = statusDist[k] || 0
+      const pct = val / maxSt
+      const barMaxW = contentW - 42
+      checkPage(10)
+      setColor('#8C96A3'); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
+      doc.text(label, margin, y + 4)
+      setFill('#1e2a3a'); doc.roundedRect(margin + 38, y, barMaxW, 6, 1, 1, 'F')
+      const bColor = STATUS_C[k] || '#579dff'
+      setFill(bColor); doc.roundedRect(margin + 38, y, Math.max(barMaxW * pct, 2), 6, 1, 1, 'F')
+      setColor('#E5E7EB'); doc.setFontSize(6.5)
+      doc.text(String(val), margin + 38 + barMaxW + 2, y + 4.5)
+      y += 9
+    })
+    y += 5
+
+    // ── PRIORITY DISTRIBUTION ──
+    checkPage(50)
+    setColor('#E5E7EB'); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+    doc.text('DISTRIBUIÇÃO DE PRIORIDADES', margin, y); y += 5
+    setDraw('#1e2a3a'); doc.setLineWidth(0.3); doc.line(margin, y, W - margin, y); y += 4
+    const prioEntries = Object.entries(PRIORITY_L)
+    const maxPr = Math.max(...prioEntries.map(([k]) => priorityDist[k] || 0), 1)
+    prioEntries.forEach(([k, label]) => {
+      const val = priorityDist[k] || 0
+      const pct = val / maxPr
+      const barMaxW = contentW - 42
+      checkPage(10)
+      setColor('#8C96A3'); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
+      doc.text(label, margin, y + 4)
+      setFill('#1e2a3a'); doc.roundedRect(margin + 38, y, barMaxW, 6, 1, 1, 'F')
+      const bColor = PRIORITY_C[k] || '#579dff'
+      setFill(bColor); doc.roundedRect(margin + 38, y, Math.max(barMaxW * pct, 2), 6, 1, 1, 'F')
+      setColor('#E5E7EB'); doc.setFontSize(6.5)
+      doc.text(String(val), margin + 38 + barMaxW + 2, y + 4.5)
+      y += 9
+    })
+    y += 5
+
+    // ── CARGA POR RESPONSÁVEL ──
+    const members = memberDist.slice(0, 10)
+    if (members.length) {
+      checkPage(20)
+      setColor('#E5E7EB'); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+      doc.text('CARGA POR RESPONSÁVEL', margin, y); y += 5
+      setDraw('#1e2a3a'); doc.setLineWidth(0.3); doc.line(margin, y, W - margin, y); y += 4
+      const maxM = Math.max(...members.map(([, c]) => c), 1)
+      members.forEach(([name, count]) => {
+        const pct = count / maxM
+        const barMaxW = contentW - 50
+        checkPage(10)
+        const displayName = name.split('@')[0].slice(0, 20)
+        setColor('#8C96A3'); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+        doc.text(displayName, margin, y + 4)
+        setFill('#1e2a3a'); doc.roundedRect(margin + 46, y, barMaxW, 6, 1, 1, 'F')
+        setFill('#25D066'); doc.roundedRect(margin + 46, y, Math.max(barMaxW * pct, 2), 6, 1, 1, 'F')
+        setColor('#E5E7EB'); doc.setFontSize(6.5)
+        doc.text(String(count), margin + 46 + barMaxW + 2, y + 4.5)
+        y += 9
+      })
+      y += 5
+    }
+
+    // ── TICKETS TABLE ──
+    checkPage(30)
+    setColor('#E5E7EB'); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+    doc.text(`TICKETS (${sorted.length})`, margin, y); y += 5
+    setDraw('#1e2a3a'); doc.setLineWidth(0.3); doc.line(margin, y, W - margin, y); y += 3
+
+    // Table header row
+    const cols = [
+      { label: 'Título', w: 68 },
+      { label: 'Status', w: 30 },
+      { label: 'Prioridade', w: 26 },
+      { label: 'Responsável', w: 38 },
+      { label: 'Criado', w: 20 },
+      { label: 'Dias', w: 12 },
+    ]
+    setFill('#1e2a3a'); doc.rect(margin, y - 1, contentW, 7, 'F')
+    let cx = margin
+    setColor('#596773'); doc.setFontSize(6.5); doc.setFont('helvetica', 'bold')
+    cols.forEach(c => { doc.text(c.label.toUpperCase(), cx + 1, y + 3.5); cx += c.w })
+    y += 8
+
+    sorted.slice(0, 60).forEach((t, idx) => {
+      checkPage(8)
+      if (idx % 2 === 0) { setFill('#141c26'); doc.rect(margin, y - 1, contentW, 7, 'F') }
+      const dias = daysBetween(t.created_at, new Date().toISOString())
+      const rowData = [
+        (t.title || '').slice(0, 38),
+        STATUS_L[t.status] || t.status,
+        PRIORITY_L[t.priority] || t.priority,
+        (t.assignee || '—').split('@')[0].slice(0, 20),
+        t.created_at.slice(0, 10),
+        `${dias}d`,
+      ]
+      const rowColors = ['#B6C2CF', STATUS_C[t.status] || '#B6C2CF', PRIORITY_C[t.priority] || '#B6C2CF', '#8C96A3', '#596773', dias > 7 ? '#ef5c48' : dias > 3 ? '#e2b203' : '#4bce97']
+      let rx = margin
+      rowData.forEach((val, vi) => {
+        setColor(rowColors[vi]); doc.setFontSize(6.5); doc.setFont('helvetica', vi === 0 ? 'bold' : 'normal')
+        doc.text(val, rx + 1, y + 3.5)
+        rx += cols[vi].w
+      })
+      y += 7
+    })
+    if (sorted.length > 60) {
+      setColor('#596773'); doc.setFontSize(6.5)
+      doc.text(`... e mais ${sorted.length - 60} tickets (exporte CSV para lista completa)`, margin, y + 4)
+      y += 8
+    }
+
+    // ── FOOTER ──
+    const totalPages = (doc as any).internal.getNumberOfPages()
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p)
+      setFill('#0e1520'); doc.rect(0, pageH - 10, W, 10, 'F')
+      setColor('#596773'); doc.setFontSize(6); doc.setFont('helvetica', 'normal')
+      doc.text(`Dashboard Executivo · Gerado em ${dateStr} · Página ${p} de ${totalPages}`, W / 2, pageH - 4, { align: 'center' })
+    }
+
+    doc.save(`dashboard-executivo-${new Date().toISOString().slice(0, 10)}.pdf`)
+  }, [sorted, total, highCount, resolvedCount, resolutionRate, avgHours, backlogCount, statusDist, priorityDist, memberDist, dateRange, customStart, customEnd])
+
   const TABS = [
     { key: 'overview' as const, label: 'Visão Geral', icon: <BarChart3 size={13} /> },
     { key: 'tickets' as const, label: `Tickets (${total})`, icon: <Inbox size={13} /> },
@@ -268,9 +472,14 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
             </div>
           )}
 
-          <button onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: font, flexShrink: 0 }}>
-            <Download size={12} /> Exportar CSV
-          </button>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: font }}>
+              <Download size={11} /> CSV
+            </button>
+            <button onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: 'rgba(239,92,72,0.08)', border: '1px solid rgba(239,92,72,0.2)', color: '#ef5c48', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: font }}>
+              <FileText size={11} /> PDF
+            </button>
+          </div>
 
           <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'transparent', color: '#596773', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = '#B6C2CF' }}
