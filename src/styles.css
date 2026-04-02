@@ -230,7 +230,7 @@ body {
   border: 1px solid rgba(255,255,255,0.04);
   border-top: 2px solid var(--col-accent, #25D066);
   box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-  overflow: visible;
+  overflow: hidden;
   transition: box-shadow 0.2s ease;
 }
 .trello-col:hover {

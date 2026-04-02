@@ -7,15 +7,14 @@
   cursor: pointer;
   overflow: hidden;
   margin-bottom: 8px;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
   position: relative;
 }
 
 .card:hover {
   background: #282e33;
   border-color: rgba(37, 208, 102, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(37, 208, 102, 0.08);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(37, 208, 102, 0.1);
 }
 
 .cardCompleted {
