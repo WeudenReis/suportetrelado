@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, RefreshCw, Download, CalendarDays, Target } from 'lucide-react'
+import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, RefreshCw, Download, CalendarDays, Target, Maximize2 } from 'lucide-react'
 import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../lib/supabase'
 import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
+import DashboardExpanded from './DashboardExpanded'
 
 interface DashboardViewProps {
   user: string
@@ -103,6 +104,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
   const [profiles, setProfiles] = useState<UserProfile[]>([])
   const [columns, setColumns] = useState<BoardColumn[]>([])
   const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -314,6 +316,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
   }
 
   return (
+    <>
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
       {/* ══════ HEADER ══════ */}
@@ -339,20 +342,36 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            title="Fechar"
-            style={{
-              width: 28, height: 28, borderRadius: 8, border: 'none',
-              background: 'transparent', color: '#596773', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
-          >
-            <X size={15} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => setExpanded(true)}
+              title="Expandir dashboard"
+              style={{
+                width: 28, height: 28, borderRadius: 8, border: 'none',
+                background: 'rgba(87,157,255,0.1)', color: '#579dff', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(87,157,255,0.22)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(87,157,255,0.1)' }}
+            >
+              <Maximize2 size={14} />
+            </button>
+            <button
+              onClick={onClose}
+              title="Fechar"
+              style={{
+                width: 28, height: 28, borderRadius: 8, border: 'none',
+                background: 'transparent', color: '#596773', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+            >
+              <X size={15} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -691,5 +710,15 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         </div>
       </div>
     </div>
+
+    {expanded && (
+      <DashboardExpanded
+        tickets={tickets}
+        profiles={profiles}
+        columns={columns}
+        onClose={() => setExpanded(false)}
+      />
+    )}
+    </>
   )
 }
