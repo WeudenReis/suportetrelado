@@ -2157,7 +2157,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               {/* Templates rápidos */}
               {(() => {
                 const templates = loadTemplates()
-                if (templates.length === 0 && !showTemplates) return null
                 return (
                   <div style={{ padding: '8px 24px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                     <button
@@ -2178,6 +2177,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                     </button>
                     {showTemplates && (
                       <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {templates.length === 0 && (
+                          <p style={{ fontSize: 11, color: '#596773', padding: '8px 10px', fontFamily: "'Space Grotesk', sans-serif" }}>
+                            Nenhum template salvo. Preencha o formulário e clique no ícone 📄 no rodapé para salvar.
+                          </p>
+                        )}
                         {templates.map(tmpl => (
                           <button
                             key={tmpl.id}
