@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>chatPro — Diagrama do Projeto</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Paytone+One&family=Space+Grotesk:wght@400;600;700&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1d2125; color: #b6c2cf; font-family: 'Space Grotesk', sans-serif; }
+    h1 { font-family: 'Paytone One', sans-serif; color: #25D066; text-align: center; padding: 32px 0 8px; font-size: 28px; }
+    h2 { font-family: 'Space Grotesk', sans-serif; color: #9fadbc; text-align: center; font-size: 14px; font-weight: 400; margin-bottom: 24px; }
+    .section { max-width: 1400px; margin: 0 auto 40px; padding: 0 24px; }
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px;
+      color: #25D066; text-transform: uppercase; letter-spacing: 0.06em;
+      border-bottom: 1px solid rgba(37,208,102,0.2); padding-bottom: 8px; margin-bottom: 20px;
+    }
+    .mermaid { background: #22272b; border-radius: 12px; padding: 24px; border: 1px solid rgba(255,255,255,0.06); overflow-x: auto; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 16px 0; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8C96A3; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 16px; }
+    .feature-card {
+      background: #22272b; border-radius: 10px; padding: 14px 16px;
+      border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: flex-start; gap: 10px;
+    }
+    .feature-card .status { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .feature-card .title { font-weight: 700; font-size: 13px; color: #b6c2cf; }
+    .feature-card .desc { font-size: 11px; color: #596773; margin-top: 2px; }
+    .done { background: #25D066; }
+    .pending { background: #f5a623; }
+  </style>
+</head>
+<body>
+
+<h1>Suporte chatPro</h1>
+<h2>Diagrama Completo do Projeto — Kanban Board de Suporte ao Cliente</h2>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">1. Arquitetura Geral</div>
+  <div class="mermaid">
+graph TB
+  subgraph DEPLOY["☁️ Deploy"]
+    VERCEL_PROD["Vercel Production<br/>(branch main)"]
+    VERCEL_PREV["Vercel Preview<br/>(branch dev)"]
+  end
+
+  subgraph FRONTEND["⚛️ Frontend — React 18 + TypeScript + Vite"]
+    APP["App.tsx<br/>Root / Auth / Routing"]
+    THEME["ThemeProvider<br/>8 temas de cores"]
+    NOTIF_CTX["NotificationProvider<br/>Realtime + Push Nativo"]
+    APP --> THEME
+    APP --> NOTIF_CTX
+  end
+
+  subgraph BACKEND["🗄️ Supabase"]
+    AUTH["Auth (Google OAuth)"]
+    DB["PostgreSQL<br/>tickets, comments, attachments,<br/>notifications, announcements,<br/>board_columns, board_labels,<br/>user_profiles, useful_links,<br/>planner_events"]
+    STORAGE["Storage<br/>covers, attachments"]
+    REALTIME["Realtime<br/>tickets, notifications"]
+  end
+
+  FRONTEND -->|Supabase Client| BACKEND
+  FRONTEND -->|git push dev| VERCEL_PREV
+  FRONTEND -->|git push main| VERCEL_PROD
+  REALTIME -->|postgres_changes| NOTIF_CTX
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">2. Fluxo de Autenticação</div>
+  <div class="mermaid">
+flowchart LR
+  A["Usuário abre o app"] --> B{"Sessão ativa?"}
+  B -->|Não| C["Tela de Login<br/>(Login.tsx)"]
+  C --> D["Google OAuth<br/>via Supabase Auth"]
+  D --> E{"Email autorizado?<br/>(authorized_users)"}
+  E -->|Não| F["❌ Acesso negado"]
+  E -->|Sim| G["✅ setUser(email)"]
+  B -->|Sim| G
+  G --> H["upsertUserProfile()"]
+  H --> I["updateLastSeen()<br/>a cada 2 min"]
+  I --> J["Renderiza AppContent"]
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">3. Estrutura de Componentes</div>
+  <div class="mermaid">
+graph TB
+  APP["App.tsx"] --> LOGIN["Login.tsx"]
+  APP --> CONTENT["AppContent"]
+
+  CONTENT --> KANBAN["KanbanBoard.tsx<br/>⭐ Core do app"]
+  CONTENT --> BOTTOM["BottomNav.tsx"]
+  CONTENT --> SIDEBAR_PANEL["Sidebar Panel (GSAP)"]
+
+  SIDEBAR_PANEL --> INBOX["InboxView.tsx"]
+  SIDEBAR_PANEL --> PLANNER_SB["PlannerSidebar.tsx"]
+  SIDEBAR_PANEL --> ANNOUNCE["AnnouncementsView.tsx"]
+  SIDEBAR_PANEL --> LINKS["LinksView.tsx"]
+  SIDEBAR_PANEL --> DASHBOARD["DashboardView.tsx"]
+
+  KANBAN --> CARD["Card.tsx"]
+  KANBAN --> DETAIL["CardDetailModal.tsx"]
+  KANBAN --> ARCHIVED["ArchivedPanel.tsx"]
+  KANBAN --> INSTANCE["InstanceModal.tsx"]
+  KANBAN --> SETTINGS["Settings Panel<br/>(inline)"]
+
+  DETAIL --> COMMENTS["Comentários<br/>+ Notas Internas"]
+  DETAIL --> ATTACHMENTS["Anexos<br/>(imagens, vídeos, files)"]
+  DETAIL --> CHECKLIST["Checklist"]
+  DETAIL --> LABELS["Etiquetas"]
+  DETAIL --> MEMBER["Vincular Membro"]
+
+  INBOX --> INBOX_TABS["InboxTabs.tsx"]
+  INBOX --> NOTIF_CARD["NotificationCard.tsx"]
+  INBOX --> EMPTY["EmptyState.tsx"]
+
+  PLANNER_SB --> PLANNER_VIEW["PlannerView.tsx"]
+  PLANNER_SB --> PLANNER_EVENT["PlannerEventModal.tsx"]
+  PLANNER_SB --> PLANNER_SETTINGS["PlannerSettingsPanel.tsx"]
+
+  style KANBAN fill:#1a3a1a,stroke:#25D066,stroke-width:2px,color:#25D066
+  style APP fill:#1a2a3a,stroke:#579dff,stroke-width:2px,color:#579dff
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">4. Fluxo do Kanban Board (Core)</div>
+  <div class="mermaid">
+flowchart TB
+  subgraph HEADER["Header do Kanban"]
+    LOGO["Logo chatPro"]
+    SEARCH["🔍 Busca (/ ou Ctrl+K)"]
+    FILTERS["Filtros Avançados<br/>(prioridade, assignee, etiqueta)"]
+    COMPACT["Modo Compacto (C)"]
+    BULK["Seleção Múltipla"]
+    VIEW_TOGGLE["Kanban ↔ Lista"]
+    NEW_TICKET["+ Novo Ticket (N)"]
+  end
+
+  subgraph BOARD["Kanban View (dnd-kit)"]
+    COL1["Coluna Dinâmica 1"]
+    COL2["Coluna Dinâmica 2"]
+    COL3["Coluna Dinâmica N"]
+    COL1 --> CARDS1["Cards com SLA visual"]
+    COL2 --> CARDS2["Cards com SLA visual"]
+    COL3 --> CARDS3["Cards com SLA visual"]
+  end
+
+  subgraph LIST["List View"]
+    STATS["Barra de Estatísticas"]
+    LIST_COLS["Colunas Colapsáveis"]
+    LIST_ITEMS["Items em Linha"]
+  end
+
+  subgraph ACTIONS["Ações nos Cards"]
+    DRAG["Drag & Drop<br/>(individual ou múltiplo)"]
+    CLICK["Click → CardDetailModal"]
+    CHECK["Toggle Concluído (GSAP)"]
+    ARCHIVE["Arquivar (GSAP)"]
+    INLINE["Edição Inline de Título"]
+  end
+
+  HEADER --> BOARD
+  HEADER --> LIST
+  BOARD --> ACTIONS
+  NEW_TICKET --> TEMPLATE["Templates<br/>(localStorage)"]
+  TEMPLATE --> CREATE["insertTicket()"]
+
+  subgraph AUTO["Automações"]
+    RULES["Regras Automáticas<br/>(condição → ação)"]
+    RULES --> MOVE["Auto-mover ticket<br/>ao carregar"]
+  end
+
+  BOARD --> AUTO
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">5. Modelo de Dados (Supabase PostgreSQL)</div>
+  <div class="mermaid">
+erDiagram
+  TICKETS {
+    uuid id PK
+    text title
+    text description
+    text status
+    text priority
+    text assignee
+    text[] tags
+    text cliente
+    text instancia
+    text due_date
+    text cover_image_url
+    boolean is_completed
+    boolean is_archived
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  COMMENTS {
+    uuid id PK
+    uuid ticket_id FK
+    text user_name
+    text content
+    timestamp created_at
+  }
+
+  ATTACHMENTS {
+    uuid id PK
+    uuid ticket_id FK
+    text file_name
+    text file_url
+    text file_type
+    integer file_size
+    text uploaded_by
+    timestamp created_at
+  }
+
+  ACTIVITY_LOG {
+    uuid id PK
+    uuid card_id FK
+    text user_name
+    text action_text
+    timestamp created_at
+  }
+
+  NOTIFICATIONS {
+    uuid id PK
+    text recipient_email
+    text sender_name
+    text type
+    uuid ticket_id
+    text ticket_title
+    text message
+    boolean is_read
+    timestamp created_at
+  }
+
+  BOARD_COLUMNS {
+    text id PK
+    text title
+    integer position
+    text dot_color
+    boolean is_archived
+  }
+
+  BOARD_LABELS {
+    uuid id PK
+    text name
+    text color
+    boolean is_active
+  }
+
+  USER_PROFILES {
+    uuid id PK
+    text email
+    text display_name
+    text avatar_url
+    boolean is_authorized
+    timestamp last_seen_at
+  }
+
+  ANNOUNCEMENTS {
+    uuid id PK
+    text title
+    text content
+    text severity
+    text author
+    boolean is_pinned
+  }
+
+  USEFUL_LINKS {
+    uuid id PK
+    text title
+    text url
+    text description
+    text category
+    text added_by
+  }
+
+  PLANNER_EVENTS {
+    uuid id PK
+    text user_email
+    text title
+    text type
+    text date
+    text time_start
+    text time_end
+  }
+
+  TICKETS ||--o{ COMMENTS : "tem"
+  TICKETS ||--o{ ATTACHMENTS : "tem"
+  TICKETS ||--o{ ACTIVITY_LOG : "tem"
+  TICKETS ||--o{ NOTIFICATIONS : "referencia"
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">6. Sistema de Notificações</div>
+  <div class="mermaid">
+flowchart LR
+  subgraph TRIGGERS["Gatilhos"]
+    MENTION["@menção em comentário"]
+    DUEDATE["Vencimento de ticket<br/>(polling 30 min)"]
+    ASSIGN["Atribuição de ticket"]
+  end
+
+  subgraph NOTIF_SYSTEM["NotificationContext.tsx"]
+    FETCH["fetchNotifications()"]
+    REALTIME_SUB["Supabase Realtime<br/>(INSERT on notifications)"]
+    TOAST["Toast in-app<br/>(6s auto-dismiss)"]
+    PUSH["Browser Notification API<br/>(quando aba não focada)"]
+    BADGE["Badge de contagem<br/>(BottomNav)"]
+  end
+
+  subgraph INBOX_VIEW["InboxView"]
+    TABS["Tabs: Todas / Menções / Sistema"]
+    MARK_READ["Marcar como lida"]
+    MARK_ALL["Marcar todas como lidas"]
+    OPEN_TICKET["Abrir ticket referenciado"]
+  end
+
+  TRIGGERS --> |insertNotification| NOTIF_SYSTEM
+  REALTIME_SUB --> TOAST
+  REALTIME_SUB --> PUSH
+  REALTIME_SUB --> BADGE
+  NOTIF_SYSTEM --> INBOX_VIEW
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">7. Sistema de Temas</div>
+  <div class="mermaid">
+flowchart TB
+  subgraph THEME_SYSTEM["ThemeProvider (theme.tsx)"]
+    PRESETS["8 Presets de Cores"]
+    CUSTOM["Cor Customizada"]
+    DOM["applyThemeToDom()<br/>CSS Variables"]
+    PERSIST["localStorage<br/>(chatpro-theme)"]
+  end
+
+  subgraph PRESETS_LIST["Presets Disponíveis"]
+    P1["🌑 Escuro"]
+    P2["⚫ Escuro Profundo"]
+    P3["☀️ Claro"]
+    P4["🟢 Verde Escuro"]
+    P5["💚 chatPro"]
+    P6["🟣 Roxo"]
+    P7["🌅 Pôr do Sol"]
+    P8["🌊 Oceano"]
+  end
+
+  subgraph WALLPAPERS["Wallpapers (KanbanBoard)"]
+    WP_PRESETS["Presets de Gradiente"]
+    WP_COLOR["Cor Sólida"]
+    WP_URL["URL de Imagem"]
+    WP_FILE["Upload de Arquivo"]
+  end
+
+  PRESETS --> DOM
+  CUSTOM --> DOM
+  DOM --> PERSIST
+  PRESETS_LIST --> PRESETS
+  WALLPAPERS --> |"background do board"| DOM
+
+  style P5 fill:#1a3a1a,stroke:#25D066,color:#25D066
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">8. Atalhos de Teclado</div>
+  <div class="mermaid">
+flowchart LR
+  HOOK["useKeyboardShortcuts.ts"]
+  HOOK --> N["N → Novo Ticket"]
+  HOOK --> F["F → Filtros"]
+  HOOK --> SLASH["/ → Busca"]
+  HOOK --> CTRLK["Ctrl+K → Busca"]
+  HOOK --> R["R → Atualizar"]
+  HOOK --> C["C → Modo Compacto"]
+  HOOK --> HELP["Shift+? → Ajuda"]
+  HOOK --> ESC["Esc → Fechar"]
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">9. Fluxo do CardDetailModal</div>
+  <div class="mermaid">
+flowchart TB
+  OPEN["Abrir Card"] --> MODAL["CardDetailModal.tsx"]
+
+  MODAL --> COVER["Capa do Card<br/>(upload/remover)"]
+  MODAL --> TOPBAR["Barra Superior<br/>(título editável, status select)"]
+  MODAL --> ACTIONS_BAR["Quick Actions<br/>(Etiquetas, Datas, Checklist, Capa, Vincular)"]
+
+  MODAL --> FIELDS["Campos do Card"]
+  FIELDS --> DESC["Descrição (Markdown)"]
+  FIELDS --> PRIORITY["Prioridade"]
+  FIELDS --> ASSIGNEE["Responsável"]
+  FIELDS --> DUE["Data de Vencimento"]
+  FIELDS --> LABELS_FIELD["Etiquetas"]
+  FIELDS --> CLIENT["Cliente / Instância"]
+  FIELDS --> OBS["Observação"]
+
+  MODAL --> COMMENT_AREA["Área de Comentários"]
+  COMMENT_AREA --> PUBLIC["💬 Comentário Público"]
+  COMMENT_AREA --> INTERNAL["🔒 Nota Interna<br/>(prefixo [INTERNO], visual âmbar)"]
+  COMMENT_AREA --> MENTION["@menções → notificação"]
+
+  MODAL --> ATTACH["Anexos<br/>(upload, preview, download)"]
+  MODAL --> CHECK["Checklist<br/>(itens, progresso %)"]
+  MODAL --> ACTIVITY["Feed de Atividades<br/>(comentários + logs)"]
+  MODAL --> FOOTER["Salvar / Excluir"]
+
+  style INTERNAL fill:#3a2a10,stroke:#f5a623,color:#f5a623
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">10. Features Implementadas</div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot done"></div> Concluída</div>
+    <div class="legend-item"><div class="legend-dot pending"></div> Pendente (requer backend)</div>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">1. SLA / Tempo de Resposta</div><div class="desc">Borda visual vermelha (24h+) ou amarela (12h+) nos cards. Card.tsx + Card.module.css</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">2. Filtros Avançados</div><div class="desc">Dropdowns por prioridade, responsável e etiqueta na barra do header. KanbanBoard.tsx</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">3. Atalhos de Teclado</div><div class="desc">Hook customizado com N, F, /, Ctrl+K, R, C, ?, Esc. useKeyboardShortcuts.ts</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">4. Templates de Ticket</div><div class="desc">Salvar/carregar/excluir templates no modal Novo Ticket. localStorage.</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">5. Métricas no Dashboard</div><div class="desc">6 cards de métricas: total, abertos, resolvidos, alta prioridade, criados hoje, produtividade.</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">6. Exportação CSV</div><div class="desc">Botão de download CSV com BOM para Excel. DashboardView.tsx</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status pending"></div>
+      <div><div class="title">7. Integração WhatsApp</div><div class="desc">InstanceModal.tsx já tem campos. Precisa de Edge Function para API chatPro.</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">8. Notificações Push Nativas</div><div class="desc">Browser Notification API quando aba não está focada. NotificationContext.tsx</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">9. Notas Internas</div><div class="desc">Toggle Público/Interno no comentário. Visual âmbar com ícone 🔒. CardDetailModal.tsx</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">10. Seleção Múltipla (Bulk)</div><div class="desc">Selecionar vários cards, mover em lote ou arquivar em lote. Barra flutuante.</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">11. Modo Compacto</div><div class="desc">Cards em linha única com ponto de prioridade, título e avatar. Tecla C.</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">12. Temas por Usuário</div><div class="desc">8 presets (Escuro, Profundo, Claro, Verde, chatPro, Roxo, Sunset, Oceano) + customizado.</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status done"></div>
+      <div><div class="title">13. Regras Automáticas</div><div class="desc">Condições (prioridade, sem assignee, overdue) → ação de auto-mover. Settings panel.</div></div>
+    </div>
+    <div class="feature-card">
+      <div class="status pending"></div>
+      <div><div class="title">14. Webhook de Entrada</div><div class="desc">Precisa de Supabase Edge Function para receber chamadas externas e criar tickets.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">11. Estrutura de Arquivos</div>
+  <div class="mermaid">
+graph LR
+  subgraph src["📁 src/"]
+    APP_FILE["App.tsx — Root + Auth + Routing"]
+    MAIN["main.jsx — Entry point"]
+    STYLES["styles.css — Estilos globais"]
+    ENV["vite-env.d.ts"]
+  end
+
+  subgraph components["📁 components/"]
+    KB["KanbanBoard.tsx ⭐"]
+    CDM["CardDetailModal.tsx"]
+    CARD_C["Card.tsx + Card.module.css"]
+    ARCH["ArchivedPanel.tsx"]
+    DASH["DashboardView.tsx"]
+    INBOX_C["InboxView.tsx"]
+    LOGIN_C["Login.tsx"]
+    NOTIF_C["NotificationContext.tsx"]
+    PLAN_V["PlannerView.tsx + Sidebar"]
+    ANN_V["AnnouncementsView.tsx"]
+    LINKS_V["LinksView.tsx"]
+    INST["InstanceModal.tsx"]
+    BOTTOM["BottomNav.tsx"]
+    SIDEBAR_C["Sidebar.tsx"]
+  end
+
+  subgraph lib["📁 lib/"]
+    SUPA["supabase.ts — Client + Queries"]
+    BOARD_COL["boardColumns.ts — CRUD colunas"]
+    THEME_F["theme.tsx — ThemeProvider"]
+    IMG["imageUtils.ts"]
+  end
+
+  subgraph hooks["📁 hooks/"]
+    USE_KB["useKanban.ts"]
+    USE_KS["useKeyboardShortcuts.ts"]
+  end
+
+  subgraph inbox_dir["📁 inbox/"]
+    TABS_C["InboxTabs.tsx"]
+    NOTIF_CARD_C["NotificationCard.tsx"]
+    EMPTY_C["EmptyState.tsx"]
+  end
+
+  src --> components
+  src --> lib
+  src --> hooks
+  components --> inbox_dir
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">12. Fluxo de Deploy</div>
+  <div class="mermaid">
+flowchart LR
+  DEV["Desenvolvimento Local<br/>npm run dev"] --> BUILD["npx vite build<br/>✅ Sem erros TS"]
+  BUILD --> COMMIT["git add -A<br/>git commit -m 'feat: ...'"]
+  COMMIT --> PUSH_DEV["git push origin dev"]
+  PUSH_DEV --> VERCEL_PREVIEW["Vercel Preview<br/>🟡 supabase DEV<br/>(vbxzeyweurzrwppdiluo)"]
+  VERCEL_PREVIEW --> |"Aprovado"| MERGE["Merge dev → main<br/>(com autorização)"]
+  MERGE --> VERCEL_PROD["Vercel Production<br/>🟢 supabase PROD<br/>(qacrxpfoamarslxskcyb)"]
+
+  style PUSH_DEV fill:#1a3a1a,stroke:#25D066,color:#25D066
+  style VERCEL_PROD fill:#1a1a3a,stroke:#579dff,color:#579dff
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">13. Navegação do App (Tabs)</div>
+  <div class="mermaid">
+flowchart TB
+  BOTTOM_NAV["BottomNav.tsx"] --> TAB_BOARD["📋 Board<br/>(KanbanBoard)"]
+  BOTTOM_NAV --> TAB_INBOX["📥 Inbox<br/>(InboxView)"]
+  BOTTOM_NAV --> TAB_PLANNER["📅 Planner<br/>(PlannerSidebar)"]
+  BOTTOM_NAV --> TAB_ANNOUNCE["📢 Avisos<br/>(AnnouncementsView)"]
+  BOTTOM_NAV --> TAB_LINKS["🔗 Links<br/>(LinksView)"]
+  BOTTOM_NAV --> TAB_DASHBOARD["📊 Dashboard<br/>(DashboardView)"]
+
+  TAB_BOARD --> |"Tela principal"| FULL_SCREEN["Tela cheia"]
+  TAB_INBOX --> |"Sidebar esquerda<br/>GSAP slide-in"| SIDEBAR["Sidebar + Board"]
+  TAB_PLANNER --> SIDEBAR
+  TAB_ANNOUNCE --> SIDEBAR
+  TAB_LINKS --> SIDEBAR
+  TAB_DASHBOARD --> SIDEBAR
+  </div>
+</div>
+
+<div style="text-align:center; padding: 40px 0 60px; color: #596773; font-size: 12px;">
+  chatPro — Suporte Kanban Board &bull; React 18 + TypeScript + Vite + Supabase &bull; 2024-2026
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#25D066',
+      primaryTextColor: '#b6c2cf',
+      primaryBorderColor: '#25D066',
+      lineColor: '#596773',
+      secondaryColor: '#22272b',
+      tertiaryColor: '#1d2125',
+      background: '#22272b',
+      mainBkg: '#22272b',
+      nodeBorder: '#3a4248',
+      clusterBkg: '#1a1f23',
+      clusterBorder: 'rgba(255,255,255,0.08)',
+      titleColor: '#25D066',
+      edgeLabelBackground: '#22272b',
+      nodeTextColor: '#b6c2cf',
+    },
+    flowchart: { curve: 'basis', padding: 16 },
+    er: { fontSize: 11 },
+  });
+</script>
+
+</body>
+</html>
