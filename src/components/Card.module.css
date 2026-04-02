@@ -2,18 +2,20 @@
 
 .card {
   background: #22272b;
-  border-radius: 8px;
-  border: 1px solid rgba(166, 197, 226, 0.16);
+  border-radius: 10px;
+  border: 1px solid rgba(166, 197, 226, 0.1);
   cursor: pointer;
   overflow: hidden;
   margin-bottom: 8px;
-  transition: background 0.1s, border-color 0.1s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
   position: relative;
 }
 
 .card:hover {
   background: #282e33;
-  border-color: rgba(87, 157, 255, 0.35);
+  border-color: rgba(37, 208, 102, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(37, 208, 102, 0.08);
+  transform: translateY(-1px);
 }
 
 .cardCompleted {
@@ -181,12 +183,12 @@
 /* Tag de prioridade */
 .tag {
   display: inline-block;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   margin-bottom: 6px;
   line-height: 1;
 }
@@ -215,7 +217,7 @@
 
 .cardTag {
   display: inline-block;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 4px 8px;
   font-size: 10px;
   font-weight: 700;

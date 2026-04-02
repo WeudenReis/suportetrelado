@@ -769,7 +769,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             type="button"
           >
             <Plug size={14} />
-            Instancia
+            Instância
           </button>
 
           {staleCount > 0 && (
@@ -799,7 +799,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
         </div>
 
         <div className="trello-board-header__right">
-          <div className={clsx('trello-board-status', isConnected ? 'trello-board-status--ok' : 'trello-board-status--off')} title={isConnected ? 'Conectado ao realtime' : 'Sem conexao'}>
+          <div className={clsx('trello-board-status', isConnected ? 'trello-board-status--ok' : 'trello-board-status--off')} title={isConnected ? 'Conectado ao realtime' : 'Sem conexão'}>
             <span className="trello-board-status__dot" />
           </div>
 
@@ -848,7 +848,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             </button>
           </div>
 
-          <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configuracoes">
+          <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configurações">
             <Settings size={16} />
           </button>
 
@@ -1223,7 +1223,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                 }}
                               />
                               <div className="flex items-center gap-1.5 mt-1.5">
-                                <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#579dff' }}>Adicionar</button>
+                                <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#25D066' }}>Adicionar</button>
                                 <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
                               </div>
                             </div>
@@ -1283,7 +1283,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                       showToast('Lista adicionada!', 'ok')
                     }}
                     className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white"
-                    style={{ background: '#579dff' }}
+                    style={{ background: '#25D066' }}
                   >Adicionar lista</button>
                   <button onClick={() => { setAddingList(false); setNewListName('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
                 </div>
