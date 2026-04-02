@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { ArchiveRestore, Trash2, X } from 'lucide-react';
+import { ArchiveRestore, Trash2, X, Search } from 'lucide-react';
 import styles from './ArchivedPanel.module.css';
 
 interface ArchivedPanelProps {
@@ -8,11 +8,26 @@ interface ArchivedPanelProps {
   onRestore: () => void;
 }
 
+const PRIORITY_LABEL: Record<string, string> = {
+  high: 'Alta', medium: 'Média', low: 'Baixa',
+  alta: 'Alta', média: 'Média', media: 'Média', baixa: 'Baixa',
+}
+const PRIORITY_COLOR: Record<string, { bg: string; text: string }> = {
+  high:   { bg: '#ef5c48', text: '#fff' },
+  medium: { bg: '#e2b203', text: '#000' },
+  low:    { bg: '#4bce97', text: '#000' },
+  alta:   { bg: '#ef5c48', text: '#fff' },
+  média:  { bg: '#e2b203', text: '#000' },
+  media:  { bg: '#e2b203', text: '#000' },
+  baixa:  { bg: '#4bce97', text: '#000' },
+}
+
 export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
   const [archivedCards, setArchivedCards] = useState<any[]>([]);
   const [archivedLists, setArchivedLists] = useState<any[]>([]);
   const [tab, setTab] = useState<'cards' | 'lists'>('cards');
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   const fetchArchived = async () => {
     setLoading(true);
@@ -62,75 +77,116 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
     new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
       .format(new Date(iso));
 
+  const q = search.toLowerCase().trim();
+  const filteredCards = useMemo(() =>
+    q ? archivedCards.filter(c => (c.title || '').toLowerCase().includes(q)) : archivedCards,
+    [archivedCards, q]
+  );
+  const filteredLists = useMemo(() =>
+    q ? archivedLists.filter(l => (l.title || '').toLowerCase().includes(q)) : archivedLists,
+    [archivedLists, q]
+  );
+
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={e => e.stopPropagation()}>
+        {/* Header */}
         <div className={styles.header}>
           <h2 className={styles.title}>Itens arquivados</h2>
           <button className={styles.closeBtn} onClick={onClose} type="button">
             <X size={16} />
           </button>
         </div>
+
+        {/* Search bar */}
+        <div className={styles.searchWrapper}>
+          <Search size={13} className={styles.searchIcon} />
+          <input
+            className={styles.searchInput}
+            type="text"
+            placeholder="Buscar arquivados..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className={styles.searchClear} onClick={() => setSearch('')} type="button">
+              <X size={11} />
+            </button>
+          )}
+        </div>
+
+        {/* Tabs */}
         <div className={styles.tabs}>
           <button
             className={`${styles.tab} ${tab === 'cards' ? styles.tabActive : ''}`}
-            onClick={() => setTab('cards')}
-            type="button"
+            onClick={() => setTab('cards')} type="button"
           >
-            Cartões ({archivedCards.length})
+            Cartões ({filteredCards.length})
           </button>
           <button
             className={`${styles.tab} ${tab === 'lists' ? styles.tabActive : ''}`}
-            onClick={() => setTab('lists')}
-            type="button"
+            onClick={() => setTab('lists')} type="button"
           >
-            Listas ({archivedLists.length})
+            Listas ({filteredLists.length})
           </button>
         </div>
+
+        {/* Content */}
         <div className={styles.content}>
           {loading && <p className={styles.empty}>Carregando...</p>}
+
           {!loading && tab === 'cards' && (
-            archivedCards.length === 0
-              ? <p className={styles.empty}>Nenhum cartão arquivado</p>
-              : archivedCards.map(card => (
-                <div key={card.id} className={styles.item}>
-                  <div className={styles.itemInfo}>
-                    {card.priority && (
-                      <span className={`${styles.itemTag} ${styles[card.priority.toLowerCase()]}`}>
-                        {card.priority}
-                      </span>
-                    )}
-                    <p className={styles.itemTitle}>{card.title}</p>
-                    <p className={styles.itemDate}>Arquivado em {formatDate(card.updated_at)}</p>
-                  </div>
-                  <div className={styles.itemActions}>
-                    <button
-                      className={styles.restoreBtn}
-                      onClick={() => restoreCard(card.id)}
-                      title="Restaurar cartão"
-                      type="button"
-                    >
-                      <ArchiveRestore size={14} />
-                      Restaurar
-                    </button>
-                    <button
-                      className={styles.deleteBtn}
-                      onClick={() => deleteCard(card.id)}
-                      title="Excluir permanentemente"
-                      type="button"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))
+            filteredCards.length === 0
+              ? <p className={styles.empty}>{search ? 'Nenhum resultado para a busca' : 'Nenhum cartão arquivado'}</p>
+              : filteredCards.map(card => {
+                  const pKey = (card.priority || '').toLowerCase()
+                  const pColor = PRIORITY_COLOR[pKey]
+                  const pLabel = PRIORITY_LABEL[pKey]
+                  return (
+                    <div key={card.id} className={styles.item}>
+                      <div className={styles.itemInfo}>
+                        {pLabel && pColor && (
+                          <span
+                            className={styles.itemTag}
+                            style={{ background: pColor.bg, color: pColor.text }}
+                          >
+                            {pLabel}
+                          </span>
+                        )}
+                        <p className={styles.itemTitle}>{card.title}</p>
+                        <p className={styles.itemDate}>Arquivado em {formatDate(card.updated_at)}</p>
+                      </div>
+                      <div className={styles.itemActions}>
+                        <button
+                          className={styles.restoreBtn}
+                          onClick={() => restoreCard(card.id)}
+                          title="Restaurar cartão" type="button"
+                        >
+                          <ArchiveRestore size={14} />
+                          Restaurar
+                        </button>
+                        <button
+                          className={styles.deleteBtn}
+                          onClick={() => deleteCard(card.id)}
+                          title="Excluir permanentemente" type="button"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })
           )}
+
           {!loading && tab === 'lists' && (
-            archivedLists.length === 0
-              ? <p className={styles.empty}>Nenhuma lista arquivada</p>
-              : archivedLists.map(list => (
+            filteredLists.length === 0
+              ? <p className={styles.empty}>{search ? 'Nenhum resultado para a busca' : 'Nenhuma lista arquivada'}</p>
+              : filteredLists.map(list => (
                 <div key={list.id} className={styles.item}>
                   <div className={styles.itemInfo}>
+                    <span className={styles.itemTag} style={{ background: '#579dff22', color: '#579dff' }}>
+                      Lista
+                    </span>
                     <p className={styles.itemTitle}>{list.title}</p>
                     <p className={styles.itemDate}>Arquivada em {formatDate(list.updated_at)}</p>
                   </div>
@@ -138,8 +194,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
                     <button
                       className={styles.restoreBtn}
                       onClick={() => restoreList(list.id)}
-                      title="Restaurar lista"
-                      type="button"
+                      title="Restaurar lista" type="button"
                     >
                       <ArchiveRestore size={14} />
                       Restaurar
@@ -147,8 +202,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
                     <button
                       className={styles.deleteBtn}
                       onClick={() => deleteList(list.id)}
-                      title="Excluir permanentemente"
-                      type="button"
+                      title="Excluir permanentemente" type="button"
                     >
                       <Trash2 size={14} />
                     </button>
