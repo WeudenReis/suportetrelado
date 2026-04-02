@@ -235,12 +235,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     try {
       const [data, attCounts] = await Promise.all([fetchTickets(), fetchAttachmentCounts()])
       const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
-      setTickets(loaded)
 
-      // Processar regras automáticas
+      // Processar regras automáticas antes de setar os tickets
       const rules = loadAutoRules().filter(r => r.enabled)
+      const updates: { id: string; newStatus: string; ruleName: string }[] = []
       if (rules.length > 0) {
-        const updates: { id: string; newStatus: string }[] = []
         for (const ticket of loaded) {
           if (ticket.is_archived) continue
           for (const rule of rules) {
@@ -263,20 +262,29 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               }
             }
             if (match) {
-              updates.push({ id: ticket.id, newStatus: rule.targetColumn })
+              updates.push({ id: ticket.id, newStatus: rule.targetColumn, ruleName: rule.name })
               break
             }
           }
         }
-        if (updates.length > 0) {
-          setTickets(prev => prev.map(t => {
+      }
+
+      // Aplicar as mudanças diretamente no array antes de setar
+      const finalTickets = updates.length > 0
+        ? loaded.map(t => {
             const upd = updates.find(u => u.id === t.id)
             return upd ? { ...t, status: upd.newStatus as TicketStatus } : t
-          }))
-          for (const upd of updates) {
-            updateTicket(upd.id, { status: upd.newStatus as TicketStatus }).catch(console.error)
-          }
+          })
+        : loaded
+
+      setTickets(finalTickets)
+
+      // Persistir no banco
+      if (updates.length > 0) {
+        for (const upd of updates) {
+          updateTicket(upd.id, { status: upd.newStatus as TicketStatus }).catch(console.error)
         }
+        showToast(`Regra automática: ${updates.length} ticket(s) movido(s)`, 'ok')
       }
     } catch (err) {
       console.error('Failed to load tickets:', err)
@@ -285,6 +293,37 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   }, [])
 
   // --- Realtime subscription ---
+  // Helper: aplica regras automáticas a um ticket individual
+  const applyAutoRulesToTicket = useCallback((ticket: Ticket): Ticket => {
+    if (ticket.is_archived) return ticket
+    const rules = loadAutoRules().filter(r => r.enabled)
+    for (const rule of rules) {
+      if (ticket.status === rule.targetColumn) continue
+      let match = false
+      switch (rule.condition) {
+        case 'priority_high': match = ticket.priority === 'high'; break
+        case 'priority_medium': match = ticket.priority === 'medium'; break
+        case 'priority_low': match = ticket.priority === 'low'; break
+        case 'no_assignee': match = !ticket.assignee; break
+        case 'overdue_12h': {
+          const hoursIdle = (Date.now() - new Date(ticket.updated_at).getTime()) / 3_600_000
+          match = hoursIdle >= 12 && ticket.status !== 'resolved'
+          break
+        }
+        case 'overdue_24h': {
+          const hoursIdle = (Date.now() - new Date(ticket.updated_at).getTime()) / 3_600_000
+          match = hoursIdle >= 24 && ticket.status !== 'resolved'
+          break
+        }
+      }
+      if (match) {
+        updateTicket(ticket.id, { status: rule.targetColumn as TicketStatus }).catch(console.error)
+        return { ...ticket, status: rule.targetColumn as TicketStatus }
+      }
+    }
+    return ticket
+  }, [])
+
   useEffect(() => {
     setLoading(true)
     loadTickets().finally(() => setLoading(false))
@@ -294,7 +333,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => {
           if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
-          return [...prev, { ...(payload.new as Ticket), attachment_count: 0 }]
+          const newTicket = applyAutoRulesToTicket({ ...(payload.new as Ticket), attachment_count: 0 } as Ticket)
+          return [...prev, newTicket]
         })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, payload => {
@@ -2651,6 +2691,28 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                   <p style={{ fontSize: 10, color: '#596773', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>Mover cards automaticamente</p>
                 </div>
                 <button onClick={() => setShowAutoRules(false)} style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8 }}><X size={15} /></button>
+              </div>
+              {/* Botão executar regras agora */}
+              <div className="px-5 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <button
+                  onClick={async () => {
+                    setShowAutoRules(false)
+                    await loadTickets()
+                    showToast('Regras executadas!', 'ok')
+                  }}
+                  style={{
+                    width: '100%', padding: '8px 14px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                    background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.15)',
+                    color: '#25D066', cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif",
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+                >
+                  <RefreshCw size={12} />
+                  Executar regras agora
+                </button>
               </div>
               <div className="p-4" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                 {(() => {
