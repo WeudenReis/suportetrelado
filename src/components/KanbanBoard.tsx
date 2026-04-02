@@ -1335,34 +1335,41 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               <span className="text-sm">Carregando tickets...</span>
             </div>
           ) : (
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ width: '100%', maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
               {/* Stats bar */}
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {allColumns.map(col => {
                   const count = getColumnTickets(col.id).length
                   return (
                     <div key={col.id} style={{
-                      flex: '1 1 0', minWidth: 140,
-                      background: '#22272B', borderRadius: 10, padding: '12px 16px',
-                      border: '1px solid rgba(255,255,255,0.06)',
+                      flex: '1 1 0', minWidth: 120,
+                      background: '#1a1f23', borderRadius: 12, padding: '14px 16px',
+                      borderLeft: `3px solid ${col.dot_color}`,
                       display: 'flex', alignItems: 'center', gap: 10,
-                    }}>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.dot_color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#8C96A3', fontFamily: "'Space Grotesk', sans-serif", flex: 1 }}>{col.title}</span>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: '#25D066', fontFamily: "'Paytone One', sans-serif" }}>{count}</span>
+                      transition: 'background 0.15s, transform 0.1s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#22272b'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#1a1f23'; e.currentTarget.style.transform = 'translateY(0)' }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 500, color: '#8C96A3', fontFamily: "'Space Grotesk', sans-serif", marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.title}</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#E5E7EB', fontFamily: "'Paytone One', sans-serif", lineHeight: 1 }}>{count}</div>
+                      </div>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot_color, flexShrink: 0, boxShadow: `0 0 8px ${col.dot_color}66` }} />
                     </div>
                   )
                 })}
                 <div style={{
-                  flex: '1 1 0', minWidth: 140,
-                  background: 'linear-gradient(135deg, rgba(37,208,102,0.12), rgba(37,208,102,0.04))',
-                  borderRadius: 10, padding: '12px 16px',
-                  border: '1px solid rgba(37,208,102,0.15)',
+                  flex: '1 1 0', minWidth: 120,
+                  background: 'rgba(37,208,102,0.06)', borderRadius: 12, padding: '14px 16px',
+                  borderLeft: '3px solid #25D066',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", flex: 1 }}>Total</span>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: '#25D066', fontFamily: "'Paytone One', sans-serif" }}>{tickets.filter(t => !t.is_archived).length}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 500, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", marginBottom: 2 }}>Total</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: '#25D066', fontFamily: "'Paytone One', sans-serif", lineHeight: 1 }}>{tickets.filter(t => !t.is_archived).length}</div>
+                  </div>
                 </div>
               </div>
 
@@ -1372,9 +1379,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                 const isCollapsed = collapsedColumns.has(col.id)
                 return (
                   <div key={col.id} style={{
-                    background: '#22272B', borderRadius: 12,
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    background: '#1a1f23', borderRadius: 14,
                     overflow: 'hidden',
+                    border: '1px solid rgba(255,255,255,0.04)',
                   }}>
                     {/* Column header */}
                     <button
@@ -1384,23 +1391,36 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                         else next.add(col.id)
                         return next
                       })}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                       style={{
                         width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                        padding: '14px 20px', background: 'transparent', border: 'none',
+                        padding: '16px 20px', background: 'transparent', border: 'none',
+                        borderBottom: isCollapsed ? 'none' : '1px solid rgba(255,255,255,0.04)',
                         cursor: 'pointer', color: '#B6C2CF', fontFamily: "'Space Grotesk', sans-serif",
                         transition: 'background 0.15s',
                       }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.04)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                     >
                       <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
-                        <ChevronRight size={14} style={{ color: '#25D066' }} />
+                        <ChevronRight size={16} style={{ color: '#25D066' }} />
                       </motion.div>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.dot_color, flexShrink: 0, boxShadow: `0 0 6px ${col.dot_color}44` }} />
-                      <span style={{ fontWeight: 700, fontSize: 14 }}>{col.title}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', background: 'rgba(37,208,102,0.1)', padding: '2px 10px', borderRadius: 10 }}>{colTickets.length}</span>
+                      <div style={{
+                        width: 10, height: 10, borderRadius: '50%',
+                        background: col.dot_color, flexShrink: 0,
+                        boxShadow: `0 0 8px ${col.dot_color}55`,
+                      }} />
+                      <span style={{ fontWeight: 700, fontSize: 15, color: '#E5E7EB' }}>{col.title}</span>
+                      <span style={{
+                        fontSize: 12, fontWeight: 700, color: '#25D066',
+                        background: 'rgba(37,208,102,0.1)',
+                        padding: '3px 12px', borderRadius: 20, lineHeight: '1.2',
+                      }}>{colTickets.length}</span>
                       <span style={{ flex: 1 }} />
-                      <span style={{ fontSize: 10, color: '#596773', fontWeight: 500 }}>{isCollapsed ? 'Expandir' : 'Recolher'}</span>
+                      <span style={{
+                        fontSize: 11, color: '#596773', fontWeight: 500,
+                        padding: '3px 10px', borderRadius: 6,
+                        background: 'rgba(255,255,255,0.03)',
+                      }}>{isCollapsed ? 'Expandir' : 'Recolher'}</span>
                     </button>
 
                     {/* Cards list */}
@@ -1413,9 +1433,14 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                           transition={{ duration: 0.2, ease: 'easeInOut' }}
                           style={{ overflow: 'hidden' }}
                         >
-                          <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
                             {colTickets.length === 0 && (
-                              <div style={{ padding: '24px', textAlign: 'center', color: '#596773', fontSize: 12, fontFamily: "'Space Grotesk', sans-serif" }}>
+                              <div style={{
+                                padding: '32px', textAlign: 'center', color: '#596773',
+                                fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
+                                borderRadius: 10, background: 'rgba(255,255,255,0.01)',
+                                border: '1px dashed rgba(255,255,255,0.06)',
+                              }}>
                                 Nenhum card nesta coluna
                               </div>
                             )}
@@ -1450,29 +1475,29 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                 <div
                                   key={ticket.id}
                                   onMouseEnter={e => {
-                                    e.currentTarget.style.background = 'rgba(37,208,102,0.05)'
-                                    e.currentTarget.style.borderColor = 'rgba(37,208,102,0.12)'
+                                    e.currentTarget.style.background = '#22272b'
+                                    e.currentTarget.style.borderColor = 'rgba(37,208,102,0.15)'
                                     const acts = e.currentTarget.querySelector('[data-list-actions]') as HTMLElement
                                     if (acts) acts.style.opacity = '1'
                                   }}
                                   onMouseLeave={e => {
-                                    e.currentTarget.style.background = '#2c333a'
-                                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'
+                                    e.currentTarget.style.background = 'transparent'
+                                    e.currentTarget.style.borderColor = 'transparent'
                                     const acts = e.currentTarget.querySelector('[data-list-actions]') as HTMLElement
                                     if (acts) acts.style.opacity = '0'
                                   }}
                                   style={{
-                                    display: 'flex', alignItems: 'flex-start', gap: 12,
-                                    padding: '12px 14px', borderRadius: 10,
-                                    border: '1px solid rgba(255,255,255,0.04)',
-                                    background: '#2c333a', cursor: 'pointer',
-                                    transition: 'background 0.15s, border-color 0.15s',
+                                    display: 'flex', alignItems: 'center', gap: 14,
+                                    padding: '10px 16px', borderRadius: 10,
+                                    border: '1px solid transparent',
+                                    background: 'transparent', cursor: 'pointer',
+                                    transition: 'background 0.12s, border-color 0.12s',
                                     fontFamily: "'Space Grotesk', sans-serif",
                                     position: 'relative',
                                   }}
                                   onClick={() => handleCardClick(ticket)}
                                 >
-                                  {/* Check button (funcional) */}
+                                  {/* Check button */}
                                   <button
                                     onClick={async (e) => {
                                       e.stopPropagation()
@@ -1481,15 +1506,15 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                       await supabase.from('tickets').update({ is_completed: newVal, updated_at: new Date().toISOString() }).eq('id', ticket.id)
                                     }}
                                     style={{
-                                      width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
-                                      border: ticket.is_completed ? '2px solid #25D066' : '2px solid rgba(255,255,255,0.15)',
+                                      width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                                      border: ticket.is_completed ? '2px solid #25D066' : '2px solid rgba(255,255,255,0.18)',
                                       background: ticket.is_completed ? '#25D066' : 'transparent',
                                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                                       cursor: 'pointer', transition: 'all 0.15s', padding: 0,
                                     }}
                                     title={ticket.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
                                   >
-                                    {ticket.is_completed && <Check size={12} strokeWidth={3} color="#fff" />}
+                                    {ticket.is_completed && <Check size={10} strokeWidth={3} color="#fff" />}
                                   </button>
 
                                   {/* Cover thumbnail */}
@@ -1508,21 +1533,23 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                   )}
 
                                   {/* Main content */}
-                                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
                                     {/* Row 1: Priority + Title + Cliente */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                       <span style={{
-                                        fontSize: 9, fontWeight: 800, padding: '2px 7px',
-                                        borderRadius: 4, flexShrink: 0,
-                                        background: `${pColor}18`, color: pColor,
-                                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                                        fontSize: 9, fontWeight: 800, padding: '3px 8px',
+                                        borderRadius: 6, flexShrink: 0,
+                                        background: `${pColor}20`, color: pColor,
+                                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                                        lineHeight: '1',
                                       }}>
                                         {prioLabels[ticket.priority] || ticket.priority}
                                       </span>
                                       <span style={{
-                                        fontSize: 13, fontWeight: 600,
+                                        fontSize: 14, fontWeight: 500,
                                         color: ticket.is_completed ? '#596773' : '#E5E7EB',
                                         textDecoration: ticket.is_completed ? 'line-through' : 'none',
+                                        textDecorationColor: ticket.is_completed ? 'rgba(37,208,102,0.4)' : undefined,
                                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                         flex: 1,
                                       }}>
@@ -1530,8 +1557,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                       </span>
                                       {ticket.cliente && (
                                         <span style={{
-                                          fontSize: 11, color: '#8C96A3', fontWeight: 500, flexShrink: 0,
+                                          fontSize: 11, color: '#596773', fontWeight: 500, flexShrink: 0,
                                           maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                          background: 'rgba(255,255,255,0.03)', padding: '2px 8px', borderRadius: 6,
                                         }}>
                                           {ticket.cliente}
                                         </span>
@@ -1545,55 +1573,47 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                           const { name, color } = parseTag(raw)
                                           return (
                                             <span key={raw} style={{
-                                              fontSize: 10, fontWeight: 700, padding: '2px 8px',
-                                              borderRadius: 4, background: color, color: '#fff',
+                                              fontSize: 9, fontWeight: 700, padding: '2px 8px',
+                                              borderRadius: 6, background: color, color: '#fff',
+                                              letterSpacing: '0.02em',
                                             }}>{name}</span>
                                           )
                                         })}
                                       </div>
                                     )}
 
-                                    {/* Row 3: Badges + metadata */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                      {/* Elapsed */}
+                                    {/* Row 3: Badges */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                                       {elapsed && (
                                         <span style={{
-                                          fontSize: 10, display: 'flex', alignItems: 'center', gap: 3,
-                                          color: elapsed.isOverdue ? '#ef4444' : '#8C96A3',
+                                          fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3,
+                                          color: elapsed.isOverdue ? '#ef4444' : '#596773',
                                           fontWeight: elapsed.isOverdue ? 700 : 500,
                                         }}>
                                           <Clock size={11} />
                                           {elapsed.label}
                                         </span>
                                       )}
-
-                                      {/* Created date */}
                                       {createdDate && (
-                                        <span style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 3, color: '#596773' }}>
+                                        <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3, color: '#596773' }}>
                                           <Calendar size={11} />
                                           {createdDate}
                                         </span>
                                       )}
-
-                                      {/* Has description */}
                                       {hasDesc && (
-                                        <span style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 3, color: '#596773' }} title="Tem descrição">
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', color: '#596773' }} title="Tem descrição">
                                           <AlignLeft size={11} />
                                         </span>
                                       )}
-
-                                      {/* Attachments */}
                                       {attCount > 0 && (
-                                        <span style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 3, color: '#596773' }} title={`${attCount} anexo(s)`}>
+                                        <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3, color: '#596773' }} title={`${attCount} anexo(s)`}>
                                           <Paperclip size={11} />
                                           {attCount}
                                         </span>
                                       )}
-
-                                      {/* Checklist */}
                                       {hasChecklist && (
                                         <span style={{
-                                          fontSize: 10, display: 'flex', alignItems: 'center', gap: 3,
+                                          fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3,
                                           color: checkDone === checkTotal ? '#25D066' : '#596773',
                                           fontWeight: checkDone === checkTotal ? 700 : 500,
                                         }} title={`Checklist: ${checkDone}/${checkTotal}`}>
@@ -1601,10 +1621,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                           {checkDone}/{checkTotal}
                                         </span>
                                       )}
-
-                                      {/* Instancia */}
                                       {ticket.instancia && (
-                                        <span style={{ fontSize: 10, color: '#596773', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                        <span style={{ fontSize: 11, color: '#596773', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                                           <Plug size={10} />
                                           {ticket.instancia}
                                         </span>
@@ -1616,29 +1634,24 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                   <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                                     {ticket.assignee ? (
                                       <div style={{
-                                        width: 28, height: 28, borderRadius: '50%',
+                                        width: 30, height: 30, borderRadius: '50%',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: 10, fontWeight: 700, color: '#fff',
+                                        fontSize: 11, fontWeight: 700, color: '#fff',
                                         background: `hsl(${(ticket.assignee.charCodeAt(0) * 47) % 360}, 55%, 45%)`,
-                                        border: '2px solid #2c333a',
+                                        border: '2px solid #1a1f23',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
                                       }} title={ticket.assignee}>
                                         {ticket.assignee.slice(0, 2).toUpperCase()}
                                       </div>
-                                    ) : (
-                                      <div style={{
-                                        width: 28, height: 28, borderRadius: '50%',
-                                        background: 'rgba(255,255,255,0.04)',
-                                        border: '1px dashed rgba(255,255,255,0.1)',
-                                      }} />
-                                    )}
+                                    ) : null}
                                   </div>
 
                                   {/* Actions overlay (hover) */}
                                   <div
                                     data-list-actions
                                     style={{
-                                      position: 'absolute', top: 8, right: 8,
-                                      display: 'flex', gap: 2, opacity: 0,
+                                      position: 'absolute', top: 8, right: 48,
+                                      display: 'flex', gap: 4, opacity: 0,
                                       transition: 'opacity 0.15s',
                                     }}
                                   >
@@ -1649,15 +1662,15 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                         showToast('Cartão arquivado com sucesso', 'ok')
                                         await supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', ticket.id)
                                       }}
-                                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
-                                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.4)' }}
+                                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#f87171' }}
+                                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
                                       title="Arquivar"
                                       style={{
-                                        width: 26, height: 26, borderRadius: 6,
-                                        background: 'rgba(0,0,0,0.4)', border: 'none',
-                                        color: '#B6C2CF', cursor: 'pointer',
+                                        width: 28, height: 28, borderRadius: 8,
+                                        background: 'rgba(255,255,255,0.06)', border: 'none',
+                                        color: '#8C96A3', cursor: 'pointer',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        transition: 'background 0.15s', padding: 0,
+                                        transition: 'background 0.15s, color 0.15s', padding: 0,
                                       }}
                                     >
                                       <Archive size={13} />
@@ -1667,15 +1680,15 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                         e.stopPropagation()
                                         handleCardClick(ticket)
                                       }}
-                                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
-                                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.4)' }}
+                                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)'; e.currentTarget.style.color = '#25D066' }}
+                                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
                                       title="Abrir detalhes"
                                       style={{
-                                        width: 26, height: 26, borderRadius: 6,
-                                        background: 'rgba(0,0,0,0.4)', border: 'none',
-                                        color: '#B6C2CF', cursor: 'pointer',
+                                        width: 28, height: 28, borderRadius: 8,
+                                        background: 'rgba(255,255,255,0.06)', border: 'none',
+                                        color: '#8C96A3', cursor: 'pointer',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        transition: 'background 0.15s', padding: 0,
+                                        transition: 'background 0.15s, color 0.15s', padding: 0,
                                       }}
                                     >
                                       <Pencil size={13} />
@@ -1692,15 +1705,15 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                 setAddingTo(col.id as TicketStatus)
                                 setInlineTitle('')
                               }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)' }}
-                              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                              onMouseEnter={e => { e.currentTarget.style.color = '#25D066' }}
+                              onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '8px 14px', borderRadius: 8, border: 'none',
+                                padding: '10px 16px', borderRadius: 10, border: 'none',
                                 background: 'transparent', cursor: 'pointer',
-                                color: '#596773', fontSize: 12, fontWeight: 600,
+                                color: '#596773', fontSize: 13, fontWeight: 500,
                                 fontFamily: "'Space Grotesk', sans-serif",
-                                transition: 'background 0.15s, color 0.15s',
+                                transition: 'color 0.15s',
                               }}
                             >
                               <Plus size={14} />
