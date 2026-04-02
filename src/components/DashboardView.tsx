@@ -716,6 +716,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         tickets={tickets}
         profiles={profiles}
         columns={columns}
+        user={user}
         onClose={() => setExpanded(false)}
       />
     )}
