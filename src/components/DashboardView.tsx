@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, RefreshCw } from 'lucide-react'
+import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, RefreshCw, Download, CalendarDays, Target } from 'lucide-react'
 import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../lib/supabase'
 import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
 
@@ -151,6 +151,34 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     }, 0)
     return Math.round(total / resolvedTickets.length / 3_600_000)
   }, [active])
+
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const createdToday = useMemo(() => active.filter(t => t.created_at.slice(0, 10) === todayStr).length, [active, todayStr])
+  const resolvedToday = useMemo(() => active.filter(t => t.status === 'resolved' && t.updated_at.slice(0, 10) === todayStr).length, [active, todayStr])
+  const productivityRate = useMemo(() => totalActive > 0 ? Math.round((resolved / totalActive) * 100) : 0, [resolved, totalActive])
+
+  const handleExportCSV = useCallback(() => {
+    const headers = ['ID', 'Título', 'Status', 'Prioridade', 'Responsável', 'Cliente', 'Instância', 'Criado em', 'Atualizado em']
+    const rows = active.map(t => [
+      t.id,
+      `"${(t.title || '').replace(/"/g, '""')}"`,
+      t.status,
+      t.priority,
+      t.assignee || '',
+      t.cliente || '',
+      t.instancia || '',
+      t.created_at,
+      t.updated_at,
+    ])
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `chatpro-relatorio-${todayStr}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [active, todayStr])
 
   // ── Contagens por status ──
   const statusCounts = useMemo(() => {
@@ -368,6 +396,39 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             color="#e2b203"
             sub="para resolver"
           />
+          <MetricCard
+            icon={<CalendarDays size={14} />}
+            label="Criados Hoje"
+            value={createdToday}
+            color="#579dff"
+            sub={`${resolvedToday} resolvidos hoje`}
+          />
+          <MetricCard
+            icon={<Target size={14} />}
+            label="Produtividade"
+            value={`${productivityRate}%`}
+            color="#a259ff"
+            sub="taxa de resolução"
+          />
+        </div>
+
+        {/* ── Exportar relatório ── */}
+        <div data-gsap-child>
+          <button
+            onClick={handleExportCSV}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+            style={{
+              width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+              fontFamily: "'Space Grotesk', sans-serif",
+              background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
+              color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'background 0.15s',
+            }}
+          >
+            <Download size={13} />
+            Exportar Relatório CSV
+          </button>
         </div>
 
         {/* ── Gráfico: Por Status ── */}

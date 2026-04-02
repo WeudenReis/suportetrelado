@@ -15,6 +15,7 @@ interface CardProps {
   isDragging?: boolean;
   style?: React.CSSProperties;
   onShowToast?: (msg: string, type: 'ok' | 'err') => void;
+  compact?: boolean;
 }
 
 /** Calcula tempo decorrido e retorna {label, isOverdue} */
@@ -54,7 +55,7 @@ function avatarColor(name: string): string {
   return colors[name.charCodeAt(0) % colors.length];
 }
 
-function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToast }: CardProps) {
+function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToast, compact }: CardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
   const [isHovered, setIsHovered] = useState(false);
@@ -205,15 +206,62 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
     onClick();
   };
 
+  // ── SLA visual indicator ──
+  const slaClass = (() => {
+    if (card.is_completed) return '';
+    const updatedAt = (card as any).updated_at;
+    if (!updatedAt) return '';
+    const hoursIdle = (Date.now() - new Date(updatedAt).getTime()) / 3_600_000;
+    if (hoursIdle >= 24) return styles.cardOverdue;
+    if (hoursIdle >= 12) return styles.cardWarning;
+    return '';
+  })();
+
   return (
     <div
       ref={cardRef}
-      className={`${styles.card} ${card.is_completed ? styles.cardCompleted : ''} ${isDragging ? styles.cardDragging : ''}`}
+      className={`${styles.card} ${card.is_completed ? styles.cardCompleted : ''} ${isDragging ? styles.cardDragging : ''} ${compact ? styles.cardCompact : ''} ${slaClass}`}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={style}
     >
+      {/* ── MODO COMPACTO ────────────────── */}
+      {compact ? (
+        <div className={styles.compactBody}>
+          {/* Indicador de prioridade */}
+          {card.priority && (
+            <span className={styles.compactPrio} style={{
+              background: card.priority === 'high' ? '#ef5c48' : card.priority === 'medium' ? '#e2b203' : '#4bce97',
+            }} />
+          )}
+          {/* Check */}
+          <button
+            className={`${styles.checkBtn} ${card.is_completed ? styles.checkBtnDone : ''} ${isHovered || card.is_completed ? styles.checkBtnVisible : ''}`}
+            onClick={handleToggleComplete}
+            onPointerDown={e => e.stopPropagation()}
+            title={card.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
+            type="button"
+          >
+            {card.is_completed && <Check size={11} strokeWidth={3} />}
+          </button>
+          {/* Título */}
+          <p className={`${styles.compactTitle} ${card.is_completed ? styles.titleDone : ''}`}>{card.title}</p>
+          {/* Avatar */}
+          {card.assignee && (
+            <span className={styles.compactAvatar} style={{ background: avatarColor(card.assignee) }} title={card.assignee}>
+              {card.assignee.charAt(0).toUpperCase()}
+            </span>
+          )}
+          {/* Ações */}
+          {!isEditing && (
+            <div className={`${styles.actions} ${isHovered ? styles.actionsVisible : ''}`}>
+              <button className={styles.actionBtn} onClick={handleArchive} onPointerDown={e => e.stopPropagation()} title="Arquivar" type="button"><Archive size={12} /></button>
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       {/* ── CAPA ─────────────────────────── */}
       {(card.cover_thumb_url || card.cover_image_url) && (
         <div className={styles.cover}>
@@ -387,6 +435,8 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

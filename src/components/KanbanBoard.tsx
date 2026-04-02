@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable,
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock, LayoutGrid, List, ChevronDown, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock, LayoutGrid, List, ChevronDown, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2 } from 'lucide-react'
 import { useTheme, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
@@ -14,6 +14,7 @@ import { ArchivedPanel } from './ArchivedPanel'
 import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../hooks/useKanban'
+import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShortcuts'
 import type { Ticket, TicketStatus, UserProfile, BoardLabel } from '../lib/supabase'
 
 interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
@@ -47,7 +48,7 @@ function DroppableColumn({ id, children, isOver }: { id: string; children: React
   return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
 }
 
-function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, isOverCard, activeTicket }: {
+function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, isOverCard, activeTicket, compact, bulkMode, isSelected, onBulkToggle }: {
   ticket: any
   onClick: (ticket: any) => void
   onUpdate: (u: any) => void
@@ -55,6 +56,10 @@ function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, 
   onShowToast?: (msg: string, type: 'ok' | 'err') => void
   isOverCard: boolean
   activeTicket: any | null
+  compact?: boolean
+  bulkMode?: boolean
+  isSelected?: boolean
+  onBulkToggle?: (id: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: ticket.id,
@@ -64,10 +69,19 @@ function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, 
     transform: CSS.Transform.toString(transform),
     transition,
   }
-  const handleClick = useCallback(() => onClick(ticket), [onClick, ticket])
+  const handleClick = useCallback(() => {
+    if (bulkMode && onBulkToggle) {
+      onBulkToggle(ticket.id)
+    } else {
+      onClick(ticket)
+    }
+  }, [onClick, ticket, bulkMode, onBulkToggle])
 
   return (
-    <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
+    <div ref={setNodeRef} {...attributes} {...listeners} style={{
+      ...style,
+      ...(bulkMode && isSelected ? { outline: '2px solid #25D066', outlineOffset: -2, borderRadius: 10 } : {}),
+    }}>
       {activeTicket && isOverCard && activeTicket.id !== ticket.id && (
         <div className="dnd-drop-indicator" />
       )}
@@ -78,6 +92,7 @@ function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, 
         onArchive={onArchive}
         onShowToast={onShowToast}
         isDragging={isDragging}
+        compact={compact}
       />
     </div>
   )
@@ -145,12 +160,21 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [editLabelColor, setEditLabelColor] = useState('')
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>(() => (localStorage.getItem('chatpro-view-mode') as 'kanban' | 'list') || 'kanban')
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set())
+  const [compactMode, setCompactMode] = useState<boolean>(() => localStorage.getItem('chatpro-compact-mode') === 'true')
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterPriority, setFilterPriority] = useState<string>('all')
+  const [filterAssignee, setFilterAssignee] = useState<string>('all')
+  const [filterLabel, setFilterLabel] = useState<string>('all')
+  const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
+  const [bulkMode, setBulkMode] = useState(false)
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set())
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
   const dragOriginalStatusRef = useRef<string | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const boardDragRef = useRef({ isDragging: false, startX: 0, scrollLeft: 0 })
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
 
   const wallpaperStorageKey = `chatpro-wallpaper:${user.toLowerCase()}`
 
@@ -264,10 +288,23 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     let filtered = tickets.filter(t => t.status === status)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      filtered = filtered.filter(t => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)))
+      filtered = filtered.filter(t => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)) || (t.cliente && t.cliente.toLowerCase().includes(q)))
+    }
+    if (filterPriority !== 'all') {
+      filtered = filtered.filter(t => t.priority === filterPriority)
+    }
+    if (filterAssignee !== 'all') {
+      if (filterAssignee === '__none__') {
+        filtered = filtered.filter(t => !t.assignee)
+      } else {
+        filtered = filtered.filter(t => t.assignee && t.assignee.toLowerCase().includes(filterAssignee.toLowerCase()))
+      }
+    }
+    if (filterLabel !== 'all') {
+      filtered = filtered.filter(t => t.tags && t.tags.some(tag => tag.includes(filterLabel)))
     }
     return filtered
-  }, [tickets, searchQuery])
+  }, [tickets, searchQuery, filterPriority, filterAssignee, filterLabel])
 
   // Carregar colunas do Supabase (com fallback para COLUMNS legadas)
   useEffect(() => {
@@ -307,6 +344,71 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const allColumnsById = useMemo(() => new Map(columns.map(col => [col.id, col])), [columns])
   const allColumns = useMemo(() => columnOrder.map(id => allColumnsById.get(id)).filter((col): col is NonNullable<typeof col> => Boolean(col)), [columnOrder, allColumnsById])
   const columnIds = useMemo(() => allColumns.map(col => col.id), [allColumns])
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filterPriority !== 'all') count++
+    if (filterAssignee !== 'all') count++
+    if (filterLabel !== 'all') count++
+    return count
+  }, [filterPriority, filterAssignee, filterLabel])
+
+  const uniqueAssignees = useMemo(() => {
+    const set = new Set<string>()
+    for (const t of tickets) {
+      if (t.assignee) {
+        t.assignee.split(',').map(s => s.trim()).filter(Boolean).forEach(a => set.add(a))
+      }
+    }
+    return Array.from(set).sort()
+  }, [tickets])
+
+  const uniqueLabels = useMemo(() => {
+    const set = new Set<string>()
+    for (const t of tickets) {
+      if (t.tags) t.tags.forEach(tag => set.add(tag))
+    }
+    return Array.from(set).sort()
+  }, [tickets])
+
+  const clearAllFilters = useCallback(() => {
+    setFilterPriority('all')
+    setFilterAssignee('all')
+    setFilterLabel('all')
+  }, [])
+
+  const toggleBulkSelect = useCallback((id: string) => {
+    setSelectedCardIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const handleBulkMove = useCallback(async (targetColumn: string) => {
+    if (selectedCardIds.size === 0) return
+    const ids = Array.from(selectedCardIds)
+    setTickets(prev => prev.map(t => ids.includes(t.id) ? { ...t, status: targetColumn as TicketStatus } : t))
+    setSelectedCardIds(new Set())
+    setBulkMode(false)
+    showToast(`${ids.length} card(s) movido(s)`, 'ok')
+    for (const id of ids) {
+      await updateTicket(id, { status: targetColumn as TicketStatus }).catch(console.error)
+    }
+  }, [selectedCardIds])
+
+  const handleBulkArchive = useCallback(async () => {
+    if (selectedCardIds.size === 0) return
+    const ids = Array.from(selectedCardIds)
+    setTickets(prev => prev.filter(t => !ids.includes(t.id)))
+    setSelectedCardIds(new Set())
+    setBulkMode(false)
+    showToast(`${ids.length} card(s) arquivado(s)`, 'ok')
+    for (const id of ids) {
+      await supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(console.error)
+    }
+  }, [selectedCardIds])
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
     const dragType = args.active.data.current?.type
@@ -491,6 +593,28 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const handleCardClick = useCallback((ticket: Ticket) => {
     setSelectedTicket(ticket)
   }, [])
+
+  // ── Keyboard shortcuts ──
+  const noModalOpen = !showAddModal && !selectedTicket && !showSettings && !showInstanceModal && !showArchivedPanel && !showLabelsManager && !showShortcutsHelp
+  const shortcutActions = useMemo(() => [
+    { key: 'n', description: 'Novo ticket', action: () => { if (noModalOpen) { setNewTicket(p => ({ ...p, status: (allColumns[0]?.id || 'backlog') as TicketStatus })); setShowAddModal(true) } } },
+    { key: 'f', description: 'Filtros avançados', action: () => { if (noModalOpen) setShowFilters(p => !p) } },
+    { key: 'k', ctrl: true, description: 'Pesquisar', action: () => { searchInputRef.current?.focus() } },
+    { key: '/', description: 'Pesquisar', action: () => { if (noModalOpen) searchInputRef.current?.focus() } },
+    { key: 'r', description: 'Atualizar tickets', action: () => { if (noModalOpen) handleRefresh() } },
+    { key: 'c', description: 'Modo compacto', action: () => { if (noModalOpen) { setCompactMode(p => { localStorage.setItem('chatpro-compact-mode', String(!p)); return !p }) } } },
+    { key: '?', shift: true, description: 'Atalhos de teclado', action: () => openShortcutsHelp() },
+    { key: 'Escape', description: 'Fechar modal/painel', action: () => {
+      if (showShortcutsHelp) { closeShortcutsHelp(); return }
+      if (showFilters) { setShowFilters(false); return }
+      if (showAddModal) { setShowAddModal(false); return }
+      if (selectedTicket) { setSelectedTicket(null); return }
+      if (showSettings) { setShowSettings(false); return }
+      if (showArchivedPanel) { setShowArchivedPanel(false); return }
+    }},
+  ], [noModalOpen, allColumns, showAddModal, selectedTicket, showSettings, showFilters, showArchivedPanel, showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp])
+
+  useKeyboardShortcuts(shortcutActions)
 
   const handleTicketUpdate = useCallback((updated: Ticket) => {
     setTickets(prev => prev.map(t => t.id === updated.id ? { ...updated, attachment_count: (t as any).attachment_count || 0 } : t))
@@ -788,8 +912,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
           <div className="header-search">
             <Search size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Pesquisar"
+              placeholder="Pesquisar (/ ou Ctrl+K)"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="bg-transparent border-none outline-none text-sm flex-1"
@@ -847,6 +972,58 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               <List size={14} />
             </button>
           </div>
+
+          {/* Modo compacto */}
+          <button
+            onClick={() => setCompactMode(p => { localStorage.setItem('chatpro-compact-mode', String(!p)); return !p })}
+            className="trello-icon-btn"
+            type="button"
+            title={compactMode ? 'Modo normal (C)' : 'Modo compacto (C)'}
+            style={compactMode ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
+          >
+            {compactMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+
+          {/* Filtros avançados */}
+          <button
+            onClick={() => setShowFilters(p => !p)}
+            className="trello-icon-btn"
+            type="button"
+            title="Filtros avançados (F)"
+            style={showFilters || activeFilterCount > 0 ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
+          >
+            <Filter size={16} />
+            {activeFilterCount > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -4,
+                width: 16, height: 16, borderRadius: '50%',
+                background: '#25D066', color: '#000',
+                fontSize: 9, fontWeight: 800,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{activeFilterCount}</span>
+            )}
+          </button>
+
+          {/* Atalhos de teclado */}
+          <button
+            onClick={openShortcutsHelp}
+            className="trello-icon-btn"
+            type="button"
+            title="Atalhos de teclado (?)"
+          >
+            <Keyboard size={16} />
+          </button>
+
+          {/* Seleção múltipla */}
+          <button
+            onClick={() => { setBulkMode(p => !p); setSelectedCardIds(new Set()) }}
+            className="trello-icon-btn"
+            type="button"
+            title="Seleção múltipla"
+            style={bulkMode ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
+          >
+            <CheckSquare size={16} />
+          </button>
 
           <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configurações">
             <Settings size={16} />
@@ -1005,6 +1182,128 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
           onRestore={() => { loadTickets(); setShowArchivedPanel(false) }}
         />
       )}
+
+      {/* Filtros avançados panel */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden', background: '#1a1f23', borderBottom: '1px solid rgba(37,208,102,0.1)' }}
+          >
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px',
+              fontFamily: "'Space Grotesk', sans-serif", flexWrap: 'wrap',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Filter size={13} style={{ color: '#25D066' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filtros</span>
+              </div>
+
+              {/* Prioridade */}
+              <select
+                value={filterPriority}
+                onChange={e => setFilterPriority(e.target.value)}
+                style={{
+                  padding: '6px 28px 6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+                  background: filterPriority !== 'all' ? 'rgba(37,208,102,0.1)' : '#22272b',
+                  border: filterPriority !== 'all' ? '1px solid rgba(37,208,102,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                  color: '#B6C2CF', outline: 'none', cursor: 'pointer',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  appearance: 'none' as const,
+                  backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+                }}
+              >
+                <option value="all">Prioridade</option>
+                <option value="high">Alta</option>
+                <option value="medium">Média</option>
+                <option value="low">Baixa</option>
+              </select>
+
+              {/* Responsável */}
+              <select
+                value={filterAssignee}
+                onChange={e => setFilterAssignee(e.target.value)}
+                style={{
+                  padding: '6px 28px 6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+                  background: filterAssignee !== 'all' ? 'rgba(37,208,102,0.1)' : '#22272b',
+                  border: filterAssignee !== 'all' ? '1px solid rgba(37,208,102,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                  color: '#B6C2CF', outline: 'none', cursor: 'pointer',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  appearance: 'none' as const,
+                  backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+                  maxWidth: 180,
+                }}
+              >
+                <option value="all">Responsável</option>
+                <option value="__none__">Sem responsável</option>
+                {uniqueAssignees.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+
+              {/* Etiqueta */}
+              <select
+                value={filterLabel}
+                onChange={e => setFilterLabel(e.target.value)}
+                style={{
+                  padding: '6px 28px 6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+                  background: filterLabel !== 'all' ? 'rgba(37,208,102,0.1)' : '#22272b',
+                  border: filterLabel !== 'all' ? '1px solid rgba(37,208,102,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                  color: '#B6C2CF', outline: 'none', cursor: 'pointer',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  appearance: 'none' as const,
+                  backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+                  maxWidth: 180,
+                }}
+              >
+                <option value="all">Etiqueta</option>
+                {uniqueLabels.map(l => {
+                  const name = l.includes('::') ? l.split('::')[0] : l
+                  return <option key={l} value={l}>{name}</option>
+                })}
+              </select>
+
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={clearAllFilters}
+                  style={{
+                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                    background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
+                    color: '#ef4444', cursor: 'pointer',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.18)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+                >
+                  <X size={11} />
+                  Limpar filtros ({activeFilterCount})
+                </button>
+              )}
+
+              <span style={{ flex: 1 }} />
+              <button
+                onClick={() => setShowFilters(false)}
+                style={{
+                  width: 24, height: 24, borderRadius: 6, border: 'none',
+                  background: 'transparent', color: '#596773', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Board */}
       <main className="board-main" style={boardSurfaceStyle}>
@@ -1199,6 +1498,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                       onShowToast={showToast}
                                       isOverCard={overCardId === ticket.id}
                                       activeTicket={activeTicket}
+                                      compact={compactMode}
+                                      bulkMode={bulkMode}
+                                      isSelected={selectedCardIds.has(ticket.id)}
+                                      onBulkToggle={toggleBulkSelect}
                                     />
                                   ))}
                               </SortableContext>
@@ -2203,8 +2506,137 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
         )}
       </AnimatePresence>
 
+      {/* Keyboard Shortcuts Help Modal */}
+      <AnimatePresence>
+        {showShortcutsHelp && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={e => e.target === e.currentTarget && closeShortcutsHelp()}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className="rounded-2xl w-full max-w-sm overflow-hidden"
+              style={{ background: '#1a1f23', border: '1px solid rgba(37,208,102,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+            >
+              <div className="px-6 pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Keyboard size={18} style={{ color: '#25D066' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Atalhos de Teclado</h2>
+                  <p style={{ fontSize: 11, color: '#596773', margin: 0, marginTop: 1 }}>Navegue mais rápido pelo chatPro</p>
+                </div>
+                <button onClick={closeShortcutsHelp} style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8 }}><X size={16} /></button>
+              </div>
+              <div className="px-6 py-5" style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: '60vh', overflowY: 'auto' }}>
+                {[
+                  { key: 'N', desc: 'Novo ticket' },
+                  { key: 'F', desc: 'Abrir/fechar filtros' },
+                  { key: '/', desc: 'Foco na pesquisa' },
+                  { key: 'Ctrl + K', desc: 'Foco na pesquisa' },
+                  { key: 'R', desc: 'Atualizar tickets' },
+                  { key: 'C', desc: 'Modo compacto' },
+                  { key: 'Esc', desc: 'Fechar modal/painel' },
+                  { key: 'Shift + ?', desc: 'Este painel de atalhos' },
+                ].map(({ key, desc }) => (
+                  <div key={key} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.03)',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                  }}>
+                    <span style={{ fontSize: 13, color: '#B6C2CF', fontWeight: 500 }}>{desc}</span>
+                    <kbd style={{
+                      padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
+                      color: '#25D066', fontFamily: "'Space Grotesk', monospace",
+                    }}>{key}</kbd>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Instance Configuration Modal */}
       <InstanceModal open={showInstanceModal} onClose={() => setShowInstanceModal(false)} user={user} />
+
+      {/* Bulk Actions Bar */}
+      <AnimatePresence>
+        {bulkMode && selectedCardIds.size > 0 && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            style={{
+              position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+              zIndex: 90, display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 16px', borderRadius: 16,
+              background: '#1a1f23', border: '1px solid rgba(37,208,102,0.2)',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#25D066', marginRight: 4 }}>
+              {selectedCardIds.size} selecionado{selectedCardIds.size > 1 ? 's' : ''}
+            </span>
+            <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#8C96A3', marginRight: 4 }}>Mover para:</span>
+            {allColumns.map(col => (
+              <button
+                key={col.id}
+                onClick={() => handleBulkMove(col.id)}
+                style={{
+                  padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#B6C2CF', cursor: 'pointer', transition: 'all 0.15s',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)'; e.currentTarget.style.borderColor = 'rgba(37,208,102,0.3)'; e.currentTarget.style.color = '#25D066' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#B6C2CF' }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: col.dot_color }} />
+                {col.title}
+              </button>
+            ))}
+            <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
+            <button
+              onClick={handleBulkArchive}
+              style={{
+                padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                color: '#ef4444', cursor: 'pointer', transition: 'all 0.15s',
+                display: 'flex', alignItems: 'center', gap: 4,
+                fontFamily: "'Space Grotesk', sans-serif",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.18)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
+            >
+              <Archive size={12} />
+              Arquivar
+            </button>
+            <button
+              onClick={() => { setSelectedCardIds(new Set()); setBulkMode(false) }}
+              style={{
+                padding: '5px 8px', borderRadius: 8, border: 'none',
+                background: 'transparent', color: '#596773', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#B6C2CF' }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
