@@ -123,8 +123,8 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
   const { unreadCount, toastNotification, dismissToast } = useNotificationContext()
   const sidebarRef = useRef<HTMLDivElement>(null)
   const isAnimating = useRef(false)
-  const [sidebarExpanded, setSidebarExpanded] = useState(false)
-  const sidebarWidth = sidebarExpanded ? 520 : 340
+  const [sidebarExpanded] = useState(true)
+  const sidebarWidth = 520
 
   const handleTabChange = useCallback((tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => {
     if (isAnimating.current) return
@@ -207,16 +207,6 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
 
             {/* Spacer */}
             <span style={{ flex: 1 }} />
-
-            {/* Expandir / Recolher */}
-            <button
-              onClick={() => setSidebarExpanded(!sidebarExpanded)}
-              className="sidebar-nav-btn"
-              title={sidebarExpanded ? 'Recolher painel' : 'Expandir painel'}
-              type="button"
-            >
-              {sidebarExpanded ? <ChevronsLeft size={17} /> : <ChevronsRight size={17} />}
-            </button>
           </div>
 
           {/* ▸ Sidebar content */}
