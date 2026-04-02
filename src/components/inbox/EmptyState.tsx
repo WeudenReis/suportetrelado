@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { BellOff, CheckCircle2, AtSign } from 'lucide-react'
+import { BellOff, CheckCircle2, AtSign, CalendarIcon } from 'lucide-react'
 import type { TabFilter } from './InboxTabs'
 
 interface EmptyStateProps {
@@ -21,6 +21,11 @@ const STATES: Record<TabFilter, { icon: React.ReactNode; title: string; desc: st
     icon: <AtSign size={32} strokeWidth={1.5} />,
     title: 'Sem menções',
     desc: 'Quando alguém te @mencionar, aparecerá aqui.',
+  },
+  planner: {
+    icon: <CalendarIcon size={32} strokeWidth={1.5} />,
+    title: 'Sem pendências',
+    desc: 'Nenhum alerta de vencimento por aqui.',
   },
 }
 
