@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import ReactDOM from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock,
@@ -205,31 +206,25 @@ export default function DashboardExpanded({ tickets, profiles, columns, onClose 
     { key: 'trends',   label: 'Tendências', icon: <TrendingUp size={14} /> },
   ]
 
-  return (
+  const content = (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: '#13181e',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}
-        onClick={onClose}
       >
         <motion.div
-          initial={{ scale: 0.94, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.94, opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-          onClick={e => e.stopPropagation()}
           style={{
-            width: '95vw', maxWidth: 1100, height: '90vh',
-            background: '#1a2028', borderRadius: 20,
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
-            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden',
           }}
         >
           {/* ── MODAL HEADER ── */}
@@ -628,4 +623,6 @@ export default function DashboardExpanded({ tickets, profiles, columns, onClose 
       </motion.div>
     </AnimatePresence>
   )
+
+  return ReactDOM.createPortal(content, document.body)
 }
