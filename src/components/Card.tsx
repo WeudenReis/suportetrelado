@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { parseTag } from './CardDetailModal';
+import gsap from 'gsap';
 import styles from './Card.module.css';
 import type { Card as CardType } from '@/types';
 
@@ -13,6 +14,7 @@ interface CardProps {
   onArchive: (cardId: string) => void;
   isDragging?: boolean;
   style?: React.CSSProperties;
+  onShowToast?: (msg: string, type: 'ok' | 'err') => void;
 }
 
 /** Calcula tempo decorrido e retorna {label, isOverdue} */
@@ -52,11 +54,13 @@ function avatarColor(name: string): string {
   return colors[name.charCodeAt(0) % colors.length];
 }
 
-function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardProps) {
+function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToast }: CardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
   const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const justToggledRef = useRef(false);
 
   // Focar no input ao entrar em modo de edição
   useEffect(() => {
@@ -68,9 +72,40 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
 
   // ── Toggle completo/incompleto ──────────────────────────
   const handleToggleComplete = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();   // não abre o modal
+    e.stopPropagation();
+    e.preventDefault();
+    e.nativeEvent.stopImmediatePropagation();
+
+    // Flag para impedir o clique do card de abrir o modal
+    justToggledRef.current = true;
+    setTimeout(() => { justToggledRef.current = false; }, 300);
 
     const newValue = !card.is_completed;
+
+    // Efeito GSAP ao concluir
+    if (cardRef.current && newValue) {
+      const tl = gsap.timeline();
+      tl.to(cardRef.current, {
+        scale: 0.95,
+        duration: 0.12,
+        ease: 'power2.in',
+      })
+      .to(cardRef.current, {
+        scale: 1,
+        duration: 0.35,
+        ease: 'elastic.out(1.2, 0.5)',
+      })
+      .to(cardRef.current, {
+        boxShadow: '0 0 0 3px rgba(75, 206, 151, 0.5)',
+        duration: 0.15,
+        ease: 'power1.out',
+      }, 0)
+      .to(cardRef.current, {
+        boxShadow: '0 0 0 0px rgba(75, 206, 151, 0)',
+        duration: 0.5,
+        ease: 'power2.out',
+      }, 0.3);
+    }
 
     // Atualizar estado local imediatamente (otimista)
     onUpdate({ ...card, is_completed: newValue });
@@ -138,7 +173,19 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
   const handleArchive = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
 
+    // Efeito GSAP de saída ao arquivar
+    if (cardRef.current) {
+      await gsap.to(cardRef.current, {
+        opacity: 0.4,
+        x: 60,
+        scale: 0.96,
+        duration: 0.35,
+        ease: 'power2.inOut',
+      });
+    }
+
     onArchive(card.id);   // remover do estado local imediatamente
+    onShowToast?.('Cartão arquivado com sucesso', 'ok');
 
     const { error } = await supabase
       .from('tickets')
@@ -147,18 +194,20 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style }: CardPro
 
     if (error) {
       console.error('Erro ao arquivar:', error);
-      // Se falhar, o card deveria voltar — depende de como onArchive é implementado
+      onShowToast?.('Erro ao arquivar cartão', 'err');
     }
-  }, [card.id, onArchive]);
+  }, [card.id, onArchive, onShowToast]);
 
-  // ── Clique no card (abre modal apenas se não estiver editando) ──
+  // ── Clique no card (abre modal apenas se não estiver editando/toggling) ──
   const handleCardClick = (e: React.MouseEvent) => {
     if (isEditing) return;
+    if (justToggledRef.current) return;
     onClick();
   };
 
   return (
     <div
+      ref={cardRef}
       className={`${styles.card} ${card.is_completed ? styles.cardCompleted : ''} ${isDragging ? styles.cardDragging : ''}`}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
