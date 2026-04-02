@@ -655,13 +655,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             )}
 
             <div className="grid grid-cols-2 gap-2">
-              <FieldGroup label="Cliente">
+              <FieldGroup label="Cliente" icon={<User size={13} />}>
                 <input value={cliente} onChange={e => setCliente(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Nome do cliente" />
               </FieldGroup>
-              <FieldGroup label="Instancia">
-                <input value={instancia} onChange={e => setInstancia(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Codigo instancia" />
+              <FieldGroup label="Instância" icon={<CreditCard size={13} />}>
+                <input value={instancia} onChange={e => setInstancia(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Código da instância" />
               </FieldGroup>
-              <FieldGroup label="Link retaguarda">
+              <FieldGroup label="Link Retaguarda" icon={<Link2 size={13} />}>
                 <div className="flex gap-1">
                   <input value={linkRetaguarda} onChange={e => setLinkRetaguarda(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
                   {linkRetaguarda && (
@@ -669,7 +669,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   )}
                 </div>
               </FieldGroup>
-              <FieldGroup label="Link sessao">
+              <FieldGroup label="Link Sessão" icon={<Link2 size={13} />}>
                 <div className="flex gap-1">
                   <input value={linkSessao} onChange={e => setLinkSessao(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
                   {linkSessao && (
@@ -797,8 +797,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
             <section>
               <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-                <AlignLeft size={14} style={{ color: '#596773' }} />
-                Descricao
+                <AlignLeft size={14} style={{ color: '#25D066' }} />
+                Descrição
               </div>
               <textarea
                 value={description}
@@ -806,7 +806,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 onBlur={saveOnBlur}
                 className="w-full rounded-md p-3 text-sm resize-y outline-none"
                 style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 60 }}
-                placeholder="Adicione uma descricao mais detalhada..."
+                placeholder="Adicione uma descrição mais detalhada..."
               />
             </section>
 
@@ -889,8 +889,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
             <section className="mt-3">
               <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-                <Paperclip size={14} style={{ color: '#596773' }} />
-                Observacao
+                <Paperclip size={14} style={{ color: '#25D066' }} />
+                Observação
               </div>
               <textarea
                 value={observacao.split('\n').filter(l => !l.startsWith('☐') && !l.startsWith('☑')).join('\n')}
@@ -1086,10 +1086,11 @@ function Avatar({ name, size = 32 }: { name: string; size?: number }) {
   )
 }
 
-function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldGroup({ label, children, icon }: { label: string; children: React.ReactNode; icon?: React.ReactNode }) {
   return (
     <div className="relative">
-      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#596773' }}>
+      <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#b6c2cf' }}>
+        {icon && <span style={{ color: '#25D066' }}>{icon}</span>}
         {label}
       </label>
       {children}
