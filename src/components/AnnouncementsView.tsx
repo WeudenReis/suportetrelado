@@ -1,5 +1,5 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react'
-import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone, ShieldAlert, TrendingUp, Clock } from 'lucide-react'
 import {
   fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
   fetchUserProfiles, insertNotification,
@@ -11,10 +11,10 @@ interface AnnouncementsViewProps {
   onClose: () => void
 }
 
-const SEVERITY: Record<AnnouncementSeverity, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  info:     { label: 'Info',    color: '#25D066', bg: 'rgba(37,208,102,0.10)',  icon: <Info size={15} /> },
-  warning:  { label: 'Atenção', color: '#F5A623', bg: 'rgba(245,166,35,0.10)',  icon: <AlertTriangle size={15} /> },
-  critical: { label: 'Urgente', color: '#ef5c48', bg: 'rgba(239,92,72,0.10)',   icon: <AlertOctagon size={15} /> },
+const SEVERITY: Record<AnnouncementSeverity, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
+  info:     { label: 'Info',    color: '#25D066', bg: 'rgba(37,208,102,0.08)',   border: 'rgba(37,208,102,0.35)',  icon: <Info size={14} /> },
+  warning:  { label: 'Atenção', color: '#F5A623', bg: 'rgba(245,166,35,0.08)',   border: 'rgba(245,166,35,0.35)',  icon: <AlertTriangle size={14} /> },
+  critical: { label: 'Urgente', color: '#ef5c48', bg: 'rgba(239,92,72,0.08)',    border: 'rgba(239,92,72,0.35)',   icon: <AlertOctagon size={14} /> },
 }
 
 function timeAgo(dateStr: string): string {
@@ -22,10 +22,19 @@ function timeAgo(dateStr: string): string {
   const mins = Math.floor(ms / 60000)
   const hrs = Math.floor(mins / 60)
   const days = Math.floor(hrs / 24)
-  if (days > 0) return `d atrás`
-  if (hrs > 0) return `h atrás`
-  if (mins > 0) return `min atrás`
-  return 'agora'
+  if (days === 1) return '1d atrás'
+  if (days > 1) return `${days}d atrás`
+  if (hrs === 1) return '1h atrás'
+  if (hrs > 1) return `${hrs}h atrás`
+  if (mins > 1) return `${mins}min atrás`
+  if (mins === 1) return '1min atrás'
+  return 'agora mesmo'
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) +
+    ' · ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function AnnouncementsView({ user, onClose }: AnnouncementsViewProps) {
@@ -37,6 +46,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
   const [severity, setSeverity] = useState<AnnouncementSeverity>('info')
   const [isPinned, setIsPinned] = useState(false)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
@@ -61,7 +71,6 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       setAnnouncements(prev => [ann, ...prev])
       setTitle(''); setContent(''); setSeverity('info'); setIsPinned(false); setShowForm(false)
 
-      // Enviar notificação para todos os usuários
       const profiles = await fetchUserProfiles()
       const authorName = user.includes('@') ? user.split('@')[0] : user
       const sevLabel = SEVERITY[severity].label
@@ -93,8 +102,31 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
   const sorted = [...announcements].sort((a, b) => {
     if (a.is_pinned && !b.is_pinned) return -1
     if (!a.is_pinned && b.is_pinned) return 1
+    // Critical first within same pin tier
+    const severityOrder = { critical: 0, warning: 1, info: 2 }
+    if (severityOrder[a.severity] !== severityOrder[b.severity])
+      return severityOrder[a.severity] - severityOrder[b.severity]
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
+
+  // Analytics
+  const stats = useMemo(() => {
+    const c = announcements.filter(a => a.severity === 'critical').length
+    const w = announcements.filter(a => a.severity === 'warning').length
+    const i = announcements.filter(a => a.severity === 'info').length
+    const recent24h = announcements.filter(a => {
+      const ms = Date.now() - new Date(a.created_at).getTime()
+      return ms < 86400000
+    }).length
+    return { critical: c, warning: w, info: i, recent24h, total: announcements.length }
+  }, [announcements])
+
+  // Operational health score
+  const healthLabel = stats.critical > 0
+    ? { text: 'ATENÇÃO URGENTE', color: '#ef5c48', bg: 'rgba(239,92,72,0.10)' }
+    : stats.warning > 0
+    ? { text: 'REQUER ATENÇÃO', color: '#F5A623', bg: 'rgba(245,166,35,0.10)' }
+    : { text: 'OPERAÇÃO NORMAL', color: '#25D066', bg: 'rgba(37,208,102,0.10)' }
 
   const font = "'Space Grotesk', sans-serif"
 
@@ -107,10 +139,10 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10,
-              background: 'rgba(37,208,102,0.12)',
+              background: stats.critical > 0 ? 'rgba(239,92,72,0.15)' : 'rgba(37,208,102,0.12)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Megaphone size={16} style={{ color: '#25D066' }} />
+              <Megaphone size={16} style={{ color: stats.critical > 0 ? '#ef5c48' : '#25D066' }} />
             </div>
             <div>
               <h2 style={{
@@ -120,7 +152,8 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                 Avisos
               </h2>
               <p style={{ fontSize: 11, color: '#596773', margin: 0, fontFamily: font }}>
-                {announcements.length} comunicado{announcements.length !== 1 ? 's' : ''}
+                {stats.total} comunicado{stats.total !== 1 ? 's' : ''}
+                {stats.recent24h > 0 && <span style={{ color: '#F5A623', marginLeft: 6 }}>· {stats.recent24h} nas últimas 24h</span>}
               </p>
             </div>
           </div>
@@ -141,8 +174,68 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
         </div>
       </div>
 
+      {/* PAINEL ANALÍTICO */}
+      {stats.total > 0 && (
+        <div data-gsap-child style={{ padding: '0 20px 14px' }}>
+          {/* Status geral */}
+          <div style={{
+            borderRadius: 10, padding: '10px 14px', marginBottom: 10,
+            background: healthLabel.bg,
+            border: `1px solid ${healthLabel.color}30`,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <ShieldAlert size={14} color={healthLabel.color} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: healthLabel.color, fontFamily: font, letterSpacing: '0.06em' }}>
+              {healthLabel.text}
+            </span>
+            <span style={{ flex: 1 }} />
+            <Clock size={11} color={healthLabel.color} style={{ opacity: 0.7 }} />
+            <span style={{ fontSize: 10, color: healthLabel.color, fontFamily: font, opacity: 0.7 }}>
+              {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+
+          {/* Contadores rápidos */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[
+              { label: 'Urgentes', value: stats.critical, ...SEVERITY.critical },
+              { label: 'Atenção',  value: stats.warning,  ...SEVERITY.warning  },
+              { label: 'Infos',    value: stats.info,     ...SEVERITY.info     },
+            ].map(s => (
+              <div key={s.label} style={{
+                flex: 1, borderRadius: 8, padding: '8px 10px', textAlign: 'center',
+                background: s.value > 0 ? s.bg : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${s.value > 0 ? s.border : 'rgba(255,255,255,0.05)'}`,
+                transition: 'all 0.2s',
+              }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: s.value > 0 ? s.color : '#4A545E', fontFamily: font, lineHeight: 1 }}>
+                  {s.value}
+                </div>
+                <div style={{ fontSize: 10, color: s.value > 0 ? s.color : '#4A545E', fontFamily: font, marginTop: 3, fontWeight: 600 }}>
+                  {s.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tendência 24h */}
+          {stats.recent24h > 0 && (
+            <div style={{
+              marginTop: 8, borderRadius: 8, padding: '7px 12px',
+              background: 'rgba(245,166,35,0.06)', border: '1px solid rgba(245,166,35,0.15)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <TrendingUp size={12} color="#F5A623" />
+              <span style={{ fontSize: 11, color: '#F5A623', fontFamily: font, fontWeight: 600 }}>
+                {stats.recent24h} novo{stats.recent24h > 1 ? 's' : ''} nas últimas 24 horas — monitore de perto
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* BOTAO NOVO */}
-      <div data-gsap-child style={{ padding: '0 20px 14px' }}>
+      <div data-gsap-child style={{ padding: stats.total > 0 ? '0 20px 14px' : '0 20px 14px' }}>
         <button
           onClick={() => setShowForm(!showForm)}
           style={{
@@ -214,7 +307,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                       fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: font,
                       background: active ? cfg.bg : 'rgba(255,255,255,0.03)',
                       color: active ? cfg.color : '#596773',
-                      border: active ? `1px solid 30` : '1px solid transparent',
+                      border: active ? `1px solid ${cfg.border}` : '1px solid transparent',
                       transition: 'all 0.15s',
                     }}
                   >
@@ -287,28 +380,46 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
           sorted.map(ann => {
             const cfg = SEVERITY[ann.severity]
             const hovered = hoveredId === ann.id
+            const expanded = expandedId === ann.id
             return (
               <div
                 key={ann.id}
                 data-gsap-child
                 onMouseEnter={() => setHoveredId(ann.id)}
                 onMouseLeave={() => setHoveredId(null)}
+                onClick={() => setExpandedId(expanded ? null : ann.id)}
                 style={{
-                  borderRadius: 12, padding: '12px 14px',
+                  borderRadius: 12, padding: '12px 14px', cursor: 'pointer',
                   background: hovered ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
-                  borderLeft: `3px solid `,
+                  borderLeft: `3px solid ${cfg.color}`,
+                  border: `1px solid ${hovered ? cfg.border : 'rgba(255,255,255,0.05)'}`,
+                  borderLeft: `3px solid ${cfg.color}`,
                   transition: 'all 0.15s',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{ color: cfg.color, display: 'flex' }}>{cfg.icon}</span>
+                  <span style={{ color: cfg.color, display: 'flex', flexShrink: 0 }}>{cfg.icon}</span>
                   <span style={{
-                    fontSize: 10, fontWeight: 700, color: cfg.color, fontFamily: font,
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                    fontSize: 10, fontWeight: 800, color: cfg.color, fontFamily: font,
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    background: cfg.bg, padding: '2px 7px', borderRadius: 99,
                   }}>{cfg.label}</span>
-                  {ann.is_pinned && <Pin size={10} style={{ color: '#25D066', marginLeft: -2 }} />}
+                  {ann.is_pinned && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, color: '#25D066', fontFamily: font,
+                      background: 'rgba(37,208,102,0.1)', padding: '2px 6px', borderRadius: 99,
+                      display: 'flex', alignItems: 'center', gap: 3,
+                    }}>
+                      <Pin size={8} /> Fixado
+                    </span>
+                  )}
                   <span style={{ flex: 1 }} />
-                  <span style={{ fontSize: 10, color: '#596773', fontFamily: font }}>{timeAgo(ann.created_at)}</span>
+                  <span
+                    title={formatDate(ann.created_at)}
+                    style={{ fontSize: 10, color: '#596773', fontFamily: font, whiteSpace: 'nowrap' }}
+                  >
+                    {timeAgo(ann.created_at)}
+                  </span>
                 </div>
                 <p style={{
                   fontSize: 13, fontWeight: 700, color: '#E5E7EB', margin: '0 0 2px',
@@ -318,11 +429,23 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                   <p style={{
                     fontSize: 12, color: '#8C96A3', margin: '4px 0 0',
                     fontFamily: font, lineHeight: '1.5', whiteSpace: 'pre-wrap',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: expanded ? 999 : 2,
+                    WebkitBoxOrient: 'vertical',
                   }}>{ann.content}</p>
+                )}
+                {ann.content && ann.content.length > 80 && (
+                  <span style={{ fontSize: 10, color: cfg.color, fontFamily: font, marginTop: 2, display: 'inline-block', opacity: 0.7 }}>
+                    {expanded ? 'ver menos ▲' : 'ver mais ▼'}
+                  </span>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', marginTop: 8, gap: 6 }}>
                   <span style={{ fontSize: 10, color: '#596773', fontFamily: font }}>
                     por {ann.author.split('@')[0]}
+                  </span>
+                  <span style={{ fontSize: 10, color: '#3d4952', fontFamily: font }}>
+                    · {formatDate(ann.created_at)}
                   </span>
                   <span style={{ flex: 1 }} />
                   <div style={{
@@ -331,7 +454,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                     transition: 'opacity 0.15s',
                   }}>
                     <button
-                      onClick={() => handleTogglePin(ann)}
+                      onClick={e => { e.stopPropagation(); handleTogglePin(ann) }}
                       title={ann.is_pinned ? 'Desafixar' : 'Fixar no topo'}
                       style={{
                         width: 26, height: 26, borderRadius: 6, border: 'none',
@@ -345,7 +468,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                       <Pin size={12} />
                     </button>
                     <button
-                      onClick={() => handleDelete(ann.id)}
+                      onClick={e => { e.stopPropagation(); handleDelete(ann.id) }}
                       title="Remover aviso"
                       style={{
                         width: 26, height: 26, borderRadius: 6, border: 'none',
