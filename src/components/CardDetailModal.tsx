@@ -4,7 +4,7 @@ import {
   X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
   ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
   AlignLeft, CreditCard, Paperclip, Check, User, Calendar,
-  CheckSquare, Square, Plus, Link2, Pencil
+  CheckSquare, Square, Plus, Link2, Pencil, Lock
 } from 'lucide-react'
 import {
   supabase, updateTicket, deleteTicket,
@@ -94,6 +94,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [newComment, setNewComment] = useState('')
   const [sendingComment, setSendingComment] = useState(false)
   const [commentFocused, setCommentFocused] = useState(false)
+  const [isInternalNote, setIsInternalNote] = useState(false)
 
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
@@ -318,12 +319,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const handleSendComment = async () => {
     if (!newComment.trim()) return
     setSendingComment(true)
-    const commentText = newComment.trim()
+    const commentText = isInternalNote ? `[INTERNO] ${newComment.trim()}` : newComment.trim()
     setMentionQuery(null)
     try {
       const c = await insertComment(ticket.id, user, commentText)
       if (c) setComments(prev => [...prev, c])
       setNewComment('')
+      setIsInternalNote(false)
       setSendingComment(false)
       commentRef.current?.focus()
 
@@ -992,12 +994,29 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 )}
                 <AnimatePresence>
                   {(commentFocused || newComment.trim()) && (
-                    <div className="flex justify-end mt-1.5">
+                    <div className="flex items-center justify-between mt-1.5">
+                      <button
+                        onClick={() => setIsInternalNote(p => !p)}
+                        type="button"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px',
+                          borderRadius: 6, fontSize: 10, fontWeight: 600,
+                          background: isInternalNote ? 'rgba(245,166,35,0.12)' : 'transparent',
+                          border: isInternalNote ? '1px solid rgba(245,166,35,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                          color: isInternalNote ? '#f5a623' : '#596773',
+                          cursor: 'pointer', transition: 'all 0.15s',
+                          fontFamily: "'Space Grotesk', sans-serif",
+                        }}
+                        title="Nota interna (não visível ao cliente)"
+                      >
+                        <Lock size={10} />
+                        {isInternalNote ? 'Nota Interna' : 'Público'}
+                      </button>
                       <button onClick={handleSendComment} disabled={!newComment.trim() || sendingComment}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-40"
-                        style={{ background: '#3b82f6' }}>
+                        style={{ background: isInternalNote ? '#f5a623' : '#3b82f6' }}>
                         {sendingComment ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                        Enviar
+                        {isInternalNote ? 'Nota' : 'Enviar'}
                       </button>
                     </div>
                   )}
@@ -1020,8 +1039,18 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                       </div>
                       {item.type === 'comment' ? (
                         <>
-                          <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.08)' }}>
-                            {renderCommentText(item.text)}
+                          {item.text.startsWith('[INTERNO] ') && (
+                            <div className="flex items-center gap-1 mt-0.5 mb-0.5">
+                              <Lock size={9} style={{ color: '#f5a623' }} />
+                              <span style={{ color: '#f5a623', fontSize: 9, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>NOTA INTERNA</span>
+                            </div>
+                          )}
+                          <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{
+                            background: item.text.startsWith('[INTERNO] ') ? 'rgba(245,166,35,0.08)' : '#22272b',
+                            color: '#b6c2cf',
+                            border: item.text.startsWith('[INTERNO] ') ? '1px solid rgba(245,166,35,0.2)' : '1px solid rgba(166,197,226,0.08)',
+                          }}>
+                            {renderCommentText(item.text.startsWith('[INTERNO] ') ? item.text.slice(10) : item.text)}
                           </div>
                           <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#596773' }}>
                             <Trash2 size={9} /> Excluir

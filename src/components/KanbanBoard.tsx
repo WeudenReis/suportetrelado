@@ -5,7 +5,7 @@ import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock, LayoutGrid, List, ChevronDown, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2, FileText, Copy } from 'lucide-react'
-import { useTheme, type ThemeConfig } from '../lib/theme'
+import { useTheme, PRESETS as THEME_PRESETS, type ThemeConfig } from '../lib/theme'
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal, { parseTag } from './CardDetailModal'
@@ -2375,6 +2375,36 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                           onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
                         >
                           {wp.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Tema de cores */}
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Tema de Cores
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {presets.map(p => {
+                      const isActive = presetKey === p.key
+                      return (
+                        <button key={p.key} onClick={() => setPreset(p.key)}
+                          style={{
+                            height: 40, borderRadius: 10, fontSize: 11, fontWeight: 600,
+                            fontFamily: "'Space Grotesk', sans-serif",
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            background: isActive ? 'rgba(37,208,102,0.12)' : '#22272b',
+                            border: isActive ? '2px solid #25D066' : '1px solid rgba(255,255,255,0.08)',
+                            color: isActive ? '#25D066' : '#8C96A3',
+                            cursor: 'pointer', transition: 'all 0.15s',
+                          }}
+                          onMouseEnter={e => { if (!isActive) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}
+                          onMouseLeave={e => { if (!isActive) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
+                        >
+                          <div style={{ width: 12, height: 12, borderRadius: '50%', background: THEME_PRESETS[p.key]?.accent || '#579dff', flexShrink: 0 }} />
+                          {p.label}
                         </button>
                       )
                     })}

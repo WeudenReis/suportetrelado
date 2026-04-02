@@ -27,6 +27,25 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   const [toastNotification, setToastNotification] = useState<Notification | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Solicitar permissão de notificação push nativa
+  useEffect(() => {
+    if ('Notification' in window && window.Notification.permission === 'default') {
+      window.Notification.requestPermission().catch(() => {/* ignorar */});
+    }
+  }, []);
+
+  const showBrowserNotification = useCallback((notif: Notification) => {
+    if ('Notification' in window && window.Notification.permission === 'granted' && document.hidden) {
+      const body = notif.message || `Nova notificação em "${notif.ticket_title || 'ticket'}"`;
+      const n = new window.Notification('chatPro — Suporte', {
+        body,
+        icon: '/icon-192.png',
+        tag: notif.id,
+      });
+      n.onclick = () => { window.focus(); n.close(); };
+    }
+  }, []);
+
   const dismissToast = useCallback(() => {
     setToastNotification(null);
     if (toastTimer.current) { clearTimeout(toastTimer.current); toastTimer.current = null; }
@@ -120,6 +139,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
         if (notif.recipient_email === user) {
           setNotifications(prev => [notif, ...prev]);
           showToast(notif);
+          showBrowserNotification(notif);
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, payload => {
