@@ -206,14 +206,13 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
     onClick();
   };
 
-  // ── SLA visual indicator ──
+  // SLA: only show overdue indicator for cards idle 24h+, not warning (too noisy)
   const slaClass = (() => {
     if (card.is_completed) return '';
     const updatedAt = (card as any).updated_at;
     if (!updatedAt) return '';
     const hoursIdle = (Date.now() - new Date(updatedAt).getTime()) / 3_600_000;
     if (hoursIdle >= 24) return styles.cardOverdue;
-    if (hoursIdle >= 12) return styles.cardWarning;
     return '';
   })();
 

@@ -198,11 +198,11 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
           {/* Contadores rápidos */}
           <div style={{ display: 'flex', gap: 6 }}>
             {[
-              { label: 'Urgentes', value: stats.critical, ...SEVERITY.critical },
-              { label: 'Atenção',  value: stats.warning,  ...SEVERITY.warning  },
-              { label: 'Infos',    value: stats.info,     ...SEVERITY.info     },
+              { displayLabel: 'Urgentes', value: stats.critical, ...SEVERITY.critical },
+              { displayLabel: 'Atenção',  value: stats.warning,  ...SEVERITY.warning  },
+              { displayLabel: 'Infos',    value: stats.info,     ...SEVERITY.info     },
             ].map(s => (
-              <div key={s.label} style={{
+              <div key={s.displayLabel} style={{
                 flex: 1, borderRadius: 8, padding: '8px 10px', textAlign: 'center',
                 background: s.value > 0 ? s.bg : 'rgba(255,255,255,0.02)',
                 border: `1px solid ${s.value > 0 ? s.border : 'rgba(255,255,255,0.05)'}`,
@@ -212,7 +212,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                   {s.value}
                 </div>
                 <div style={{ fontSize: 10, color: s.value > 0 ? s.color : '#4A545E', fontFamily: font, marginTop: 3, fontWeight: 600 }}>
-                  {s.label}
+                  {s.displayLabel}
                 </div>
               </div>
             ))}
@@ -391,8 +391,9 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                 style={{
                   borderRadius: 12, padding: '12px 14px', cursor: 'pointer',
                   background: hovered ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
-                  borderLeft: `3px solid ${cfg.color}`,
-                  border: `1px solid ${hovered ? cfg.border : 'rgba(255,255,255,0.05)'}`,
+                  borderTop: `1px solid ${hovered ? cfg.border : 'rgba(255,255,255,0.05)'}`,
+                  borderRight: `1px solid ${hovered ? cfg.border : 'rgba(255,255,255,0.05)'}`,
+                  borderBottom: `1px solid ${hovered ? cfg.border : 'rgba(255,255,255,0.05)'}`,
                   borderLeft: `3px solid ${cfg.color}`,
                   transition: 'all 0.15s',
                 }}
