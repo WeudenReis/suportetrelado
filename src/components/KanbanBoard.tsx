@@ -218,6 +218,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [bulkMode, setBulkMode] = useState(false)
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set())
   const [showTemplates, setShowTemplates] = useState(false)
+  const [templateVersion, setTemplateVersion] = useState(0)
   const [showAutoRules, setShowAutoRules] = useState(false)
   const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
@@ -2183,8 +2184,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                           </p>
                         )}
                         {templates.map(tmpl => (
-                          <button
+                          <div
                             key={tmpl.id}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => {
                               setNewTicket(p => ({
                                 ...p,
@@ -2216,6 +2219,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                 e.stopPropagation()
                                 const updated = templates.filter(t => t.id !== tmpl.id)
                                 saveTemplates(updated)
+                                setTemplateVersion(v => v + 1)
                               }}
                               style={{
                                 background: 'transparent', border: 'none', color: '#596773', cursor: 'pointer',
@@ -2227,7 +2231,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                             >
                               <Trash2 size={11} />
                             </button>
-                          </button>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -2293,6 +2297,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                       status: newTicket.status,
                     })
                     saveTemplates(templates)
+                    setTemplateVersion(v => v + 1)
                     showToast('Template salvo!', 'ok')
                   }}
                   style={{ padding: '11px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#25D066', background: 'rgba(37,208,102,0.06)', border: '1px solid rgba(37,208,102,0.15)', cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif", display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
