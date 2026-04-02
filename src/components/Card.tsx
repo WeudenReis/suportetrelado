@@ -55,6 +55,18 @@ function avatarColor(name: string): string {
   return colors[name.charCodeAt(0) % colors.length];
 }
 
+/** Resolve assignee para exibição legível (email \u2192 nome) */
+function getAssigneeDisplay(raw: string): { initial: string; tooltip: string } {
+  const first = raw.split(',')[0].trim()
+  const displayName = first.includes('@') ? first.split('@')[0] : first
+  const capitalized = displayName.charAt(0).toUpperCase() + displayName.slice(1)
+  const allNames = raw.split(',').map(s => {
+    const t = s.trim()
+    return t.includes('@') ? t.split('@')[0] : t
+  }).filter(Boolean)
+  return { initial: capitalized.charAt(0).toUpperCase(), tooltip: allNames.join(', ') }
+}
+
 function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToast, compact }: CardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
@@ -247,11 +259,14 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
           {/* Título */}
           <p className={`${styles.compactTitle} ${card.is_completed ? styles.titleDone : ''}`}>{card.title}</p>
           {/* Avatar */}
-          {card.assignee && (
-            <span className={styles.compactAvatar} style={{ background: avatarColor(card.assignee) }} title={card.assignee}>
-              {card.assignee.charAt(0).toUpperCase()}
+          {card.assignee && (() => {
+            const { initial, tooltip } = getAssigneeDisplay(card.assignee)
+            return (
+            <span className={styles.compactAvatar} style={{ background: avatarColor(card.assignee) }} title={tooltip}>
+              {initial}
             </span>
-          )}
+            )
+          })()}
           {/* Ações */}
           {!isEditing && (
             <div className={`${styles.actions} ${isHovered ? styles.actionsVisible : ''}`}>
@@ -422,15 +437,18 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
             <span style={{ flex: 1 }} />
 
             {/* Avatar do responsável */}
-            {card.assignee && (
+            {card.assignee && (() => {
+              const { initial, tooltip } = getAssigneeDisplay(card.assignee)
+              return (
               <span
                 className={styles.avatar}
                 style={{ background: avatarColor(card.assignee) }}
-                title={card.assignee}
+                title={tooltip}
               >
-                {card.assignee.charAt(0).toUpperCase()}
+                {initial}
               </span>
-            )}
+              )
+            })()}
           </div>
         )}
       </div>

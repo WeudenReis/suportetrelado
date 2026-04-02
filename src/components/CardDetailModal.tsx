@@ -530,7 +530,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         <div className="flex items-center gap-3 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#596773' }}>
             <User size={12} />
-            <span>Criado por <strong style={{ color: '#8c9bab' }}>{ticket.assignee || 'Desconhecido'}</strong></span>
+            <span>Criado por <strong style={{ color: '#8c9bab' }}>{(() => {
+              const raw = ticket.assignee || ''
+              if (!raw) return 'Desconhecido'
+              const first = raw.split(',')[0].trim()
+              const profile = allUsers.find(u => u.email === first || u.name === first)
+              return profile?.name || (first.includes('@') ? first.split('@')[0] : first)
+            })()}</strong></span>
           </div>
           <span style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.08)' }} />
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#596773' }}>
@@ -736,14 +742,18 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               </FieldGroup>
               <FieldGroup label="Vinculados">
                 <div className="flex flex-wrap gap-1">
-                  {members.map(m => (
+                  {members.map(m => {
+                    const profile = allUsers.find(u => u.email === m || u.name === m)
+                    const displayName = profile?.name || (m.includes('@') ? m.split('@')[0] : m)
+                    return (
                     <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(87,157,255,0.15)', color: '#579dff' }}>
-                      {m.includes('@') ? m.split('@')[0] : m}
+                      {displayName}
                       <button onClick={() => { const next = members.filter(x => x !== m); setMembers(next); const joined = next.join(', '); setAssignee(joined); save({ assignee: joined || null }) }} className="hover:text-red-400 transition-colors">
                         <X size={10} />
                       </button>
                     </span>
-                  ))}
+                    )
+                  })}
                   {members.length === 0 && <span className="text-[11px]" style={{ color: '#596773' }}>Nenhum</span>}
                 </div>
                 {showMemberPicker && (
@@ -755,12 +765,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                         <button
                           key={u.email}
                           onClick={async () => {
-                            const identifier = u.name || u.email
                             let next: string[]
                             if (isAdded) {
                               next = members.filter(m => m !== u.email && m !== u.name)
                             } else {
-                              next = [...members, identifier]
+                              next = [...members, u.email]
                               // Notificar o membro adicionado
                               if (u.email.toLowerCase() !== user.toLowerCase()) {
                                 const { data: { session } } = await supabase.auth.getSession()

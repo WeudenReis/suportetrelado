@@ -432,7 +432,14 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       if (filterAssignee === '__none__') {
         filtered = filtered.filter(t => !t.assignee)
       } else {
-        filtered = filtered.filter(t => t.assignee && t.assignee.toLowerCase().includes(filterAssignee.toLowerCase()))
+        // Busca pelo email ou nome do membro selecionado
+        const member = allMembers.find(m => m.email === filterAssignee)
+        filtered = filtered.filter(t => {
+          if (!t.assignee) return false
+          const parts = t.assignee.split(',').map(s => s.trim().toLowerCase())
+          const fa = filterAssignee.toLowerCase()
+          return parts.some(p => p === fa || (member && (p === member.name.toLowerCase() || p === member.email.toLowerCase())))
+        })
       }
     }
     if (filterLabel !== 'all') {
@@ -489,14 +496,21 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   }, [filterPriority, filterAssignee, filterLabel])
 
   const uniqueAssignees = useMemo(() => {
-    const set = new Set<string>()
+    const seen = new Map<string, string>() // canonical email/name → display name
     for (const t of tickets) {
       if (t.assignee) {
-        t.assignee.split(',').map(s => s.trim()).filter(Boolean).forEach(a => set.add(a))
+        t.assignee.split(',').map(s => s.trim()).filter(Boolean).forEach(raw => {
+          // Resolve against allMembers to deduplicate
+          const member = allMembers.find(m => m.email === raw || m.name === raw || m.email.split('@')[0].toLowerCase() === raw.toLowerCase())
+          const key = member?.email || raw.toLowerCase()
+          if (!seen.has(key)) {
+            seen.set(key, member?.name || (raw.includes('@') ? raw.split('@')[0] : raw))
+          }
+        })
       }
     }
-    return Array.from(set).sort()
-  }, [tickets])
+    return Array.from(seen.entries()).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label))
+  }, [tickets, allMembers])
 
   const uniqueLabels = useMemo(() => {
     const set = new Set<string>()
@@ -1376,7 +1390,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               >
                 <option value="all">Responsável</option>
                 <option value="__none__">Sem responsável</option>
-                {uniqueAssignees.map(a => <option key={a} value={a}>{a}</option>)}
+                {uniqueAssignees.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
               </select>
 
               {/* Etiqueta */}

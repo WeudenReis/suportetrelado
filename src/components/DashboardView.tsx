@@ -210,15 +210,18 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     for (const t of active) {
       if (t.assignee) {
         const members = t.assignee.split(',').map(s => s.trim()).filter(Boolean)
-        for (const m of members) {
-          counts[m] = (counts[m] || 0) + 1
+        for (const raw of members) {
+          // Resolve nome ou email para o nome canônico (deduplicação)
+          const profile = profiles.find(p => p.email === raw || p.name === raw || p.email.split('@')[0].toLowerCase() === raw.toLowerCase())
+          const key = profile?.name || (raw.includes('@') ? raw.split('@')[0] : raw)
+          counts[key] = (counts[key] || 0) + 1
         }
       } else {
         counts['Sem responsável'] = (counts['Sem responsável'] || 0) + 1
       }
     }
     return Object.entries(counts).sort(([, a], [, b]) => b - a)
-  }, [active])
+  }, [active, profiles])
 
   const maxMember = Math.max(...memberCounts.map(([, c]) => c), 1)
 
@@ -632,7 +635,12 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
                       fontSize: 10, color: '#596773', margin: '2px 0 0',
                       fontFamily: "'Space Grotesk', sans-serif",
                     }}>
-                      {t.assignee ? t.assignee.split('@')[0] : 'Sem responsável'}
+                      {(() => {
+                        if (!t.assignee) return 'Sem responsável'
+                        const first = t.assignee.split(',')[0].trim()
+                        const p = profiles.find(pr => pr.email === first || pr.name === first)
+                        return p?.name || (first.includes('@') ? first.split('@')[0] : first)
+                      })()}
                     </p>
                   </div>
                   <span style={{
