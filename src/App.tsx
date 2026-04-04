@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CalendarDays, Megaphone, Link2, BarChart3, ChevronsRight, ChevronsLeft, X, AtSign, UserPlus, MessageSquare, ArrowRight } from 'lucide-react'
+import { Inbox, X, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'
 import gsap from 'gsap'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
@@ -8,15 +8,15 @@ import { NotificationProvider, useNotificationContext } from './components/Notif
 import { AnnouncementProvider } from './components/AnnouncementContext'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
-import InboxSidebar from './components/InboxView'
-import PlannerView from './components/PlannerView'
-import PlannerSidebar from './components/PlannerSidebar'
-import AnnouncementsView from './components/AnnouncementsView'
-import LinksView from './components/LinksView'
-import DashboardView from './components/DashboardView'
 import BottomNav from './components/BottomNav'
 import { fetchTickets, upsertUserProfile, updateLastSeen, checkAuthorizedUser } from './lib/supabase'
 import type { Ticket } from './lib/supabase'
+
+const InboxSidebar = lazy(() => import('./components/InboxView'))
+const PlannerSidebar = lazy(() => import('./components/PlannerSidebar'))
+const AnnouncementsView = lazy(() => import('./components/AnnouncementsView'))
+const LinksView = lazy(() => import('./components/LinksView'))
+const DashboardView = lazy(() => import('./components/DashboardView'))
 
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
@@ -214,39 +214,41 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
 
           {/* ▸ Sidebar content */}
           <div className="sidebar-panel__content">
-            {activeTab === 'inbox' && (
-              <InboxSidebar
-                user={user}
-                onClose={() => handleTabChange('board')}
-                onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
-              />
-            )}
-            {activeTab === 'planner' && (
-              <PlannerSidebar
-                tickets={plannerTickets}
-                onClose={() => handleTabChange('board')}
-                user={user}
-                onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
-              />
-            )}
-            {activeTab === 'announcements' && (
-              <AnnouncementsView
-                user={user}
-                onClose={() => handleTabChange('board')}
-              />
-            )}
-            {activeTab === 'links' && (
-              <LinksView
-                user={user}
-                onClose={() => handleTabChange('board')}
-              />
-            )}
-            {activeTab === 'dashboard' && (
-              <DashboardView
-                user={user}
-                onClose={() => handleTabChange('board')}
-              />
-            )}
+            <Suspense fallback={<div style={{ padding: 20, color: '#596773', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif" }}>Carregando...</div>}>
+              {activeTab === 'inbox' && (
+                <InboxSidebar
+                  user={user}
+                  onClose={() => handleTabChange('board')}
+                  onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
+                />
+              )}
+              {activeTab === 'planner' && (
+                <PlannerSidebar
+                  tickets={plannerTickets}
+                  onClose={() => handleTabChange('board')}
+                  user={user}
+                  onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
+                />
+              )}
+              {activeTab === 'announcements' && (
+                <AnnouncementsView
+                  user={user}
+                  onClose={() => handleTabChange('board')}
+                />
+              )}
+              {activeTab === 'links' && (
+                <LinksView
+                  user={user}
+                  onClose={() => handleTabChange('board')}
+                />
+              )}
+              {activeTab === 'dashboard' && (
+                <DashboardView
+                  user={user}
+                  onClose={() => handleTabChange('board')}
+                />
+              )}
+            </Suspense>
           </div>
         </div>
       )}

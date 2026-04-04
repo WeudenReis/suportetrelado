@@ -4,18 +4,24 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable,
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Image, Search, Share2, Plug, Trash2, Users, Archive, Tag, Pencil, MoreHorizontal, ArrowUpDown, Palette, ChevronLeft, Upload, RotateCcw, Clock, LayoutGrid, List, ChevronDown, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2, FileText, Copy } from 'lucide-react'
-import { useTheme, PRESETS as THEME_PRESETS, type ThemeConfig } from '../lib/theme'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Search, Share2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, LayoutGrid, List, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal, { parseTag } from './CardDetailModal'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
-import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../lib/supabase'
+import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../hooks/useKanban'
 import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShortcuts'
 import type { Ticket, TicketStatus, UserProfile, BoardLabel } from '../lib/supabase'
+import ShortcutsHelpModal from './kanban/ShortcutsHelpModal'
+import BulkActionsBar from './kanban/BulkActionsBar'
+import AutoRulesModal, { loadAutoRules } from './kanban/AutoRulesModal'
+import LabelsManagerModal from './kanban/LabelsManagerModal'
+import SettingsPanel from './kanban/SettingsPanel'
+import AddTicketModal from './kanban/AddTicketModal'
+import FilterPanel from './kanban/FilterPanel'
 
 interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
 
@@ -100,7 +106,8 @@ function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, 
 
 const SortableCard = memo(SortableCardInner)
 
-function SortableBoardColumn({ id, accentColor, children }: { id: string; accentColor?: string; children: (drag: { attributes: Record<string, any>; listeners: Record<string, any>; isDragging: boolean }) => React.ReactNode }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function SortableBoardColumn({ id, accentColor, children }: { id: string; accentColor?: string; children: (drag: { attributes: any; listeners: any; isDragging: boolean }) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { type: 'column', columnId: id } })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -115,56 +122,7 @@ function SortableBoardColumn({ id, accentColor, children }: { id: string; accent
   )
 }
 
-const LABEL_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
-
-interface TicketTemplate {
-  id: string
-  name: string
-  title: string
-  description: string
-  priority: 'low' | 'medium' | 'high'
-  status: string
-}
-
-function loadTemplates(): TicketTemplate[] {
-  try {
-    const raw = localStorage.getItem('chatpro-templates')
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-function saveTemplates(templates: TicketTemplate[]): void {
-  localStorage.setItem('chatpro-templates', JSON.stringify(templates))
-}
-
-interface AutoRule {
-  id: string
-  name: string
-  condition: 'priority_high' | 'priority_medium' | 'priority_low' | 'no_assignee' | 'overdue_12h' | 'overdue_24h'
-  action: 'move_to'
-  targetColumn: string
-  enabled: boolean
-}
-
-function loadAutoRules(): AutoRule[] {
-  try {
-    const raw = localStorage.getItem('chatpro-auto-rules')
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-function saveAutoRules(rules: AutoRule[]): void {
-  localStorage.setItem('chatpro-auto-rules', JSON.stringify(rules))
-}
-
-const AUTO_RULE_CONDITIONS: Record<string, string> = {
-  priority_high: 'Prioridade Alta',
-  priority_medium: 'Prioridade Média',
-  priority_low: 'Prioridade Baixa',
-  no_assignee: 'Sem responsável',
-  overdue_12h: 'Parado há +12h',
-  overdue_24h: 'Parado há +24h',
-}
+// Templates, AutoRules e Labels foram extraídos para ./kanban/
 
 export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTicketId }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
@@ -174,7 +132,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [overColumn, setOverColumn] = useState<string | null>(null)
   const [overCardId, setOverCardId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: 'backlog' as TicketStatus, cliente: '', instancia: '' })
   const [isConnected, setIsConnected] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -202,11 +159,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [colMenuView, setColMenuView] = useState<'main' | 'color' | 'sort'>('main')
   const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
   const [showLabelsManager, setShowLabelsManager] = useState(false)
-  const [newLabelName, setNewLabelName] = useState('')
-  const [newLabelColor, setNewLabelColor] = useState('#579dff')
-  const [editingLabel, setEditingLabel] = useState<BoardLabel | null>(null)
-  const [editLabelName, setEditLabelName] = useState('')
-  const [editLabelColor, setEditLabelColor] = useState('')
+  // Label editing state moved to LabelsManagerModal
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>(() => (localStorage.getItem('chatpro-view-mode') as 'kanban' | 'list') || 'kanban')
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set())
   const [compactMode, setCompactMode] = useState<boolean>(() => localStorage.getItem('chatpro-compact-mode') === 'true')
@@ -217,12 +170,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
   const [bulkMode, setBulkMode] = useState(false)
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set())
-  const [showTemplates, setShowTemplates] = useState(false)
-  const [templateVersion, setTemplateVersion] = useState(0)
   const [showAutoRules, setShowAutoRules] = useState(false)
-  const { theme, presetKey, setPreset, setCustomColor, presets } = useTheme()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
-  const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
   const dragOriginalStatusRef = useRef<string | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const boardDragRef = useRef({ isDragging: false, startX: 0, scrollLeft: 0 })
@@ -555,7 +504,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     setBulkMode(false)
     showToast(`${ids.length} card(s) arquivado(s)`, 'ok')
     for (const id of ids) {
-      await supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(console.error)
+      await Promise.resolve(supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', id)).catch(console.error)
     }
   }, [selectedCardIds])
 
@@ -600,7 +549,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   function handleDragOver(event: DragOverEvent) {
     if (event.active.data.current?.type === 'column') return
 
-    const { active, over } = event
+    const { over } = event
     if (!over) { setOverColumn(null); setOverCardId(null); return }
 
     const overId = String(over.id)
@@ -696,28 +645,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       })
   }
 
-  const handleAddTicket = async () => {
-    if (!newTicket.title.trim()) return
-    try {
-      const created = await insertTicket({
-        title: newTicket.title.trim(),
-        description: newTicket.description || '',
-        status: newTicket.status,
-        priority: newTicket.priority,
-        cliente: newTicket.cliente || '',
-        instancia: newTicket.instancia || '',
-        assignee: user,
-      })
-      setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
-      setNewTicket({ title: '', description: '', priority: 'medium', status: 'backlog', cliente: '', instancia: '' })
-      setShowAddModal(false)
-      showToast('Ticket criado!', 'ok')
-    } catch (err: any) {
-      console.error('Failed to add ticket:', err)
-      showToast(err?.message || 'Erro ao criar ticket. Verifique se está logado.', 'err')
-    }
-  }
-
   const handleInlineAdd = async (col: TicketStatus) => {
     if (!inlineTitle.trim()) return
     try {
@@ -746,7 +673,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   // ── Keyboard shortcuts ──
   const noModalOpen = !showAddModal && !selectedTicket && !showSettings && !showInstanceModal && !showArchivedPanel && !showLabelsManager && !showShortcutsHelp
   const shortcutActions = useMemo(() => [
-    { key: 'n', description: 'Novo ticket', action: () => { if (noModalOpen) { setNewTicket(p => ({ ...p, status: (allColumns[0]?.id || 'backlog') as TicketStatus })); setShowAddModal(true) } } },
+    { key: 'n', description: 'Novo ticket', action: () => { if (noModalOpen) { setShowAddModal(true) } } },
     { key: 'f', description: 'Filtros avançados', action: () => { if (noModalOpen) setShowFilters(p => !p) } },
     { key: 'k', ctrl: true, description: 'Pesquisar', action: () => { searchInputRef.current?.focus() } },
     { key: '/', description: 'Pesquisar', action: () => { if (noModalOpen) searchInputRef.current?.focus() } },
@@ -893,13 +820,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     event.target.value = ''
   }
 
-  const WALLPAPER_PRESETS = [
-    { label: 'Oceano', value: 'linear-gradient(135deg, #1a3a5c 0%, #0d2137 50%, #1e4976 100%)' },
-    { label: 'Grafite', value: 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 50%, #333 100%)' },
-    { label: 'Floresta', value: '#1d5c3a' },
-    { label: 'Vinho', value: '#6b1f2a' },
-  ]
-
   // ── Scroll lateral segurando o fundo do board ──
   const handleBoardMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -971,7 +891,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
           default: return 0
         }
       })
-      sorted.forEach((t, i) => { t.position = i })
+      sorted.forEach((t, i) => { (t as Ticket & { position?: number }).position = i })
       return [...rest, ...sorted]
     })
     setColorPickerColumnId(null)
@@ -1178,7 +1098,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             <Settings size={16} />
           </button>
 
-          <button onClick={() => { setNewTicket(p => ({ ...p, status: (allColumns[0]?.id || 'backlog') as TicketStatus })); setShowAddModal(true) }} className="trello-create-btn" type="button">
+          <button onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
             Criar
           </button>
 
@@ -1335,122 +1255,19 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       {/* Filtros avançados panel */}
       <AnimatePresence>
         {showFilters && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            style={{ overflow: 'hidden', background: '#1a1f23', borderBottom: '1px solid rgba(37,208,102,0.1)' }}
-          >
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px',
-              fontFamily: "'Space Grotesk', sans-serif", flexWrap: 'wrap',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Filter size={13} style={{ color: '#25D066' }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filtros</span>
-              </div>
-
-              {/* Prioridade */}
-              <select
-                value={filterPriority}
-                onChange={e => setFilterPriority(e.target.value)}
-                style={{
-                  padding: '6px 28px 6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                  background: filterPriority !== 'all' ? 'rgba(37,208,102,0.1)' : '#22272b',
-                  border: filterPriority !== 'all' ? '1px solid rgba(37,208,102,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                  color: '#B6C2CF', outline: 'none', cursor: 'pointer',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  appearance: 'none' as const,
-                  backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
-                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
-                }}
-              >
-                <option value="all">Prioridade</option>
-                <option value="high">Alta</option>
-                <option value="medium">Média</option>
-                <option value="low">Baixa</option>
-              </select>
-
-              {/* Responsável */}
-              <select
-                value={filterAssignee}
-                onChange={e => setFilterAssignee(e.target.value)}
-                style={{
-                  padding: '6px 28px 6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                  background: filterAssignee !== 'all' ? 'rgba(37,208,102,0.1)' : '#22272b',
-                  border: filterAssignee !== 'all' ? '1px solid rgba(37,208,102,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                  color: '#B6C2CF', outline: 'none', cursor: 'pointer',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  appearance: 'none' as const,
-                  backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
-                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
-                  maxWidth: 180,
-                }}
-              >
-                <option value="all">Responsável</option>
-                <option value="__none__">Sem responsável</option>
-                {uniqueAssignees.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-              </select>
-
-              {/* Etiqueta */}
-              <select
-                value={filterLabel}
-                onChange={e => setFilterLabel(e.target.value)}
-                style={{
-                  padding: '6px 28px 6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                  background: filterLabel !== 'all' ? 'rgba(37,208,102,0.1)' : '#22272b',
-                  border: filterLabel !== 'all' ? '1px solid rgba(37,208,102,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                  color: '#B6C2CF', outline: 'none', cursor: 'pointer',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  appearance: 'none' as const,
-                  backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
-                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
-                  maxWidth: 180,
-                }}
-              >
-                <option value="all">Etiqueta</option>
-                {uniqueLabels.map(l => {
-                  const name = l.includes('::') ? l.split('::')[0] : l
-                  return <option key={l} value={l}>{name}</option>
-                })}
-              </select>
-
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearAllFilters}
-                  style={{
-                    padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                    background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
-                    color: '#ef4444', cursor: 'pointer',
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.18)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
-                >
-                  <X size={11} />
-                  Limpar filtros ({activeFilterCount})
-                </button>
-              )}
-
-              <span style={{ flex: 1 }} />
-              <button
-                onClick={() => setShowFilters(false)}
-                style={{
-                  width: 24, height: 24, borderRadius: 6, border: 'none',
-                  background: 'transparent', color: '#596773', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </motion.div>
+          <FilterPanel
+            filterPriority={filterPriority}
+            filterAssignee={filterAssignee}
+            filterLabel={filterLabel}
+            uniqueAssignees={uniqueAssignees}
+            uniqueLabels={uniqueLabels}
+            activeFilterCount={activeFilterCount}
+            onFilterPriorityChange={setFilterPriority}
+            onFilterAssigneeChange={setFilterAssignee}
+            onFilterLabelChange={setFilterLabel}
+            onClearAllFilters={clearAllFilters}
+            onClose={() => setShowFilters(false)}
+          />
         )}
       </AnimatePresence>
 
@@ -1483,7 +1300,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
         <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
           <div className="board-columns">
             <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-              {allColumns.map((col, colIdx) => {
+              {allColumns.map((col) => {
                 const colTickets = getColumnTickets(col.id)
                 return (
                   <div key={col.id}>
@@ -2188,754 +2005,82 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       {/* Add Modal */}
       <AnimatePresence>
         {showAddModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-              className="rounded-2xl w-full max-w-md overflow-hidden"
-              style={{ background: '#1a1f23', border: '1px solid rgba(37,208,102,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03)' }}
-            >
-              {/* Modal header */}
-              <div className="px-6 pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Plus size={18} style={{ color: '#25D066' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Novo Ticket</h2>
-                  <p style={{ fontSize: 11, color: '#596773', margin: 0, marginTop: 1 }}>Preencha os dados do chamado</p>
-                </div>
-                <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-lg transition-colors" style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}><X size={16} /></button>
-              </div>
-
-              {/* Templates rápidos */}
-              {(() => {
-                const templates = loadTemplates()
-                return (
-                  <div style={{ padding: '8px 24px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <button
-                      onClick={() => setShowTemplates(p => !p)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
-                        borderRadius: 8, background: showTemplates ? 'rgba(37,208,102,0.08)' : 'transparent',
-                        border: '1px solid rgba(37,208,102,0.15)', color: '#25D066',
-                        fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: "'Space Grotesk', sans-serif", transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = showTemplates ? 'rgba(37,208,102,0.08)' : 'transparent' }}
-                    >
-                      <FileText size={12} />
-                      Templates ({templates.length})
-                      <ChevronDown size={12} style={{ transform: showTemplates ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
-                    </button>
-                    {showTemplates && (
-                      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {templates.length === 0 && (
-                          <p style={{ fontSize: 11, color: '#596773', padding: '8px 10px', fontFamily: "'Space Grotesk', sans-serif" }}>
-                            Nenhum template salvo. Preencha o formulário e clique no ícone 📄 no rodapé para salvar.
-                          </p>
-                        )}
-                        {templates.map(tmpl => (
-                          <div
-                            key={tmpl.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => {
-                              setNewTicket(p => ({
-                                ...p,
-                                title: tmpl.title,
-                                description: tmpl.description,
-                                priority: tmpl.priority as Ticket['priority'],
-                                status: (tmpl.status || p.status) as TicketStatus,
-                              }))
-                              setShowTemplates(false)
-                            }}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.02)',
-                              border: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer',
-                              color: '#B6C2CF', fontSize: 12, fontWeight: 500,
-                              fontFamily: "'Space Grotesk', sans-serif", textAlign: 'left',
-                              transition: 'all 0.15s',
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)'; e.currentTarget.style.borderColor = 'rgba(37,208,102,0.15)' }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)' }}
-                          >
-                            <Copy size={12} style={{ color: '#25D066', flexShrink: 0 }} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <span style={{ fontWeight: 700, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tmpl.name}</span>
-                              <span style={{ fontSize: 10, color: '#596773' }}>{tmpl.title}</span>
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const updated = templates.filter(t => t.id !== tmpl.id)
-                                saveTemplates(updated)
-                                setTemplateVersion(v => v + 1)
-                              }}
-                              style={{
-                                background: 'transparent', border: 'none', color: '#596773', cursor: 'pointer',
-                                padding: 4, borderRadius: 4, display: 'flex', transition: 'color 0.15s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
-                              onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
-                              title="Remover template"
-                            >
-                              <Trash2 size={11} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-
-              {/* Modal body */}
-              <div className="px-6 py-5 space-y-5 max-h-[calc(100vh-220px)] overflow-y-auto modal-scroll">
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#25D066' }}>Título <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input autoFocus placeholder="Título do ticket..." value={newTicket.title} onChange={e => setNewTicket(p => ({ ...p, title: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(37,208,102,0.15)', background: '#22272b', color: '#E5E7EB', fontSize: 14, fontWeight: 500, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.15)'; e.currentTarget.style.boxShadow = 'none' }} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Cliente</label>
-                    <input placeholder="Nome do cliente..." value={newTicket.cliente} onChange={e => setNewTicket(p => ({ ...p, cliente: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Instância</label>
-                    <input placeholder="Código da instância..." value={newTicket.instancia} onChange={e => setNewTicket(p => ({ ...p, instancia: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Prioridade</label>
-                    <select value={newTicket.priority} onChange={e => setNewTicket(p => ({ ...p, priority: e.target.value as Ticket['priority'] }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', cursor: 'pointer', appearance: 'none' as const, backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2525D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 32, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
-                      <option value="low">Baixa</option>
-                      <option value="medium">Média</option>
-                      <option value="high">Alta</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Coluna</label>
-                    <select value={newTicket.status} onChange={e => setNewTicket(p => ({ ...p, status: e.target.value as TicketStatus }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', cursor: 'pointer', appearance: 'none' as const, backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2525D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 32, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
-                      {allColumns.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Descrição</label>
-                  <textarea placeholder="Descreva o problema em detalhes..." value={newTicket.description} onChange={e => setNewTicket(p => ({ ...p, description: e.target.value }))} rows={3} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', resize: 'none' as const, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s, box-shadow 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
-                </div>
-              </div>
-
-              {/* Modal footer */}
-              <div className="px-6 py-4 flex gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <button
-                  onClick={() => {
-                    if (!newTicket.title.trim()) { showToast('Preencha o título para salvar como template', 'err'); return }
-                    const templateName = prompt('Nome do template:')
-                    if (!templateName?.trim()) return
-                    const templates = loadTemplates()
-                    templates.push({
-                      id: `tmpl-${Date.now()}`,
-                      name: templateName.trim(),
-                      title: newTicket.title,
-                      description: newTicket.description,
-                      priority: newTicket.priority,
-                      status: newTicket.status,
-                    })
-                    saveTemplates(templates)
-                    setTemplateVersion(v => v + 1)
-                    showToast('Template salvo!', 'ok')
-                  }}
-                  style={{ padding: '11px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#25D066', background: 'rgba(37,208,102,0.06)', border: '1px solid rgba(37,208,102,0.15)', cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif", display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)' }}
-                  title="Salvar como template"
-                >
-                  <FileText size={13} />
-                </button>
-                <button onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#8C96A3', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#E5E7EB' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#8C96A3' }}>Cancelar</button>
-                <button onClick={handleAddTicket} disabled={!newTicket.title.trim()} style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', background: newTicket.title.trim() ? '#25D066' : 'rgba(37,208,102,0.3)', border: 'none', cursor: newTicket.title.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif", boxShadow: newTicket.title.trim() ? '0 2px 12px rgba(37,208,102,0.3)' : 'none' }} onMouseEnter={e => { if (newTicket.title.trim()) e.currentTarget.style.background = '#1BAD53' }} onMouseLeave={e => { if (newTicket.title.trim()) e.currentTarget.style.background = '#25D066' }}>
-                  <Plus size={15} className="inline mr-1" style={{ verticalAlign: '-2px' }} />Criar Ticket
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <AddTicketModal
+            columns={allColumns}
+            initialStatus={(allColumns[0]?.id || 'backlog') as TicketStatus}
+            onAdd={async (ticket) => {
+              try {
+                const created = await insertTicket({ title: ticket.title.trim(), description: ticket.description || '', status: ticket.status, priority: ticket.priority, cliente: ticket.cliente || '', instancia: ticket.instancia || '', assignee: user })
+                setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
+                setShowAddModal(false)
+                showToast('Ticket criado!', 'ok')
+              } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : 'Erro ao criar ticket. Verifique se está logado.'
+                showToast(message, 'err')
+              }
+            }}
+            onClose={() => setShowAddModal(false)}
+            onShowToast={showToast}
+          />
         )}
       </AnimatePresence>
+
 
       {/* Settings Panel */}
       <AnimatePresence>
         {showSettings && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={e => e.target === e.currentTarget && setShowSettings(false)}>
-            <motion.div initial={{ x: 340 }} animate={{ x: 0 }} exit={{ x: 340 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              style={{
-                width: 320, height: '100%', overflowY: 'auto',
-                background: '#1d2125', borderLeft: '1px solid rgba(255,255,255,0.06)',
-              }}>
-
-              {/* Header */}
-              <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 10,
-                      background: 'rgba(37,208,102,0.12)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Palette size={16} style={{ color: '#25D066' }} />
-                    </div>
-                    <h2 style={{ fontSize: 15, fontWeight: 900, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>
-                      Aparência
-                    </h2>
-                  </div>
-                  <button
-                    onClick={() => setShowSettings(false)}
-                    style={{
-                      width: 28, height: 28, borderRadius: 8, border: 'none',
-                      background: 'transparent', color: '#596773', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-                {/* Temas prontos */}
-                <div>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Temas
-                  </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {WALLPAPER_PRESETS.map(wp => {
-                      const isActive = wallpaper === wp.value
-                      return (
-                        <button key={wp.label} onClick={() => applyWallpaper(wp.value)}
-                          style={{
-                            height: 64, borderRadius: 10, fontSize: 12, fontWeight: 600,
-                            fontFamily: "'Space Grotesk', sans-serif",
-                            display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8,
-                            background: wp.value,
-                            border: isActive ? '2px solid #25D066' : '1px solid rgba(255,255,255,0.08)',
-                            color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.6)',
-                            cursor: 'pointer', transition: 'transform 0.15s, border-color 0.15s',
-                            boxShadow: isActive ? '0 0 0 1px rgba(37,208,102,0.3)' : 'none',
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)' }}
-                          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                        >
-                          {wp.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Cor sólida + URL */}
-                <div>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: '0 0 10px', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Personalizar
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <input
-                      type="color"
-                      value={wallpaper.startsWith('#') ? wallpaper : '#0f3b73'}
-                      onChange={(e) => applyWallpaper(e.target.value)}
-                      style={{
-                        width: 36, height: 36, borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)',
-                        background: 'none', padding: 0,
-                      }}
-                      title="Cor sólida"
-                    />
-                    <span style={{ fontSize: 12, color: '#8C96A3', fontFamily: "'Space Grotesk', sans-serif" }}>Cor sólida</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                    <input
-                      placeholder="URL da imagem..."
-                      value={wallpaperInput}
-                      onChange={e => setWallpaperInput(e.target.value)}
-                      style={{
-                        flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 12,
-                        fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB',
-                        background: '#22272B', border: '1px solid rgba(255,255,255,0.08)',
-                        outline: 'none', transition: 'border-color 0.15s',
-                      }}
-                      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)' }}
-                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
-                    />
-                    <button
-                      onClick={() => { if (wallpaperInput.trim()) { applyWallpaper(wallpaperInput.trim()); setWallpaperInput('') } }}
-                      style={{
-                        padding: '8px 12px', borderRadius: 8, border: 'none',
-                        background: '#25D066', color: '#fff', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      <Image size={14} />
-                    </button>
-                  </div>
-                  <input ref={wallpaperFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleWallpaperFileSelect} />
-                  <button
-                    onClick={() => wallpaperFileInputRef.current?.click()}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
-                    style={{
-                      width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                      fontFamily: "'Space Grotesk', sans-serif",
-                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
-                      color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      transition: 'background 0.15s',
-                    }}
-                  >
-                    <Upload size={13} />
-                    Importar imagem
-                  </button>
-
-                  {/* Excluir wallpaper ativo */}
-                  {wallpaper && (wallpaper.startsWith('data:') || wallpaper.startsWith('http')) && (
-                    <button
-                      onClick={() => {
-                        const wpToRemove = wallpaper
-                        setWallpaper('')
-                        try { localStorage.setItem(wallpaperStorageKey, '') } catch { /* ignore */ }
-                        setRecentWallpapers(prev => {
-                          const updated = prev.filter(w => w !== wpToRemove)
-                          try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
-                          return updated
-                        })
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,85,85,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,85,85,0.3)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,85,85,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,85,85,0.15)' }}
-                      style={{
-                        width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                        fontFamily: "'Space Grotesk', sans-serif", marginTop: 8,
-                        background: 'rgba(255,85,85,0.06)', border: '1px solid rgba(255,85,85,0.15)',
-                        color: '#ff5555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        transition: 'background 0.15s, border-color 0.15s',
-                      }}
-                    >
-                      <Trash2 size={13} />
-                      Excluir wallpaper
-                    </button>
-                  )}
-                </div>
-
-                {/* Recentes */}
-                {recentWallpapers.length > 0 && (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 10px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: 0, fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Clock size={11} />
-                        Recentes
-                      </p>
-                      <button
-                        onClick={() => {
-                          setRecentWallpapers([])
-                          try { localStorage.removeItem(recentWallpapersKey) } catch { /* ignore */ }
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.color = '#ff5555' }}
-                        onMouseLeave={e => { e.currentTarget.style.color = '#8C96A3' }}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer', color: '#8C96A3',
-                          fontSize: 10, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600,
-                          display: 'flex', alignItems: 'center', gap: 4, padding: 0,
-                          transition: 'color 0.15s',
-                        }}
-                      >
-                        <Trash2 size={10} />
-                        Limpar
-                      </button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-                      {recentWallpapers.map((wp, i) => {
-                        const isActive = wallpaper === wp
-                        return (
-                          <div key={i} style={{ position: 'relative' }}>
-                            <button onClick={() => applyWallpaper(wp)}
-                              style={{
-                                width: '100%', aspectRatio: '1', borderRadius: 8, cursor: 'pointer',
-                                backgroundImage: `url(${wp})`,
-                                backgroundSize: 'cover', backgroundPosition: 'center',
-                                border: isActive ? '2px solid #25D066' : '1px solid rgba(255,255,255,0.08)',
-                                boxShadow: isActive ? '0 0 0 1px rgba(37,208,102,0.3)' : 'none',
-                                transition: 'transform 0.15s, border-color 0.15s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)' }}
-                              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                            />
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const updated = recentWallpapers.filter((_, idx) => idx !== i)
-                                setRecentWallpapers(updated)
-                                try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,50,50,0.9)' }}
-                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.65)' }}
-                              style={{
-                                position: 'absolute', top: -4, right: -4,
-                                width: 18, height: 18, borderRadius: '50%',
-                                background: 'rgba(0,0,0,0.65)', border: '1.5px solid rgba(255,255,255,0.2)',
-                                color: '#fff', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                padding: 0, transition: 'background 0.15s',
-                              }}
-                            >
-                              <X size={10} />
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Restaurar */}
-                <button
-                  onClick={() => applyWallpaper('')}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-                  style={{
-                    width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-                    color: '#8C96A3', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  <RotateCcw size={12} />
-                  Restaurar padrão
-                </button>
-
-                {/* Separador */}
-                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
-
-                {/* Etiquetas */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <Tag size={13} style={{ color: '#25D066' }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Etiquetas
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => { setShowLabelsManager(true); fetchBoardLabels().then(setBoardLabels).catch(console.error) }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
-                    style={{
-                      width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                      fontFamily: "'Space Grotesk', sans-serif",
-                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
-                      color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      transition: 'background 0.15s',
-                    }}
-                  >
-                    <Pencil size={12} />
-                    Gerenciar Etiquetas
-                  </button>
-                </div>
-
-                {/* Separador */}
-                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
-
-                {/* Regras Automáticas */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <Settings size={13} style={{ color: '#25D066' }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Regras Automáticas
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setShowAutoRules(true)}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
-                    style={{
-                      width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                      fontFamily: "'Space Grotesk', sans-serif",
-                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
-                      color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      transition: 'background 0.15s',
-                    }}
-                  >
-                    <Settings size={12} />
-                    Gerenciar Regras
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
+          <SettingsPanel
+            wallpaper={wallpaper}
+            wallpaperInput={wallpaperInput}
+            recentWallpapers={recentWallpapers}
+            onWallpaperInputChange={setWallpaperInput}
+            onApplyWallpaper={applyWallpaper}
+            onWallpaperFileSelect={handleWallpaperFileSelect}
+            onRemoveRecentWallpaper={(i) => {
+              const updated = recentWallpapers.filter((_, idx) => idx !== i)
+              setRecentWallpapers(updated)
+              try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+            }}
+            onClearRecentWallpapers={() => {
+              setRecentWallpapers([])
+              try { localStorage.removeItem(recentWallpapersKey) } catch { /* ignore */ }
+            }}
+            onDeleteCurrentWallpaper={() => {
+              const wpToRemove = wallpaper
+              setWallpaper('')
+              try { localStorage.setItem(wallpaperStorageKey, '') } catch { /* ignore */ }
+              setRecentWallpapers(prev => {
+                const updated = prev.filter(w => w !== wpToRemove)
+                try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+                return updated
+              })
+            }}
+            onOpenLabelsManager={() => { setShowLabelsManager(true); fetchBoardLabels().then(setBoardLabels).catch(console.error) }}
+            onOpenAutoRules={() => setShowAutoRules(true)}
+            onClose={() => setShowSettings(false)}
+          />
         )}
       </AnimatePresence>
 
       {/* Auto Rules Manager Modal */}
       <AnimatePresence>
         {showAutoRules && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
-            onClick={e => e.target === e.currentTarget && setShowAutoRules(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md rounded-xl shadow-2xl overflow-hidden"
-              style={{ background: '#1a1f23', border: '1px solid rgba(37,208,102,0.1)' }}
-            >
-              <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Settings size={15} style={{ color: '#25D066' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Regras Automáticas</h3>
-                  <p style={{ fontSize: 10, color: '#596773', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>Mover cards automaticamente</p>
-                </div>
-                <button onClick={() => setShowAutoRules(false)} style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8 }}><X size={15} /></button>
-              </div>
-              {/* Botão executar regras agora */}
-              <div className="px-5 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <button
-                  onClick={async () => {
-                    setShowAutoRules(false)
-                    await loadTickets()
-                    showToast('Regras executadas!', 'ok')
-                  }}
-                  style={{
-                    width: '100%', padding: '8px 14px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                    background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.15)',
-                    color: '#25D066', cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif",
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
-                >
-                  <RefreshCw size={12} />
-                  Executar regras agora
-                </button>
-              </div>
-              <div className="p-4" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                {(() => {
-                  const rules = loadAutoRules()
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {rules.map(rule => (
-                        <div key={rule.id} style={{
-                          display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
-                          borderRadius: 10, background: 'rgba(255,255,255,0.02)',
-                          border: `1px solid ${rule.enabled ? 'rgba(37,208,102,0.15)' : 'rgba(255,255,255,0.04)'}`,
-                          fontFamily: "'Space Grotesk', sans-serif",
-                        }}>
-                          <button
-                            onClick={() => {
-                              const updated = rules.map(r => r.id === rule.id ? { ...r, enabled: !r.enabled } : r)
-                              saveAutoRules(updated)
-                              setShowAutoRules(false); setTimeout(() => setShowAutoRules(true), 10)
-                            }}
-                            style={{
-                              width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-                              border: rule.enabled ? '2px solid #25D066' : '2px solid rgba(255,255,255,0.18)',
-                              background: rule.enabled ? '#25D066' : 'transparent',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              cursor: 'pointer', padding: 0,
-                            }}
-                          >
-                            {rule.enabled && <Check size={10} strokeWidth={3} color="#000" />}
-                          </button>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: rule.enabled ? '#E5E7EB' : '#596773', display: 'block' }}>{rule.name}</span>
-                            <span style={{ fontSize: 10, color: '#596773' }}>
-                              Se {AUTO_RULE_CONDITIONS[rule.condition]} → Mover para {allColumns.find(c => c.id === rule.targetColumn)?.title || rule.targetColumn}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const updated = rules.filter(r => r.id !== rule.id)
-                              saveAutoRules(updated)
-                              setShowAutoRules(false); setTimeout(() => setShowAutoRules(true), 10)
-                            }}
-                            style={{ background: 'transparent', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, borderRadius: 4 }}
-                            title="Remover regra"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      ))}
-                      {rules.length === 0 && (
-                        <p style={{ fontSize: 12, color: '#596773', textAlign: 'center', padding: '20px 0', fontFamily: "'Space Grotesk', sans-serif" }}>
-                          Nenhuma regra criada ainda
-                        </p>
-                      )}
-                    </div>
-                  )
-                })()}
-              </div>
-              <div className="p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#596773', marginBottom: 8, fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase' }}>Nova regra</p>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <select
-                    id="rule-condition"
-                    defaultValue=""
-                    style={{
-                      flex: 1, minWidth: 120, padding: '7px 10px', borderRadius: 8, fontSize: 11,
-                      background: '#22272b', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF',
-                      outline: 'none', fontFamily: "'Space Grotesk', sans-serif",
-                    }}
-                  >
-                    <option value="" disabled>Condição...</option>
-                    {Object.entries(AUTO_RULE_CONDITIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                  <select
-                    id="rule-target"
-                    defaultValue=""
-                    style={{
-                      flex: 1, minWidth: 120, padding: '7px 10px', borderRadius: 8, fontSize: 11,
-                      background: '#22272b', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF',
-                      outline: 'none', fontFamily: "'Space Grotesk', sans-serif",
-                    }}
-                  >
-                    <option value="" disabled>Mover para...</option>
-                    {allColumns.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                  </select>
-                  <button
-                    onClick={() => {
-                      const condEl = document.getElementById('rule-condition') as HTMLSelectElement
-                      const targetEl = document.getElementById('rule-target') as HTMLSelectElement
-                      if (!condEl?.value || !targetEl?.value) { showToast('Selecione condição e destino', 'err'); return }
-                      const rules = loadAutoRules()
-                      const condLabel = AUTO_RULE_CONDITIONS[condEl.value] || condEl.value
-                      const targetLabel = allColumns.find(c => c.id === targetEl.value)?.title || targetEl.value
-                      rules.push({
-                        id: `rule-${Date.now()}`,
-                        name: `${condLabel} → ${targetLabel}`,
-                        condition: condEl.value as AutoRule['condition'],
-                        action: 'move_to',
-                        targetColumn: targetEl.value,
-                        enabled: true,
-                      })
-                      saveAutoRules(rules)
-                      setShowAutoRules(false); setTimeout(() => setShowAutoRules(true), 10)
-                      showToast('Regra criada!', 'ok')
-                    }}
-                    style={{
-                      padding: '7px 14px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                      background: '#25D066', border: 'none', color: '#000', cursor: 'pointer',
-                      fontFamily: "'Space Grotesk', sans-serif",
-                    }}
-                  >
-                    Criar
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
+          <AutoRulesModal
+            columns={allColumns}
+            onClose={() => setShowAutoRules(false)}
+            onRunRules={() => { setShowAutoRules(true) }}
+            onShowToast={showToast}
+          />
         )}
       </AnimatePresence>
 
       {/* Labels Manager Modal */}
       {showLabelsManager && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }} onClick={e => e.target === e.currentTarget && setShowLabelsManager(false)}>
-          <div className="w-full max-w-sm mx-4 rounded-xl shadow-2xl overflow-hidden" style={{ background: '#282e33', border: '1px solid rgba(166,197,226,0.16)' }}>
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5" style={{ background: '#1d2125', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="flex items-center gap-2">
-                <Tag size={15} style={{ color: '#579dff' }} />
-                <h3 className="font-bold text-sm" style={{ color: '#b6c2cf' }}>Gerenciar Etiquetas</h3>
-              </div>
-              <button onClick={() => { setShowLabelsManager(false); setEditingLabel(null) }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: '#596773' }} /></button>
-            </div>
-
-            {/* Content */}
-            <div className="p-4 space-y-2 max-h-[55vh] overflow-y-auto">
-              {boardLabels.map(label => (
-                editingLabel?.id === label.id ? (
-                  <div key={label.id} className="rounded-lg p-3.5 space-y-3" style={{ background: '#1d2125', border: '1px solid rgba(87,157,255,0.2)' }}>
-                    <input
-                      value={editLabelName}
-                      onChange={e => setEditLabelName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-xs font-medium outline-none"
-                      style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.15)', color: '#b6c2cf' }}
-                      placeholder="Nome da etiqueta..."
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      {LABEL_COLORS.map(c => (
-                        <button key={c} type="button" onClick={() => setEditLabelColor(c)}
-                          className="rounded-full transition-transform hover:scale-110"
-                          style={{ width: 24, height: 24, background: c, border: editLabelColor === c ? '2.5px solid #fff' : '2.5px solid transparent', boxShadow: editLabelColor === c ? '0 0 0 2px ' + c : 'none' }}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <button onClick={async () => { if (!editLabelName.trim()) return; await updateBoardLabel(label.id, { name: editLabelName.trim(), color: editLabelColor }); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) }}
-                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold"
-                        style={{ background: '#579dff', color: '#1d2125' }}>Salvar</button>
-                      <button onClick={async () => { if (confirm('Excluir esta etiqueta?')) { await deleteBoardLabel(label.id); setBoardLabels(await fetchBoardLabels()); setEditingLabel(null) } }}
-                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold"
-                        style={{ background: 'rgba(239,68,68,0.15)', color: '#ef5c48' }}>Excluir</button>
-                      <button onClick={() => setEditingLabel(null)}
-                        className="px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-white/5"
-                        style={{ color: '#596773' }}>Cancelar</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div key={label.id} className="flex items-center gap-2 group">
-                    <div className="flex-1 px-3.5 py-2.5 rounded-lg text-xs font-bold text-white" style={{ background: label.color }}>{label.name}</div>
-                    <button onClick={() => { setEditingLabel(label); setEditLabelName(label.name); setEditLabelColor(label.color) }}
-                      className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-white/10"
-                      title="Editar"><Pencil size={14} style={{ color: '#9fadbc' }} /></button>
-                  </div>
-                )
-              ))}
-
-              {boardLabels.length === 0 && !editingLabel && (
-                <div className="text-center py-6">
-                  <Tag size={28} style={{ color: '#596773', margin: '0 auto 8px' }} />
-                  <p className="text-xs" style={{ color: '#596773' }}>Nenhuma etiqueta criada ainda</p>
-                </div>
-              )}
-            </div>
-
-            {/* Create new label footer */}
-            <div className="p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: '#1d2125' }}>
-              <div className="text-[11px] font-semibold mb-2.5" style={{ color: '#596773' }}>Criar nova etiqueta</div>
-              <input
-                value={newLabelName}
-                onChange={e => setNewLabelName(e.target.value)}
-                placeholder="Nome da etiqueta..."
-                className="w-full px-3 py-2 rounded-lg text-xs font-medium outline-none mb-3"
-                style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.15)', color: '#b6c2cf' }}
-                onKeyDown={async e => { if (e.key === 'Enter' && newLabelName.trim()) { await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') } }}
-              />
-              <div className="flex flex-wrap gap-2 mb-3">
-                {LABEL_COLORS.map(c => (
-                  <button key={c} type="button" onClick={() => setNewLabelColor(c)}
-                    className="rounded-full transition-transform hover:scale-110"
-                    style={{ width: 24, height: 24, background: c, border: newLabelColor === c ? '2.5px solid #fff' : '2.5px solid transparent', boxShadow: newLabelColor === c ? '0 0 0 2px ' + c : 'none' }}
-                  />
-                ))}
-              </div>
-              <button
-                onClick={async () => { if (!newLabelName.trim()) return; await insertBoardLabel(newLabelName.trim(), newLabelColor); setBoardLabels(await fetchBoardLabels()); setNewLabelName('') }}
-                className="w-full py-2 rounded-lg text-xs font-bold transition-colors"
-                style={{ background: newLabelName.trim() ? '#579dff' : 'rgba(87,157,255,0.15)', color: newLabelName.trim() ? '#1d2125' : '#579dff' }}
-              >Criar etiqueta</button>
-            </div>
-          </div>
-        </div>
+        <LabelsManagerModal
+          boardLabels={boardLabels}
+          onLabelsChange={setBoardLabels}
+          onClose={() => setShowLabelsManager(false)}
+        />
       )}
 
             {/* Card Detail Modal */}
@@ -2959,58 +2104,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
 
       {/* Keyboard Shortcuts Help Modal */}
       <AnimatePresence>
-        {showShortcutsHelp && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
-            onClick={e => e.target === e.currentTarget && closeShortcutsHelp()}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-              className="rounded-2xl w-full max-w-sm overflow-hidden"
-              style={{ background: '#1a1f23', border: '1px solid rgba(37,208,102,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
-            >
-              <div className="px-6 pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Keyboard size={18} style={{ color: '#25D066' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Atalhos de Teclado</h2>
-                  <p style={{ fontSize: 11, color: '#596773', margin: 0, marginTop: 1 }}>Navegue mais rápido pelo chatPro</p>
-                </div>
-                <button onClick={closeShortcutsHelp} style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8 }}><X size={16} /></button>
-              </div>
-              <div className="px-6 py-5" style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: '60vh', overflowY: 'auto' }}>
-                {[
-                  { key: 'N', desc: 'Novo ticket' },
-                  { key: 'F', desc: 'Abrir/fechar filtros' },
-                  { key: '/', desc: 'Foco na pesquisa' },
-                  { key: 'Ctrl + K', desc: 'Foco na pesquisa' },
-                  { key: 'R', desc: 'Atualizar tickets' },
-                  { key: 'C', desc: 'Modo compacto' },
-                  { key: 'Esc', desc: 'Fechar modal/painel' },
-                  { key: 'Shift + ?', desc: 'Este painel de atalhos' },
-                ].map(({ key, desc }) => (
-                  <div key={key} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.03)',
-                    fontFamily: "'Space Grotesk', sans-serif",
-                  }}>
-                    <span style={{ fontSize: 13, color: '#B6C2CF', fontWeight: 500 }}>{desc}</span>
-                    <kbd style={{
-                      padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-                      background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)',
-                      color: '#25D066', fontFamily: "'Space Grotesk', monospace",
-                    }}>{key}</kbd>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
+        {showShortcutsHelp && <ShortcutsHelpModal onClose={closeShortcutsHelp} />}
       </AnimatePresence>
 
       {/* Instance Configuration Modal */}
@@ -3019,73 +2113,13 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       {/* Bulk Actions Bar */}
       <AnimatePresence>
         {bulkMode && selectedCardIds.size > 0 && (
-          <motion.div
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 80, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            style={{
-              position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
-              zIndex: 90, display: 'flex', alignItems: 'center', gap: 8,
-              padding: '10px 16px', borderRadius: 16,
-              background: '#1a1f23', border: '1px solid rgba(37,208,102,0.2)',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-              fontFamily: "'Space Grotesk', sans-serif",
-            }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#25D066', marginRight: 4 }}>
-              {selectedCardIds.size} selecionado{selectedCardIds.size > 1 ? 's' : ''}
-            </span>
-            <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#8C96A3', marginRight: 4 }}>Mover para:</span>
-            {allColumns.map(col => (
-              <button
-                key={col.id}
-                onClick={() => handleBulkMove(col.id)}
-                style={{
-                  padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                  color: '#B6C2CF', cursor: 'pointer', transition: 'all 0.15s',
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  fontFamily: "'Space Grotesk', sans-serif",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)'; e.currentTarget.style.borderColor = 'rgba(37,208,102,0.3)'; e.currentTarget.style.color = '#25D066' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#B6C2CF' }}
-              >
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: col.dot_color }} />
-                {col.title}
-              </button>
-            ))}
-            <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
-            <button
-              onClick={handleBulkArchive}
-              style={{
-                padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-                color: '#ef4444', cursor: 'pointer', transition: 'all 0.15s',
-                display: 'flex', alignItems: 'center', gap: 4,
-                fontFamily: "'Space Grotesk', sans-serif",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.18)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
-            >
-              <Archive size={12} />
-              Arquivar
-            </button>
-            <button
-              onClick={() => { setSelectedCardIds(new Set()); setBulkMode(false) }}
-              style={{
-                padding: '5px 8px', borderRadius: 8, border: 'none',
-                background: 'transparent', color: '#596773', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#B6C2CF' }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
-            >
-              <X size={14} />
-            </button>
-          </motion.div>
+          <BulkActionsBar
+            selectedCount={selectedCardIds.size}
+            columns={allColumns}
+            onMove={handleBulkMove}
+            onArchive={handleBulkArchive}
+            onCancel={() => { setSelectedCardIds(new Set()); setBulkMode(false) }}
+          />
         )}
       </AnimatePresence>
     </div>

@@ -1,7 +1,7 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare } from 'lucide-react';
-import { supabase, type Ticket } from '../lib/supabase';
+import { updateTicket, type Ticket } from '../lib/supabase';
 import { parseTag } from './CardDetailModal';
 import gsap from 'gsap';
 import styles from './Card.module.css';
@@ -123,17 +123,10 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
     onUpdate({ ...card, is_completed: newValue });
 
     // Persistir no banco
-    const { error } = await supabase
-      .from('tickets')
-      .update({
-        is_completed: newValue,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', card.id);
-
-    if (error) {
+    try {
+      await updateTicket(card.id, { is_completed: newValue });
+    } catch (error) {
       console.error('Erro ao atualizar status:', error);
-      // Reverter se falhar
       onUpdate({ ...card, is_completed: card.is_completed });
     }
   }, [card, onUpdate]);
@@ -157,12 +150,9 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
     setIsEditing(false);
     onUpdate({ ...card, title: trimmed });
 
-    const { error } = await supabase
-      .from('tickets')
-      .update({ title: trimmed, updated_at: new Date().toISOString() })
-      .eq('id', card.id);
-
-    if (error) {
+    try {
+      await updateTicket(card.id, { title: trimmed });
+    } catch (error) {
       console.error('Erro ao salvar título:', error);
       onUpdate({ ...card, title: card.title }); // reverter
     }
@@ -199,19 +189,16 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
     onArchive(card.id);   // remover do estado local imediatamente
     onShowToast?.('Cartão arquivado com sucesso', 'ok');
 
-    const { error } = await supabase
-      .from('tickets')
-      .update({ is_archived: true, updated_at: new Date().toISOString() })
-      .eq('id', card.id);
-
-    if (error) {
+    try {
+      await updateTicket(card.id, { is_archived: true });
+    } catch (error) {
       console.error('Erro ao arquivar:', error);
       onShowToast?.('Erro ao arquivar cartão', 'err');
     }
   }, [card.id, onArchive, onShowToast]);
 
   // ── Clique no card (abre modal apenas se não estiver editando/toggling) ──
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = (_e: React.MouseEvent) => {
     if (isEditing) return;
     if (justToggledRef.current) return;
     onClick();
@@ -278,7 +265,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
       {/* ── CAPA ─────────────────────────── */}
       {(card.cover_thumb_url || card.cover_image_url) && (
         <div className={styles.cover}>
-          <img src={card.cover_thumb_url || card.cover_image_url} alt="" className={styles.coverImg} loading="lazy" decoding="async" />
+          <img src={card.cover_thumb_url || card.cover_image_url || undefined} alt="" className={styles.coverImg} loading="lazy" decoding="async" />
         </div>
       )}
 
@@ -289,15 +276,15 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
         {card.priority && !isEditing && (
           <span className={
             `${styles.tag} ` +
-            (card.priority === 'high' || card.priority === 'alta' || card.priority === 'Alta'
+            (card.priority === 'high'
               ? styles.high
-              : card.priority === 'medium' || card.priority === 'media' || card.priority === 'média' || card.priority === 'Média' || card.priority === 'Media'
+              : card.priority === 'medium'
               ? styles.medium
               : styles.low)
           }>
-            {card.priority === 'high' || card.priority === 'alta' || card.priority === 'Alta'
+            {card.priority === 'high'
               ? 'ALTA'
-              : card.priority === 'medium' || card.priority === 'media' || card.priority === 'média' || card.priority === 'Média' || card.priority === 'Media'
+              : card.priority === 'medium'
               ? 'MÉDIA'
               : 'BAIXA'}
           </span>
