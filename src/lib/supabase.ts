@@ -11,11 +11,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export const isDevEnvironment = !supabaseUrl.includes('qacrxpfoamarslxskcyb')
 
-export type TicketStatus = 'backlog' | 'in_progress' | 'waiting_devs' | 'resolved'
+export type TicketStatus = string  // dinâmico: vem das board_columns agora
 export type TicketPriority = 'low' | 'medium' | 'high'
+
+/** Opções de paginação para queries que retornam listas */
+export interface PaginationOptions {
+  page?: number
+  pageSize?: number
+}
 
 export interface Ticket {
   id: string
+  department_id: string
   title: string
   description: string
   status: TicketStatus
@@ -39,6 +46,7 @@ export interface Ticket {
 
 export interface Comment {
   id: string
+  department_id: string
   ticket_id: string
   user_name: string
   content: string
@@ -47,6 +55,7 @@ export interface Comment {
 
 export interface Attachment {
   id: string
+  department_id: string
   ticket_id: string
   file_name: string
   file_url: string
@@ -57,6 +66,7 @@ export interface Attachment {
 
 export interface ActivityLog {
   id: string
+  department_id: string
   card_id: string
   user_name: string
   action_text: string
@@ -64,6 +74,7 @@ export interface ActivityLog {
 }
 
 export type TicketInsert = {
+  department_id: string
   title: string
   description?: string
   status?: TicketStatus
@@ -80,25 +91,27 @@ export type TicketInsert = {
 // ── Board Labels (etiquetas reutilizáveis) ──
 export interface BoardLabel {
   id: string
+  department_id: string
   name: string
   color: string
   created_at: string
   updated_at: string
 }
 
-export async function fetchBoardLabels(): Promise<BoardLabel[]> {
-  const { data, error } = await supabase
-    .from('board_labels')
-    .select('*')
-    .order('name', { ascending: true })
+export async function fetchBoardLabels(departmentId?: string): Promise<BoardLabel[]> {
+  let query = supabase.from('board_labels').select('*')
+  if (departmentId) query = query.eq('department_id', departmentId)
+  const { data, error } = await query.order('name', { ascending: true })
   if (error) throw error
   return (data ?? []) as BoardLabel[]
 }
 
-export async function insertBoardLabel(name: string, color: string): Promise<BoardLabel> {
+export async function insertBoardLabel(name: string, color: string, departmentId?: string): Promise<BoardLabel> {
+  const row: Record<string, unknown> = { name, color }
+  if (departmentId) row.department_id = departmentId
   const { data, error } = await supabase
     .from('board_labels')
-    .insert({ name, color })
+    .insert(row)
     .select()
     .single()
   if (error) throw error
@@ -121,12 +134,15 @@ export async function deleteBoardLabel(id: string): Promise<void> {
   if (error) throw error
 }
 
-export async function fetchTickets(): Promise<Ticket[]> {
-  const { data, error } = await supabase
-    .from('tickets')
-    .select('*')
-    .eq('is_archived', false)
-    .order('created_at', { ascending: false })
+export async function fetchTickets(opts?: { departmentId?: string } & PaginationOptions): Promise<Ticket[]> {
+  let query = supabase.from('tickets').select('*').eq('is_archived', false)
+  if (opts?.departmentId) query = query.eq('department_id', opts.departmentId)
+  query = query.order('created_at', { ascending: false })
+  if (opts?.page && opts?.pageSize) {
+    const from = (opts.page - 1) * opts.pageSize
+    query = query.range(from, from + opts.pageSize - 1)
+  }
+  const { data, error } = await query
   if (error) throw error
   return (data ?? []) as Ticket[]
 }
@@ -183,10 +199,12 @@ export async function fetchComments(ticketId: string): Promise<Comment[]> {
   return (data ?? []) as Comment[]
 }
 
-export async function insertComment(ticketId: string, userName: string, content: string): Promise<Comment | null> {
+export async function insertComment(ticketId: string, userName: string, content: string, departmentId?: string): Promise<Comment | null> {
+  const row: Record<string, unknown> = { ticket_id: ticketId, user_name: userName, content }
+  if (departmentId) row.department_id = departmentId
   const { data, error } = await supabase
     .from('comments')
-    .insert({ ticket_id: ticketId, user_name: userName, content })
+    .insert(row)
     .select()
     .single()
   if (error) { console.error('Failed to insert comment:', error.message); return null }
@@ -198,10 +216,10 @@ export async function deleteComment(id: string): Promise<void> {
 }
 
 // --- Attachments ---
-export async function fetchAttachmentCounts(): Promise<Record<string, number>> {
-  const { data, error } = await supabase
-    .from('attachments')
-    .select('ticket_id')
+export async function fetchAttachmentCounts(departmentId?: string): Promise<Record<string, number>> {
+  let query = supabase.from('attachments').select('ticket_id')
+  if (departmentId) query = query.eq('department_id', departmentId)
+  const { data, error } = await query
   if (error) { console.warn('attachments count error:', error.message); return {} }
   const counts: Record<string, number> = {}
   for (const row of data ?? []) {
@@ -220,7 +238,7 @@ export async function fetchAttachments(ticketId: string): Promise<Attachment[]> 
   return (data ?? []) as Attachment[]
 }
 
-export async function uploadAttachment(ticketId: string, file: File, userName: string): Promise<Attachment | null> {
+export async function uploadAttachment(ticketId: string, file: File, userName: string, departmentId?: string): Promise<Attachment | null> {
   const fileExt = file.name.split('.').pop()
   const filePath = `${ticketId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`
 
@@ -229,20 +247,46 @@ export async function uploadAttachment(ticketId: string, file: File, userName: s
     .upload(filePath, file)
   if (uploadError) { console.error('Upload failed:', uploadError.message); return null }
 
-  const { data: { publicUrl } } = supabase.storage
+  // Usar URL assinada (expira em 1h) em vez de URL pública
+  const { data: signedData, error: signError } = await supabase.storage
     .from('attachments')
-    .getPublicUrl(filePath)
+    .createSignedUrl(filePath, 3600)
+
+  const fileUrl = signedData?.signedUrl
+  if (signError || !fileUrl) {
+    // Fallback: tentar URL pública (caso storage policies antigas)
+    const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath)
+    console.warn('[Attachments] Signed URL falhou, usando public URL:', signError?.message)
+    const fallbackUrl = publicUrl
+    const fileType = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file'
+    const row: Record<string, unknown> = { ticket_id: ticketId, file_name: file.name, file_url: fallbackUrl, file_type: fileType, uploaded_by: userName, storage_path: filePath }
+    if (departmentId) row.department_id = departmentId
+    const { data, error } = await supabase.from('attachments').insert(row).select().single()
+    if (error) { console.error('Failed to save attachment:', error.message); return null }
+    return data as Attachment
+  }
 
   const fileType = file.type.startsWith('image/') ? 'image'
     : file.type.startsWith('video/') ? 'video' : 'file'
 
+  const row: Record<string, unknown> = { ticket_id: ticketId, file_name: file.name, file_url: fileUrl, file_type: fileType, uploaded_by: userName, storage_path: filePath }
+  if (departmentId) row.department_id = departmentId
   const { data, error } = await supabase
     .from('attachments')
-    .insert({ ticket_id: ticketId, file_name: file.name, file_url: publicUrl, file_type: fileType, uploaded_by: userName })
+    .insert(row)
     .select()
     .single()
   if (error) { console.error('Failed to save attachment:', error.message); return null }
   return data as Attachment
+}
+
+/** Gera URL assinada para um attachment existente (renovação) */
+export async function getSignedAttachmentUrl(storagePath: string, expiresIn = 3600): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from('attachments')
+    .createSignedUrl(storagePath, expiresIn)
+  if (error) { console.warn('[Attachments] Signed URL error:', error.message); return null }
+  return data.signedUrl
 }
 
 export async function deleteAttachment(id: string, fileUrl: string): Promise<void> {
@@ -268,10 +312,12 @@ export async function fetchActivityLog(cardId: string): Promise<ActivityLog[]> {
   return (data ?? []) as ActivityLog[]
 }
 
-export async function insertActivityLog(cardId: string, userName: string, actionText: string): Promise<ActivityLog | null> {
+export async function insertActivityLog(cardId: string, userName: string, actionText: string, departmentId?: string): Promise<ActivityLog | null> {
+  const row: Record<string, unknown> = { card_id: cardId, user_name: userName, action_text: actionText }
+  if (departmentId) row.department_id = departmentId
   const { data, error } = await supabase
     .from('activity_log')
-    .insert({ card_id: cardId, user_name: userName, action_text: actionText })
+    .insert(row)
     .select()
     .single()
   if (error) { console.warn('Failed to insert activity:', error.message); return null }
@@ -281,6 +327,7 @@ export async function insertActivityLog(cardId: string, userName: string, action
 // --- User Profiles ---
 export interface UserProfile {
   id: string
+  organization_id: string
   email: string
   name: string
   avatar_color: string
@@ -337,6 +384,7 @@ export async function fetchUserProfiles(): Promise<UserProfile[]> {
 // --- Notifications ---
 export interface Notification {
   id: string
+  department_id: string
   recipient_email: string
   sender_name: string
   type: 'mention' | 'assignment' | 'move' | 'comment' | 'announcement' | 'due_date_alert' | 'planner_event'
@@ -347,19 +395,25 @@ export interface Notification {
   created_at: string
 }
 
-export async function fetchNotifications(email: string): Promise<Notification[]> {
-  const { data, error } = await supabase
+export async function fetchNotifications(email: string, opts?: PaginationOptions): Promise<Notification[]> {
+  let query = supabase
     .from('notifications')
     .select('*')
     .eq('recipient_email', email)
     .order('created_at', { ascending: false })
-    .limit(50)
+
+  const page = opts?.page ?? 1
+  const pageSize = opts?.pageSize ?? 50
+  const from = (page - 1) * pageSize
+  query = query.range(from, from + pageSize - 1)
+
+  const { data, error } = await query
   if (error) { console.warn('notifications table may not exist:', error.message); return [] }
   return (data ?? []) as Notification[]
 }
 
 export async function insertNotification(notif: Omit<Notification, 'id' | 'is_read' | 'created_at'>): Promise<void> {
-  const { error } = await supabase.from('notifications').insert(notif)
+  const { error } = await supabase.from('notifications').insert(notif as Record<string, unknown>)
   if (error) console.warn('insertNotification:', error.message)
 }
 
@@ -402,6 +456,7 @@ export type AnnouncementSeverity = 'info' | 'warning' | 'critical'
 
 export interface Announcement {
   id: string
+  department_id: string
   title: string
   content: string
   severity: AnnouncementSeverity
@@ -412,11 +467,10 @@ export interface Announcement {
   updated_at: string
 }
 
-export async function fetchAnnouncements(): Promise<Announcement[]> {
-  const { data, error } = await supabase
-    .from('announcements')
-    .select('*')
-    .eq('is_active', true)
+export async function fetchAnnouncements(departmentId?: string): Promise<Announcement[]> {
+  let query = supabase.from('announcements').select('*').eq('is_active', true)
+  if (departmentId) query = query.eq('department_id', departmentId)
+  const { data, error } = await query
     .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false })
   if (error) { console.warn('announcements error:', error.message); return [] }
@@ -444,6 +498,7 @@ export async function deleteAnnouncement(id: string): Promise<void> {
 // ── Useful Links (Links Úteis) ──
 export interface UsefulLink {
   id: string
+  department_id: string
   title: string
   url: string
   description: string
@@ -454,10 +509,10 @@ export interface UsefulLink {
   updated_at: string
 }
 
-export async function fetchUsefulLinks(): Promise<UsefulLink[]> {
-  const { data, error } = await supabase
-    .from('useful_links')
-    .select('*')
+export async function fetchUsefulLinks(departmentId?: string): Promise<UsefulLink[]> {
+  let query = supabase.from('useful_links').select('*')
+  if (departmentId) query = query.eq('department_id', departmentId)
+  const { data, error } = await query
     .order('category', { ascending: true })
     .order('title', { ascending: true })
   if (error) { console.warn('useful_links error:', error.message); return [] }
@@ -486,6 +541,7 @@ export async function deleteUsefulLink(id: string): Promise<void> {
 // ── Planner Events & Settings ──
 export interface PlannerEvent {
   id: string
+  organization_id: string
   user_email: string
   title: string
   description: string

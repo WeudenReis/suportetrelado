@@ -4,6 +4,7 @@ import { Inbox, X, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone } from
 import gsap from 'gsap'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
+import { OrgProvider } from './lib/org'
 import { NotificationProvider, useNotificationContext } from './components/NotificationContext'
 import { AnnouncementProvider } from './components/AnnouncementContext'
 import Login from './components/Login'
@@ -93,19 +94,21 @@ export default function App() {
       {!user ? (
         <Login onLogin={handleLogin} unauthorizedEmail={unauthorizedEmail} />
       ) : (
-        <NotificationProvider user={user!}>
-          <AnnouncementProvider>
-            <AppContent
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              user={user!}
-              plannerTickets={plannerTickets}
-              openTicketId={openTicketId}
-              setOpenTicketId={setOpenTicketId}
-              onLogout={handleLogout}
-            />
-          </AnnouncementProvider>
-        </NotificationProvider>
+        <OrgProvider user={user!}>
+          <NotificationProvider user={user!}>
+            <AnnouncementProvider>
+              <AppContent
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                user={user!}
+                plannerTickets={plannerTickets}
+                openTicketId={openTicketId}
+                setOpenTicketId={setOpenTicketId}
+                onLogout={handleLogout}
+              />
+            </AnnouncementProvider>
+          </NotificationProvider>
+        </OrgProvider>
       )}
     </ThemeProvider>
   )

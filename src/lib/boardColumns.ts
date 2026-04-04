@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 
 export interface BoardColumn {
   id: string
+  department_id: string
   title: string
   position: number
   dot_color: string
@@ -10,27 +11,21 @@ export interface BoardColumn {
   updated_at: string
 }
 
-export async function fetchBoardColumns(): Promise<BoardColumn[]> {
-  const { data, error } = await supabase
-    .from('board_columns')
-    .select('*')
-    .eq('is_archived', false)
-    .order('position', { ascending: true })
+export async function fetchBoardColumns(departmentId?: string): Promise<BoardColumn[]> {
+  let query = supabase.from('board_columns').select('*').eq('is_archived', false)
+  if (departmentId) query = query.eq('department_id', departmentId)
+  const { data, error } = await query.order('position', { ascending: true })
   if (error) throw error
   return (data ?? []) as BoardColumn[]
 }
 
-export async function insertBoardColumn(title: string, position: number, dot_color = '#579dff'): Promise<BoardColumn> {
+export async function insertBoardColumn(title: string, position: number, dot_color = '#579dff', departmentId?: string): Promise<BoardColumn> {
   const id = title.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now()
+  const row: Record<string, unknown> = { id, title: title.trim(), position, dot_color, is_archived: false }
+  if (departmentId) row.department_id = departmentId
   const { data, error } = await supabase
     .from('board_columns')
-    .insert({
-      id,
-      title: title.trim(),
-      position,
-      dot_color,
-      is_archived: false,
-    })
+    .insert(row)
     .select()
     .single()
   if (error) throw error

@@ -1,0 +1,150 @@
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { supabase } from './supabase'
+
+// ── Types ──
+
+export type OrgRole = 'admin' | 'supervisor' | 'agent'
+
+export interface OrgPermissions {
+  organization_id: string
+  department_id: string | null
+  role: OrgRole
+  organization_name: string
+  organization_slug: string
+  department_name: string | null
+  department_slug: string | null
+}
+
+export interface OrgContextValue {
+  /** Permissões do usuário logado (org, dept, role) */
+  permissions: OrgPermissions | null
+  /** Department ID ativo (o dept selecionado pelo usuário) */
+  departmentId: string | null
+  /** Organization ID do usuário */
+  organizationId: string | null
+  /** Role do usuário na org */
+  role: OrgRole | null
+  /** Carregando dados de permissão */
+  loading: boolean
+  /** Lista de departamentos visíveis */
+  departments: { id: string; name: string; slug: string }[]
+  /** Trocar departamento ativo (admin/supervisor podem trocar) */
+  switchDepartment: (deptId: string) => void
+  /** Verificar se o usuário tem uma permissão específica */
+  hasPermission: (perm: string) => boolean
+  /** Recarregar permissões */
+  refresh: () => Promise<void>
+}
+
+const OrgContext = createContext<OrgContextValue | null>(null)
+
+// ── Permissões por role (espelha role_permissions do banco) ──
+const ROLE_PERMS: Record<OrgRole, Set<string>> = {
+  admin: new Set([
+    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:delete', 'tickets:archive', 'tickets:assign',
+    'columns:manage', 'labels:manage', 'members:invite', 'members:remove', 'members:change_role',
+    'departments:manage', 'announcements:manage', 'links:manage', 'settings:manage',
+  ]),
+  supervisor: new Set([
+    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:delete', 'tickets:archive', 'tickets:assign',
+    'columns:manage', 'labels:manage', 'announcements:manage', 'links:manage',
+  ]),
+  agent: new Set([
+    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:archive', 'links:manage',
+  ]),
+}
+
+// ── Provider ──
+
+export function OrgProvider({ user, children }: { user: string; children: ReactNode }) {
+  const [permissions, setPermissions] = useState<OrgPermissions | null>(null)
+  const [departments, setDepartments] = useState<{ id: string; name: string; slug: string }[]>([])
+  const [activeDeptId, setActiveDeptId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const loadPermissions = useCallback(async () => {
+    try {
+      // Buscar permissões do usuário logado via view my_permissions
+      const { data, error } = await supabase
+        .from('my_permissions')
+        .select('*')
+        .limit(1)
+        .maybeSingle()
+
+      if (error || !data) {
+        // Fallback: buscar via org_members diretamente
+        const { data: member } = await supabase
+          .from('org_members')
+          .select('organization_id, department_id, role')
+          .eq('user_email', user)
+          .limit(1)
+          .maybeSingle()
+
+        if (member) {
+          setPermissions({
+            organization_id: member.organization_id,
+            department_id: member.department_id,
+            role: member.role as OrgRole,
+            organization_name: '',
+            organization_slug: '',
+            department_name: null,
+            department_slug: null,
+          })
+          setActiveDeptId(member.department_id)
+        }
+      } else {
+        setPermissions(data as OrgPermissions)
+        setActiveDeptId(data.department_id)
+      }
+
+      // Carregar departamentos visíveis
+      if (permissions?.organization_id || data?.organization_id) {
+        const orgId = permissions?.organization_id || data?.organization_id
+        const { data: depts } = await supabase
+          .from('departments')
+          .select('id, name, slug')
+          .eq('organization_id', orgId)
+          .order('name')
+
+        if (depts) setDepartments(depts)
+      }
+    } catch (err) {
+      console.error('[Org] Falha ao carregar permissões:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [user, permissions?.organization_id])
+
+  useEffect(() => {
+    loadPermissions()
+  }, [loadPermissions])
+
+  const switchDepartment = useCallback((deptId: string) => {
+    setActiveDeptId(deptId)
+  }, [])
+
+  const hasPermission = useCallback((perm: string): boolean => {
+    if (!permissions) return false
+    return ROLE_PERMS[permissions.role]?.has(perm) ?? false
+  }, [permissions])
+
+  const value: OrgContextValue = {
+    permissions,
+    departmentId: activeDeptId,
+    organizationId: permissions?.organization_id ?? null,
+    role: permissions?.role ?? null,
+    loading,
+    departments,
+    switchDepartment,
+    hasPermission,
+    refresh: loadPermissions,
+  }
+
+  return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>
+}
+
+export function useOrg(): OrgContextValue {
+  const ctx = useContext(OrgContext)
+  if (!ctx) throw new Error('useOrg deve ser usado dentro de <OrgProvider>')
+  return ctx
+}
