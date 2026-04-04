@@ -824,14 +824,15 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-width: 0;
+  flex-shrink: 0;
 }
 .trello-board-header__center {
   flex: 1;
-  min-width: 140px;
+  min-width: 120px;
   max-width: 400px;
   display: flex;
   justify-content: center;
+  overflow: hidden;
 }
 .trello-board-chip {
   display: inline-flex;

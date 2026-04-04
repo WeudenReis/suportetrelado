@@ -2,7 +2,7 @@ import { Inbox, Calendar, Megaphone, Link2, BarChart3 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNotificationContext } from './NotificationContext'
 import { useEffect, useState } from 'react'
-import { fetchAnnouncements } from '../lib/supabase'
+import { supabase, fetchAnnouncements } from '../lib/supabase'
 import type { Announcement } from '../lib/supabase'
 
 type NavTab = 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'
@@ -26,16 +26,25 @@ export default function BottomBar({ active, onChange }: BottomBarProps) {
 
   useEffect(() => {
     fetchAnnouncements().then(setAnnouncements)
-    // Poll for new announcements every 2 minutes
-    const interval = setInterval(() => {
-      fetchAnnouncements().then(setAnnouncements)
-    }, 120000)
-    return () => clearInterval(interval)
+
+    const channel = supabase
+      .channel('bottomnav-announcements')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, payload => {
+        setAnnouncements(prev => [payload.new as Announcement, ...prev])
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcements' }, payload => {
+        setAnnouncements(prev => prev.map(a => a.id === (payload.new as Announcement).id ? payload.new as Announcement : a))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'announcements' }, payload => {
+        setAnnouncements(prev => prev.filter(a => a.id !== (payload.old as Announcement).id))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const criticalCount = announcements.filter(a => a.severity === 'critical').length
-  const warningCount  = announcements.filter(a => a.severity === 'warning').length
-  const announcementBadge = criticalCount > 0 ? criticalCount : warningCount > 0 ? warningCount : 0
+  const announcementBadge = announcements.length
   const announcementBadgeColor = criticalCount > 0 ? '#ef5c48' : '#F5A623'
 
   return (
