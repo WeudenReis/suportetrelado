@@ -1,9 +1,7 @@
 import { Inbox, Calendar, Megaphone, Link2, BarChart3 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNotificationContext } from './NotificationContext'
-import { useEffect, useState } from 'react'
-import { supabase, fetchAnnouncements } from '../lib/supabase'
-import type { Announcement } from '../lib/supabase'
+import { useAnnouncementContext } from './AnnouncementContext'
 
 type NavTab = 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'
 
@@ -22,26 +20,7 @@ const NAV_ITEMS = [
 
 export default function BottomBar({ active, onChange }: BottomBarProps) {
   const { unreadCount } = useNotificationContext()
-  const [announcements, setAnnouncements] = useState<Announcement[]>([])
-
-  useEffect(() => {
-    fetchAnnouncements().then(setAnnouncements)
-
-    const channel = supabase
-      .channel('bottomnav-announcements')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, payload => {
-        setAnnouncements(prev => [payload.new as Announcement, ...prev])
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcements' }, payload => {
-        setAnnouncements(prev => prev.map(a => a.id === (payload.new as Announcement).id ? payload.new as Announcement : a))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'announcements' }, payload => {
-        setAnnouncements(prev => prev.filter(a => a.id !== (payload.old as Announcement).id))
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+  const { announcements } = useAnnouncementContext()
 
   const criticalCount = announcements.filter(a => a.severity === 'critical').length
   const announcementBadge = announcements.length

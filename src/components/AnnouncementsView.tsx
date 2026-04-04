@@ -1,11 +1,7 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone, ShieldAlert, TrendingUp, Clock } from 'lucide-react'
-import {
-  supabase,
-  fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
-  fetchUserProfiles, insertNotification,
-  type Announcement, type AnnouncementSeverity,
-} from '../lib/supabase'
+import { useAnnouncementContext } from './AnnouncementContext'
+import { fetchUserProfiles, insertNotification, type AnnouncementSeverity } from '../lib/supabase'
 
 interface AnnouncementsViewProps {
   user: string
@@ -39,8 +35,8 @@ function formatDate(dateStr: string): string {
 }
 
 export default function AnnouncementsView({ user, onClose }: AnnouncementsViewProps) {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [loading, setLoading] = useState(true)
+  const { announcements, loading, addAnnouncement, togglePin, removeAnnouncement } = useAnnouncementContext()
+
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -50,38 +46,9 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const data = await fetchAnnouncements()
-    setAnnouncements(data)
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    load()
-
-    const channel = supabase
-      .channel('announcements-view-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, payload => {
-        setAnnouncements(prev => {
-          if (prev.some(a => a.id === (payload.new as Announcement).id)) return prev
-          return [payload.new as Announcement, ...prev]
-        })
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcements' }, payload => {
-        setAnnouncements(prev => prev.map(a => a.id === (payload.new as Announcement).id ? payload.new as Announcement : a))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'announcements' }, payload => {
-        setAnnouncements(prev => prev.filter(a => a.id !== (payload.old as Announcement).id))
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [load])
-
   const handleSubmit = async () => {
     if (!title.trim()) return
-    const ann = await insertAnnouncement({
+    const ann = await addAnnouncement({
       title: title.trim(),
       content: content.trim(),
       severity,
@@ -89,7 +56,6 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       is_pinned: isPinned,
     })
     if (ann) {
-      setAnnouncements(prev => [ann, ...prev])
       setTitle(''); setContent(''); setSeverity('info'); setIsPinned(false); setShowForm(false)
 
       const profiles = await fetchUserProfiles()
@@ -109,28 +75,15 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
     }
   }
 
-  const handleDelete = async (id: string) => {
-    setAnnouncements(prev => prev.filter(a => a.id !== id))
-    await deleteAnnouncement(id)
-  }
-
-  const handleTogglePin = async (ann: Announcement) => {
-    const v = !ann.is_pinned
-    setAnnouncements(prev => prev.map(a => a.id === ann.id ? { ...a, is_pinned: v } : a))
-    await updateAnnouncement(ann.id, { is_pinned: v })
-  }
-
   const sorted = [...announcements].sort((a, b) => {
     if (a.is_pinned && !b.is_pinned) return -1
     if (!a.is_pinned && b.is_pinned) return 1
-    // Critical first within same pin tier
     const severityOrder = { critical: 0, warning: 1, info: 2 }
     if (severityOrder[a.severity] !== severityOrder[b.severity])
       return severityOrder[a.severity] - severityOrder[b.severity]
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
-  // Analytics
   const stats = useMemo(() => {
     const c = announcements.filter(a => a.severity === 'critical').length
     const w = announcements.filter(a => a.severity === 'warning').length
@@ -142,7 +95,6 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
     return { critical: c, warning: w, info: i, recent24h, total: announcements.length }
   }, [announcements])
 
-  // Operational health score
   const healthLabel = stats.critical > 0
     ? { text: 'ATENÇÃO URGENTE', color: '#ef5c48', bg: 'rgba(239,92,72,0.10)' }
     : stats.warning > 0
@@ -198,7 +150,6 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       {/* PAINEL ANALÍTICO */}
       {stats.total > 0 && (
         <div data-gsap-child style={{ padding: '0 20px 14px' }}>
-          {/* Status geral */}
           <div style={{
             borderRadius: 10, padding: '10px 14px', marginBottom: 10,
             background: healthLabel.bg,
@@ -216,7 +167,6 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
             </span>
           </div>
 
-          {/* Contadores rápidos */}
           <div style={{ display: 'flex', gap: 6 }}>
             {[
               { displayLabel: 'Urgentes', value: stats.critical, ...SEVERITY.critical },
@@ -239,7 +189,6 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
             ))}
           </div>
 
-          {/* Tendência 24h */}
           {stats.recent24h > 0 && (
             <div style={{
               marginTop: 8, borderRadius: 8, padding: '7px 12px',
@@ -256,7 +205,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       )}
 
       {/* BOTAO NOVO */}
-      <div data-gsap-child style={{ padding: stats.total > 0 ? '0 20px 14px' : '0 20px 14px' }}>
+      <div data-gsap-child style={{ padding: '0 20px 14px' }}>
         <button
           onClick={() => setShowForm(!showForm)}
           style={{
@@ -476,7 +425,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                     transition: 'opacity 0.15s',
                   }}>
                     <button
-                      onClick={e => { e.stopPropagation(); handleTogglePin(ann) }}
+                      onClick={e => { e.stopPropagation(); togglePin(ann) }}
                       title={ann.is_pinned ? 'Desafixar' : 'Fixar no topo'}
                       style={{
                         width: 26, height: 26, borderRadius: 6, border: 'none',
@@ -490,7 +439,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                       <Pin size={12} />
                     </button>
                     <button
-                      onClick={e => { e.stopPropagation(); handleDelete(ann.id) }}
+                      onClick={e => { e.stopPropagation(); removeAnnouncement(ann.id) }}
                       title="Remover aviso"
                       style={{
                         width: 26, height: 26, borderRadius: 6, border: 'none',

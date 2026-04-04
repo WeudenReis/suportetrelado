@@ -5,6 +5,7 @@ import gsap from 'gsap'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
 import { NotificationProvider, useNotificationContext } from './components/NotificationContext'
+import { AnnouncementProvider } from './components/AnnouncementContext'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
 import InboxSidebar from './components/InboxView'
@@ -93,15 +94,17 @@ export default function App() {
         <Login onLogin={handleLogin} unauthorizedEmail={unauthorizedEmail} />
       ) : (
         <NotificationProvider user={user!}>
-          <AppContent
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            user={user!}
-            plannerTickets={plannerTickets}
-            openTicketId={openTicketId}
-            setOpenTicketId={setOpenTicketId}
-            onLogout={handleLogout}
-          />
+          <AnnouncementProvider>
+            <AppContent
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              user={user!}
+              plannerTickets={plannerTickets}
+              openTicketId={openTicketId}
+              setOpenTicketId={setOpenTicketId}
+              onLogout={handleLogout}
+            />
+          </AnnouncementProvider>
         </NotificationProvider>
       )}
     </ThemeProvider>
