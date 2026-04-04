@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchTickets, fetchPlannerSettings, insertNotification } from '../lib/supabase';
+import { supabase, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchTickets, fetchPlannerSettings, fetchPlannerEvents, insertNotification } from '../lib/supabase';
 import type { Notification } from '../lib/supabase';
 
 interface NotificationContextProps {
@@ -35,7 +35,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   }, []);
 
   const showBrowserNotification = useCallback((notif: Notification) => {
-    if ('Notification' in window && window.Notification.permission === 'granted' && document.hidden) {
+    if ('Notification' in window && window.Notification.permission === 'granted') {
       const body = notif.message || `Nova notificação em "${notif.ticket_title || 'ticket'}"`;
       const n = new window.Notification('chatPro — Suporte', {
         body,
@@ -73,60 +73,132 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   }, [user]);
 
-  // Polling for due date alerts
+  // Polling for due date alerts and planner events
   useEffect(() => {
     const checkDueDates = async () => {
       try {
         const settings = await fetchPlannerSettings(user);
-        if (!settings || !settings.notify_days_before || settings.notify_days_before.length === 0) return;
-        
-        const tickets = await fetchTickets();
+        const notifyDays = settings?.notify_days_before ?? [];
+
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        // Ensure we don't spam. Check localstorage for last run.
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
         const cacheKey = `chatpro_notified_due_dates:${user}`;
         const notifiedCache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
         const newCache = { ...notifiedCache };
         let modified = false;
 
-        for (const t of tickets) {
-          if (!t.due_date || t.status === 'resolved') continue;
-          // Se o ticket nao tem assignee ou nao é meu (dependendo da regra de negocio, consideramos todos ou só meus)
-          // Mas vamos notificar apenas pro usuario q agendou os dias ou esta no board. 
-          const due = new Date(t.due_date);
-          const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-          const diffDays = Math.ceil((dueDay.getTime() - today.getTime()) / 86400000);
-          
-          if (settings.notify_days_before.includes(diffDays)) {
-            const notifId = `${t.id}_due_${diffDays}`;
+        // ── Tickets com due_date ──
+        if (notifyDays.length > 0) {
+          const tickets = await fetchTickets();
+          for (const t of tickets) {
+            if (!t.due_date || t.status === 'resolved') continue;
+            const due = new Date(t.due_date);
+            const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+            const diffDays = Math.ceil((dueDay.getTime() - today.getTime()) / 86400000);
+
+            if (notifyDays.includes(diffDays)) {
+              const notifId = `${t.id}_due_${diffDays}`;
+              if (!newCache[notifId]) {
+                await insertNotification({
+                  recipient_email: user,
+                  sender_name: 'Sistema',
+                  type: 'due_date_alert',
+                  ticket_id: t.id,
+                  ticket_title: t.title,
+                  message: diffDays === 0
+                    ? 'Este cartão vence hoje!'
+                    : `Este cartão vence em ${diffDays} dia(s) (${t.due_date.slice(0, 10)}).`,
+                });
+                newCache[notifId] = true;
+                modified = true;
+              }
+            }
+          }
+        }
+
+        // ── Eventos do Planejador ──
+        const plannerEvents = await fetchPlannerEvents(user);
+        for (const ev of plannerEvents) {
+          // Notificar eventos futuros com base em notify_days_before
+          const evDay = new Date(ev.date + 'T12:00:00');
+          const evDayOnly = new Date(evDay.getFullYear(), evDay.getMonth(), evDay.getDate());
+          const diffDays = Math.ceil((evDayOnly.getTime() - today.getTime()) / 86400000);
+
+          if (notifyDays.includes(diffDays) && diffDays > 0) {
+            const notifId = `planner_${ev.id}_days_${diffDays}`;
             if (!newCache[notifId]) {
-              // disparar notificação
               await insertNotification({
                 recipient_email: user,
                 sender_name: 'Sistema',
-                type: 'due_date_alert',
-                ticket_id: t.id,
-                ticket_title: t.title,
-                message: diffDays === 0 ? 'Este cartão vence hoje!' : `Este cartão vence em ${diffDays} dia(s) (${t.due_date.slice(0, 10)}).`
+                type: 'planner_event',
+                ticket_id: null,
+                ticket_title: ev.title,
+                message: `Lembrete: "${ev.title}" acontece em ${diffDays} dia(s) (${ev.date}).`,
               });
               newCache[notifId] = true;
               modified = true;
             }
           }
+
+          // Notificar eventos do dia atual baseados no horário
+          if (ev.date === todayStr) {
+            if (ev.start_time) {
+              // Janela: de 15 min antes até 60 min após o início
+              const [h, m] = ev.start_time.split(':').map(Number);
+              const eventMinutes = h * 60 + m;
+              const nowMinutes = now.getHours() * 60 + now.getMinutes();
+              const diff = nowMinutes - eventMinutes; // positivo = já passou do horário
+              const inWindow = diff >= -15 && diff <= 60;
+
+              const notifId = `planner_${ev.id}_today_time`;
+              if (inWindow && !newCache[notifId]) {
+                const timeLabel = diff < 0
+                  ? `em ${-diff} min`
+                  : diff === 0
+                  ? 'agora'
+                  : `há ${diff} min`;
+                await insertNotification({
+                  recipient_email: user,
+                  sender_name: 'Sistema',
+                  type: 'planner_event',
+                  ticket_id: null,
+                  ticket_title: ev.title,
+                  message: `Evento "${ev.title}" começa ${timeLabel} (${ev.start_time}).`,
+                });
+                newCache[notifId] = true;
+                modified = true;
+              }
+            } else {
+              // Evento sem horário: notificar uma vez no dia
+              const notifId = `planner_${ev.id}_today_allday`;
+              if (!newCache[notifId]) {
+                await insertNotification({
+                  recipient_email: user,
+                  sender_name: 'Sistema',
+                  type: 'planner_event',
+                  ticket_id: null,
+                  ticket_title: ev.title,
+                  message: `Evento de hoje: "${ev.title}".`,
+                });
+                newCache[notifId] = true;
+                modified = true;
+              }
+            }
+          }
         }
 
-        
         if (modified) {
           localStorage.setItem(cacheKey, JSON.stringify(newCache));
         }
       } catch (e) {
-        console.error('Error checking due dates', e);
+        console.error('[NotificationContext] Falha ao verificar datas e eventos:', e);
       }
     };
 
     checkDueDates();
-    const interval = setInterval(checkDueDates, 30 * 60 * 1000); // Check every 30 mins
+    const interval = setInterval(checkDueDates, 5 * 60 * 1000); // Verifica a cada 5 min
     return () => clearInterval(interval);
   }, [user]);
 
