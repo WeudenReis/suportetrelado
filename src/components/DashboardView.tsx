@@ -141,7 +141,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
   const totalActive = active.length
   const resolved = active.filter(t => t.status === 'resolved').length
   const highPriority = active.filter(t => t.priority === 'high').length
-  const completed = active.filter(t => (t as any).is_completed).length
+  const completed = active.filter(t => t.is_completed).length
 
   const avgResolutionHours = useMemo(() => {
     const resolvedTickets = active.filter(t => t.status === 'resolved')
@@ -254,14 +254,14 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
   // ── Tickets não concluídos (para a seção de concluir) ──
   const uncompleted = useMemo(() => {
     return active
-      .filter(t => !(t as any).is_completed)
+      .filter(t => !t.is_completed)
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, 10)
   }, [active])
 
   const handleConclude = useCallback(async (ticketId: string) => {
     setTickets(prev => prev.map(t =>
-      t.id === ticketId ? { ...t, is_completed: true } as Ticket & { is_completed: boolean } as any : t
+      t.id === ticketId ? { ...t, is_completed: true } : t
     ))
     await supabase
       .from('tickets')

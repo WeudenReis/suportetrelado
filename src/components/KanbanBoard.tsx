@@ -340,11 +340,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => prev.map(t => {
           if (t.id !== (payload.new as Ticket).id) return t
-          return { ...(payload.new as Ticket), attachment_count: (t as any).attachment_count || 0 }
+          return { ...(payload.new as Ticket), attachment_count: t.attachment_count || 0 }
         }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, payload => {
-        setTickets(prev => prev.filter(t => t.id !== (payload.old as any).id))
+        setTickets(prev => prev.filter(t => t.id !== (payload.old as Record<string, string>).id))
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments' }, () => {
         fetchAttachmentCounts().then(counts => {
@@ -766,7 +766,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   useKeyboardShortcuts(shortcutActions)
 
   const handleTicketUpdate = useCallback((updated: Ticket) => {
-    setTickets(prev => prev.map(t => t.id === updated.id ? { ...updated, attachment_count: (t as any).attachment_count || 0 } : t))
+    setTickets(prev => prev.map(t => t.id === updated.id ? { ...updated, attachment_count: t.attachment_count || 0 } : t))
     // Só atualizar o selectedTicket se o modal já estiver aberto (não abrir ao clicar no check)
     setSelectedTicket(prev => prev && prev.id === updated.id ? updated : prev)
   }, [])
@@ -1901,8 +1901,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                               const prioLabels: Record<string, string> = { high: 'Alta', medium: 'Média', low: 'Baixa' }
                               const pColor = prioColors[ticket.priority] || '#596773'
                               const hasDesc = !!(ticket.description && ticket.description.trim())
-                              const attCount = (ticket as any).attachment_count || 0
-                              const obs = (ticket as any).observacao || ''
+                              const attCount = ticket.attachment_count || 0
+                              const obs = ticket.observacao || ''
                               const checkTotal = (obs.match(/^[☐☑]/gm) || []).length
                               const checkDone = (obs.match(/^☑/gm) || []).length
                               const hasChecklist = checkTotal > 0

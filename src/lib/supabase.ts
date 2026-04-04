@@ -1,21 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
-// URLs e chaves fixas — VITE_SUPABASE_URL no Vercel determina o ambiente
-// Production: VITE_SUPABASE_URL = PROD_URL → usa prod
-// Preview/Dev: VITE_SUPABASE_URL ausente ou diferente → usa dev
-const PROD_URL = 'https://qacrxpfoamarslxskcyb.supabase.co'
-const PROD_KEY = 'sb_publishable_Qc_kigRTle0uzM6LAsLHbQ_XuBHWJV3'
-const DEV_URL = 'https://vbxzeyweurzrwppdiluo.supabase.co'
-const DEV_KEY = 'sb_publishable_03VCMlD83Jf9fsXJB97Ccw_QEYH_4Ps'
+// Credenciais via variáveis de ambiente (.env / .env.production)
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
 
-const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
-const isProd = envUrl.includes('qacrxpfoamarslxskcyb')
-
-const supabaseUrl = isProd ? PROD_URL : DEV_URL
-const supabaseAnonKey = isProd ? PROD_KEY : DEV_KEY
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('[Supabase] VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não definidas. Verifique seu .env')
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-export const isDevEnvironment = !isProd
+export const isDevEnvironment = !supabaseUrl.includes('qacrxpfoamarslxskcyb')
 
 export type TicketStatus = 'backlog' | 'in_progress' | 'waiting_devs' | 'resolved'
 export type TicketPriority = 'low' | 'medium' | 'high'
@@ -38,6 +32,9 @@ export interface Ticket {
   due_date?: string | null
   cover_image_url?: string | null
   cover_thumb_url?: string | null
+  is_archived?: boolean
+  is_completed?: boolean
+  attachment_count?: number
 }
 
 export interface Comment {
@@ -482,6 +479,8 @@ export async function updateUsefulLink(id: string, updates: Partial<UsefulLink>)
 }
 
 export async function deleteUsefulLink(id: string): Promise<void> {
+  const { error } = await supabase.from('useful_links').delete().eq('id', id)
+  if (error) console.error('[Links] Falha ao deletar link:', error.message)
 }
   
 // ── Planner Events & Settings ──

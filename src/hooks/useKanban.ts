@@ -62,11 +62,11 @@ export function useKanban(user: string) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => prev.map(t => {
           if (t.id !== (payload.new as Ticket).id) return t
-          return { ...(payload.new as Ticket), attachment_count: (t as any).attachment_count || 0 }
+          return { ...(payload.new as Ticket), attachment_count: t.attachment_count || 0 }
         }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, payload => {
-        setTickets(prev => prev.filter(t => t.id !== (payload.old as any).id))
+        setTickets(prev => prev.filter(t => t.id !== (payload.old as Record<string, string>).id))
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments' }, () => {
         fetchAttachmentCounts().then(counts => {

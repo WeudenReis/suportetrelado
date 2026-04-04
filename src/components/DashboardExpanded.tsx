@@ -120,7 +120,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
   // Keep local in sync when parent changes
   useMemo(() => { setLocalTickets(tickets) }, [tickets])
 
-  const active = useMemo(() => localTickets.filter(t => !(t as any).is_archived), [localTickets])
+  const active = useMemo(() => localTickets.filter(t => !t.is_archived), [localTickets])
 
   const cutoff = useMemo(() => {
     if (dateRange === 'all') return null
@@ -159,7 +159,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
   const total = filtered.length
   const resolvedCount = filtered.filter(t => t.status === 'resolved').length
   const highCount = filtered.filter(t => t.priority === 'high').length
-  const completedCount = filtered.filter(t => (t as any).is_completed).length
+  const completedCount = filtered.filter(t => t.is_completed).length
   const resolutionRate = total > 0 ? Math.round((resolvedCount / total) * 100) : 0
   const backlogCount = filtered.filter(t => t.status === 'backlog').length
 

@@ -1,16 +1,15 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, type Ticket } from '../lib/supabase';
 import { parseTag } from './CardDetailModal';
 import gsap from 'gsap';
 import styles from './Card.module.css';
-import type { Card as CardType } from '@/types';
 
 interface CardProps {
-  card: CardType;
+  card: Ticket;
   onClick: () => void;
-  onUpdate: (updated: CardType) => void;
+  onUpdate: (updated: Ticket) => void;
   onArchive: (cardId: string) => void;
   isDragging?: boolean;
   style?: React.CSSProperties;
@@ -221,7 +220,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
   // SLA: only show overdue indicator for cards idle 24h+, not warning (too noisy)
   const slaClass = (() => {
     if (card.is_completed) return '';
-    const updatedAt = (card as any).updated_at;
+    const updatedAt = card.updated_at;
     if (!updatedAt) return '';
     const hoursIdle = (Date.now() - new Date(updatedAt).getTime()) / 3_600_000;
     if (hoursIdle >= 24) return styles.cardOverdue;
@@ -379,8 +378,8 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
         {/* Badges de conteúdo (descrição, anexos, checklist) */}
         {!isEditing && (() => {
           const hasDesc = !!(card.description && card.description.trim());
-          const attCount = (card as any).attachment_count || 0;
-          const obs = (card as any).observacao || '';
+          const attCount = card.attachment_count || 0;
+          const obs = card.observacao || '';
           const checkTotal = (obs.match(/^[☐☑]/gm) || []).length;
           const checkDone = (obs.match(/^☑/gm) || []).length;
           const hasChecklist = checkTotal > 0;

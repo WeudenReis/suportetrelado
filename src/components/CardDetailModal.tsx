@@ -186,7 +186,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         setComments(prev => prev.some(c => c.id === (p.new as Comment).id) ? prev : [...prev, p.new as Comment])
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments', filter: `ticket_id=eq.${ticket.id}` }, p => {
-        setComments(prev => prev.filter(c => c.id !== (p.old as any).id))
+        setComments(prev => prev.filter(c => c.id !== (p.old as Record<string, string>).id))
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log', filter: `card_id=eq.${ticket.id}` }, p => {
         setActivities(prev => prev.some(a => a.id === (p.new as ActivityLog).id) ? prev : [...prev, p.new as ActivityLog])
@@ -657,7 +657,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             {showDatePicker && (
               <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
                 <div className="text-xs font-semibold mb-1" style={{ color: '#596773' }}>Data de entrega</div>
-                <input type="date" value={dueDate} onChange={e => { setDueDate(e.target.value); save({ due_date: e.target.value || null } as any) }} className="modal-field text-sm" />
+                <input type="date" value={dueDate} onChange={e => { setDueDate(e.target.value); save({ due_date: e.target.value || null }) }} className="modal-field text-sm" />
                 {dueDate && <div className="text-xs" style={{ color: '#596773' }}>Entrega: {new Date(dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>}
               </div>
             )}
