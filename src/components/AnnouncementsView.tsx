@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone, ShieldAlert, TrendingUp, Clock } from 'lucide-react'
 import {
+  supabase,
   fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
   fetchUserProfiles, insertNotification,
   type Announcement, type AnnouncementSeverity,
@@ -56,7 +57,27 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
     setLoading(false)
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+
+    const channel = supabase
+      .channel('announcements-view-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, payload => {
+        setAnnouncements(prev => {
+          if (prev.some(a => a.id === (payload.new as Announcement).id)) return prev
+          return [payload.new as Announcement, ...prev]
+        })
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcements' }, payload => {
+        setAnnouncements(prev => prev.map(a => a.id === (payload.new as Announcement).id ? payload.new as Announcement : a))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'announcements' }, payload => {
+        setAnnouncements(prev => prev.filter(a => a.id !== (payload.old as Announcement).id))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [load])
 
   const handleSubmit = async () => {
     if (!title.trim()) return
