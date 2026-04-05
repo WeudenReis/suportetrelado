@@ -37,6 +37,18 @@
   border-color: rgba(37, 208, 102, 0.6);
 }
 
+.cardMutating {
+  opacity: 0.75;
+  pointer-events: none;
+  border-color: rgba(87, 157, 255, 0.3);
+  animation: cardPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cardPulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 0.55; }
+}
+
 .cardDragging {
   opacity: 0.5;
   border: 1px dashed rgba(87, 157, 255, 0.5);

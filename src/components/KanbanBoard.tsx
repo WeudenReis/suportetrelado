@@ -8,6 +8,7 @@ import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Search, Share2, Plug, Tr
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal, { parseTag } from './CardDetailModal'
+import ErrorBoundary from './ErrorBoundary'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
 import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
@@ -22,6 +23,7 @@ import LabelsManagerModal from './kanban/LabelsManagerModal'
 import SettingsPanel from './kanban/SettingsPanel'
 import AddTicketModal from './kanban/AddTicketModal'
 import FilterPanel from './kanban/FilterPanel'
+import { searchTicketsRPC, searchTicketsLocal, debounce } from '../lib/search'
 
 interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
 
@@ -54,7 +56,7 @@ function DroppableColumn({ id, children, isOver }: { id: string; children: React
   return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
 }
 
-function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, isOverCard, activeTicket, compact, bulkMode, isSelected, onBulkToggle }: {
+function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, isOverCard, activeTicket, compact, bulkMode, isSelected, onBulkToggle, isMutating }: {
   ticket: any
   onClick: (ticket: any) => void
   onUpdate: (u: any) => void
@@ -66,6 +68,7 @@ function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, 
   bulkMode?: boolean
   isSelected?: boolean
   onBulkToggle?: (id: string) => void
+  isMutating?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: ticket.id,
@@ -99,6 +102,7 @@ function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, 
         onShowToast={onShowToast}
         isDragging={isDragging}
         compact={compact}
+        isMutating={isMutating}
       />
     </div>
   )
@@ -136,6 +140,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [refreshing, setRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  const [mutatingIds, setMutatingIds] = useState<Set<string>>(new Set())
+  const [creatingTicket, setCreatingTicket] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [showMembersPanel, setShowMembersPanel] = useState(false)
@@ -176,6 +182,33 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const boardDragRef = useRef({ isDragging: false, startX: 0, scrollLeft: 0 })
   const searchInputRef = useRef<HTMLInputElement | null>(null)
+  const [serverSearchResults, setServerSearchResults] = useState<Ticket[] | null>(null)
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  // Debounced server-side search
+  const debouncedSearch = useCallback(
+    debounce(async (query: string) => {
+      if (!query.trim()) {
+        setServerSearchResults(null)
+        setSearchLoading(false)
+        return
+      }
+      setSearchLoading(true)
+      const results = await searchTicketsRPC(query)
+      if (results.length > 0) {
+        setServerSearchResults(results)
+      } else {
+        // RPC retornou vazio ou falhou — fallback client-side
+        setServerSearchResults(null)
+      }
+      setSearchLoading(false)
+    }, 350),
+    []
+  )
+
+  useEffect(() => {
+    debouncedSearch(searchQuery)
+  }, [searchQuery, debouncedSearch])
 
   const wallpaperStorageKey = `chatpro-wallpaper:${user.toLowerCase()}`
 
@@ -369,10 +402,35 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   )
 
   const getColumnTickets = useCallback((status: string) => {
+    // Se temos resultados server-side, filtrar por coluna
+    if (serverSearchResults && searchQuery.trim()) {
+      let filtered = serverSearchResults.filter(t => t.status === status)
+      if (filterPriority !== 'all') {
+        filtered = filtered.filter(t => t.priority === filterPriority)
+      }
+      if (filterAssignee !== 'all') {
+        if (filterAssignee === '__none__') {
+          filtered = filtered.filter(t => !t.assignee)
+        } else {
+          const member = allMembers.find(m => m.email === filterAssignee)
+          filtered = filtered.filter(t => {
+            if (!t.assignee) return false
+            const parts = t.assignee.split(',').map(s => s.trim().toLowerCase())
+            const fa = filterAssignee.toLowerCase()
+            return parts.some(p => p === fa || (member && (p === member.name.toLowerCase() || p === member.email.toLowerCase())))
+          })
+        }
+      }
+      if (filterLabel !== 'all') {
+        filtered = filtered.filter(t => t.tags && t.tags.some(tag => tag.includes(filterLabel)))
+      }
+      return filtered
+    }
+
+    // Fallback client-side
     let filtered = tickets.filter(t => t.status === status)
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      filtered = filtered.filter(t => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)) || (t.cliente && t.cliente.toLowerCase().includes(q)))
+      filtered = searchTicketsLocal(filtered, searchQuery)
     }
     if (filterPriority !== 'all') {
       filtered = filtered.filter(t => t.priority === filterPriority)
@@ -381,7 +439,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       if (filterAssignee === '__none__') {
         filtered = filtered.filter(t => !t.assignee)
       } else {
-        // Busca pelo email ou nome do membro selecionado
         const member = allMembers.find(m => m.email === filterAssignee)
         filtered = filtered.filter(t => {
           if (!t.assignee) return false
@@ -395,7 +452,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       filtered = filtered.filter(t => t.tags && t.tags.some(tag => tag.includes(filterLabel)))
     }
     return filtered
-  }, [tickets, searchQuery, filterPriority, filterAssignee, filterLabel])
+  }, [tickets, searchQuery, serverSearchResults, filterPriority, filterAssignee, filterLabel])
 
   // Carregar colunas do Supabase (com fallback para COLUMNS legadas)
   useEffect(() => {
@@ -633,6 +690,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     const toLabel = allColumnsById.get(newStatus)?.title || newStatus
 
     // Persist to Supabase
+    setMutatingIds(prev => new Set(prev).add(activeId))
     updateTicket(activeId, { status: newStatus as TicketStatus })
       .then(() => {
         if (originalStatus && originalStatus !== newStatus) {
@@ -642,6 +700,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       .catch(() => {
         showToast('Erro ao mover ticket', 'err')
         loadTickets() // rollback
+      })
+      .finally(() => {
+        setMutatingIds(prev => { const next = new Set(prev); next.delete(activeId); return next })
       })
   }
 
@@ -915,13 +976,14 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     : { background: 'linear-gradient(135deg, #0c1317, #1a2a35)' }
 
   return (
-    <div className="board-wrapper" style={boardWrapperStyle}>
+    <div className="board-wrapper" style={boardWrapperStyle} role="region" aria-label="Quadro Kanban">
       {/* Toast */}
       <AnimatePresence>
         {toast && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-xl text-sm font-semibold shadow-xl"
-            style={{ background: toast.type === 'ok' ? '#579dff' : '#ef5c48', color: '#fff' }}>
+            style={{ background: toast.type === 'ok' ? '#579dff' : '#ef5c48', color: '#fff' }}
+            role="status" aria-live="polite">
             {toast.msg}
           </motion.div>
         )}
@@ -978,8 +1040,12 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
         </div>
 
         <div className="trello-board-header__center">
-          <div className="header-search">
-            <Search size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
+          <div className="header-search" data-tour="board-search">
+            {searchLoading ? (
+              <Loader2 size={14} className="animate-spin" style={{ color: '#25D066', flexShrink: 0 }} />
+            ) : (
+              <Search size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
+            )}
             <input
               ref={searchInputRef}
               type="text"
@@ -988,7 +1054,24 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               onChange={e => setSearchQuery(e.target.value)}
               className="bg-transparent border-none outline-none text-sm flex-1"
               style={{ color: '#B6C2CF' }}
+              role="searchbox"
+              aria-label="Pesquisar tickets"
             />
+            {searchQuery.trim() && !searchLoading && (
+              <span style={{ fontSize: 11, color: serverSearchResults ? '#25D066' : '#6B7280', fontFamily: "'Space Grotesk', sans-serif", flexShrink: 0 }}>
+                {serverSearchResults ? `${serverSearchResults.length} resultados` : 'local'}
+              </span>
+            )}
+            {searchQuery.trim() && (
+              <button
+                onClick={() => { setSearchQuery(''); setServerSearchResults(null) }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center', padding: 2, flexShrink: 0 }}
+                type="button"
+                aria-label="Limpar busca"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -1300,10 +1383,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
         <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
           <div className="board-columns">
             <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-              {allColumns.map((col) => {
+              {allColumns.map((col, colIdx) => {
                 const colTickets = getColumnTickets(col.id)
                 return (
-                  <div key={col.id}>
+                  <div key={col.id} {...(colIdx === 0 ? { 'data-tour': 'board-column' } : {})}>
                     <SortableBoardColumn id={col.id} accentColor={col.dot_color}>
                       {({ attributes, listeners }) => (
                         <>
@@ -1468,6 +1551,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                       bulkMode={bulkMode}
                                       isSelected={selectedCardIds.has(ticket.id)}
                                       onBulkToggle={toggleBulkSelect}
+                                      isMutating={mutatingIds.has(ticket.id)}
                                     />
                                   ))}
                               </SortableContext>
@@ -1497,7 +1581,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                               </div>
                             </div>
                           ) : (
-                            <button onClick={() => { setAddingTo(col.id as TicketStatus); setInlineTitle('') }} className="trello-col__add">
+                            <button onClick={() => { setAddingTo(col.id as TicketStatus); setInlineTitle('') }} className="trello-col__add" {...(colIdx === 0 ? { 'data-tour': 'board-add-ticket' } : {})}>
                               <Plus size={16} /> Adicionar um cartão
                             </button>
                           )}
@@ -2009,6 +2093,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             columns={allColumns}
             initialStatus={(allColumns[0]?.id || 'backlog') as TicketStatus}
             onAdd={async (ticket) => {
+              setCreatingTicket(true)
               try {
                 const created = await insertTicket({ title: ticket.title.trim(), description: ticket.description || '', status: ticket.status, priority: ticket.priority, cliente: ticket.cliente || '', instancia: ticket.instancia || '', assignee: user })
                 setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
@@ -2017,10 +2102,13 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               } catch (err: unknown) {
                 const message = err instanceof Error ? err.message : 'Erro ao criar ticket. Verifique se está logado.'
                 showToast(message, 'err')
+              } finally {
+                setCreatingTicket(false)
               }
             }}
             onClose={() => setShowAddModal(false)}
             onShowToast={showToast}
+            isCreating={creatingTicket}
           />
         )}
       </AnimatePresence>
@@ -2086,19 +2174,21 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             {/* Card Detail Modal */}
       <AnimatePresence>
         {selectedTicket && (
-          <CardDetailModal
-            ticket={selectedTicket}
-            user={user}
-            onClose={() => {
-              setSelectedTicket(null)
-              // Recarregar contagem de anexos ao fechar o modal
-              fetchAttachmentCounts().then(counts => {
-                setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
-              })
-            }}
-            onUpdate={handleTicketUpdate}
-            onDelete={handleTicketDelete}
-          />
+          <ErrorBoundary>
+            <CardDetailModal
+              ticket={selectedTicket}
+              user={user}
+              onClose={() => {
+                setSelectedTicket(null)
+                // Recarregar contagem de anexos ao fechar o modal
+                fetchAttachmentCounts().then(counts => {
+                  setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
+                })
+              }}
+              onUpdate={handleTicketUpdate}
+              onDelete={handleTicketDelete}
+            />
+          </ErrorBoundary>
         )}
       </AnimatePresence>
 

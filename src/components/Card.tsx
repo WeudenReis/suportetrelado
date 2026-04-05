@@ -1,9 +1,9 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare } from 'lucide-react';
+import { animate, useReducedMotion } from 'framer-motion';
 import { updateTicket, type Ticket } from '../lib/supabase';
 import { parseTag } from './CardDetailModal';
-import gsap from 'gsap';
 import styles from './Card.module.css';
 
 interface CardProps {
@@ -15,6 +15,7 @@ interface CardProps {
   style?: React.CSSProperties;
   onShowToast?: (msg: string, type: 'ok' | 'err') => void;
   compact?: boolean;
+  isMutating?: boolean;
 }
 
 /** Calcula tempo decorrido e retorna {label, isOverdue} */
@@ -66,13 +67,14 @@ function getAssigneeDisplay(raw: string): { initial: string; tooltip: string } {
   return { initial: capitalized.charAt(0).toUpperCase(), tooltip: allNames.join(', ') }
 }
 
-function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToast, compact }: CardProps) {
+function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToast, compact, isMutating: isMutatingProp }: CardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
   const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const justToggledRef = useRef(false);
+  const prefersReducedMotion = useReducedMotion();
 
   // Focar no input ao entrar em modo de edição
   useEffect(() => {
@@ -94,29 +96,14 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
 
     const newValue = !card.is_completed;
 
-    // Efeito GSAP ao concluir
-    if (cardRef.current && newValue) {
-      const tl = gsap.timeline();
-      tl.to(cardRef.current, {
-        scale: 0.95,
-        duration: 0.12,
-        ease: 'power2.in',
-      })
-      .to(cardRef.current, {
-        scale: 1,
-        duration: 0.35,
-        ease: 'elastic.out(1.2, 0.5)',
-      })
-      .to(cardRef.current, {
-        boxShadow: '0 0 0 3px rgba(75, 206, 151, 0.5)',
-        duration: 0.15,
-        ease: 'power1.out',
-      }, 0)
-      .to(cardRef.current, {
-        boxShadow: '0 0 0 0px rgba(75, 206, 151, 0)',
-        duration: 0.5,
-        ease: 'power2.out',
-      }, 0.3);
+    // Efeito ao concluir (Framer Motion)
+    if (cardRef.current && newValue && !prefersReducedMotion) {
+      animate(cardRef.current, { scale: [1, 0.95, 1] }, { duration: 0.47, ease: 'easeOut' });
+      animate(
+        cardRef.current,
+        { boxShadow: ['0 0 0 0px rgba(75,206,151,0)', '0 0 0 3px rgba(75,206,151,0.5)', '0 0 0 0px rgba(75,206,151,0)'] },
+        { duration: 0.8, ease: 'easeOut' }
+      );
     }
 
     // Atualizar estado local imediatamente (otimista)
@@ -175,15 +162,9 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
   const handleArchive = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // Efeito GSAP de saída ao arquivar
-    if (cardRef.current) {
-      await gsap.to(cardRef.current, {
-        opacity: 0.4,
-        x: 60,
-        scale: 0.96,
-        duration: 0.35,
-        ease: 'power2.inOut',
-      });
+    // Efeito de saída ao arquivar (Framer Motion)
+    if (cardRef.current && !prefersReducedMotion) {
+      await animate(cardRef.current, { opacity: 0.4, x: 60, scale: 0.96 }, { duration: 0.35, ease: 'easeInOut' });
     }
 
     onArchive(card.id);   // remover do estado local imediatamente
@@ -217,11 +198,15 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
   return (
     <div
       ref={cardRef}
-      className={`${styles.card} ${card.is_completed ? styles.cardCompleted : ''} ${isDragging ? styles.cardDragging : ''} ${compact ? styles.cardCompact : ''} ${slaClass}`}
+      className={`${styles.card} ${card.is_completed ? styles.cardCompleted : ''} ${isDragging ? styles.cardDragging : ''} ${compact ? styles.cardCompact : ''} ${slaClass} ${isMutatingProp ? styles.cardMutating : ''}`}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick(e as unknown as React.MouseEvent) } }}
       style={style}
+      tabIndex={0}
+      role="button"
+      aria-label={`${card.title}${card.is_completed ? ' (concluído)' : ''}${card.priority ? ` — prioridade ${card.priority}` : ''}`}
     >
       {/* ── MODO COMPACTO ────────────────── */}
       {compact ? (

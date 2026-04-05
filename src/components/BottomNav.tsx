@@ -28,13 +28,16 @@ export default function BottomBar({ active, onChange }: BottomBarProps) {
 
   return (
     <div className="bottom-bar-outer">
-      <nav className="bottom-bar">
+      <nav className="bottom-bar" role="navigation" aria-label="Navegação principal" data-tour="bottom-nav">
         {NAV_ITEMS.map(item => (
           <button
             key={item.id}
             onClick={() => onChange(item.id as NavTab)}
             className={`nav-item${active === item.id ? ' nav-item-active' : ''}`}
             type="button"
+            role="tab"
+            aria-selected={active === item.id}
+            aria-label={item.label}
           >
             <span className="relative inline-flex">
               {item.icon}

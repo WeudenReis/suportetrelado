@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { arrayMove } from '@dnd-kit/sortable'
 import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog } from '../lib/supabase'
 import type { Ticket, TicketStatus } from '../lib/supabase'
+import { logger } from '../lib/logger'
 
 export const COLUMNS: { id: TicketStatus; label: string; color: string; accent: string }[] = [
   { id: 'backlog',      label: 'Backlog',           color: 'rgba(87,157,255,0.08)',  accent: '#579dff' },
@@ -26,7 +27,11 @@ export function useKanban(user: string) {
   const [customColumns, setCustomColumns] = useState<CustomColumn[]>([])
   const [columnOrder, setColumnOrder] = useState<string[]>(() => COLUMNS.map(c => c.id))
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  const [mutatingIds, setMutatingIds] = useState<Set<string>>(new Set())
+  const [creating, setCreating] = useState(false)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+
+  const isMutating = useCallback((id: string) => mutatingIds.has(id), [mutatingIds])
 
   // ─── Toast ────────────────────────────────────────────────
   function showToast(msg: string, type: 'ok' | 'err') {
@@ -41,7 +46,7 @@ export function useKanban(user: string) {
       const enriched = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
       setTickets(enriched)
     } catch (err) {
-      console.error('Failed to load tickets:', err)
+      logger.error('useKanban', 'Failed to load tickets', { error: err })
       showToast('Erro ao carregar tickets', 'err')
     }
   }, [])
@@ -146,18 +151,23 @@ export function useKanban(user: string) {
     status: TicketStatus; cliente: string; instancia: string
   }) => {
     if (!data.title.trim()) return
-    const created = await insertTicket({
-      title: data.title.trim(),
-      description: data.description || '',
-      status: data.status,
-      priority: data.priority,
-      cliente: data.cliente || '',
-      instancia: data.instancia || '',
-      assignee: user,
-    })
-    setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
-    showToast('Ticket criado!', 'ok')
-    return created
+    setCreating(true)
+    try {
+      const created = await insertTicket({
+        title: data.title.trim(),
+        description: data.description || '',
+        status: data.status,
+        priority: data.priority,
+        cliente: data.cliente || '',
+        instancia: data.instancia || '',
+        assignee: user,
+      })
+      setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
+      showToast('Ticket criado!', 'ok')
+      return created
+    } finally {
+      setCreating(false)
+    }
   }
 
   const addInlineTicket = async (col: TicketStatus, title: string) => {
@@ -194,6 +204,8 @@ export function useKanban(user: string) {
     const fromLabel = COLUMNS.find(c => c.id === ticket.status)?.label || ticket.status
     const toLabel = COLUMNS.find(c => c.id === targetStatus)?.label || targetStatus
 
+    setMutatingIds(prev => new Set(prev).add(activeId))
+
     // Optimistic update
     setTickets(prev => {
       const activeIndex = prev.findIndex(t => t.id === activeId)
@@ -212,6 +224,7 @@ export function useKanban(user: string) {
     const canPersistStatus = COLUMNS.some(c => c.id === targetStatus)
     if (!canPersistStatus) {
       insertActivityLog(activeId, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
+      setMutatingIds(prev => { const next = new Set(prev); next.delete(activeId); return next })
       return
     }
 
@@ -221,6 +234,8 @@ export function useKanban(user: string) {
     } catch {
       showToast('Erro ao mover ticket', 'err')
       loadTickets()
+    } finally {
+      setMutatingIds(prev => { const next = new Set(prev); next.delete(activeId); return next })
     }
   }
 
@@ -240,5 +255,6 @@ export function useKanban(user: string) {
     getColumnTickets, staleCount,
     addTicket, addInlineTicket, handleTicketUpdate, handleTicketDelete,
     handleRefresh, moveTicket, reorderColumns,
+    isMutating, creating,
   }
 }

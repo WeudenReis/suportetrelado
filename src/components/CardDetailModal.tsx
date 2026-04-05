@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { AnimatePresence } from 'framer-motion'
 import {
   X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
@@ -141,6 +142,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const overlayRef = useRef<HTMLDivElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
   const [isVisible, setIsVisible] = useState(false)
+  useFocusTrap(modalRef, isVisible)
 
   // ─── CSS entrance animation ──────────────────────────────
   useEffect(() => {
@@ -455,6 +457,9 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       <div
         ref={modalRef}
         className={`elite-modal modal-content ${isVisible ? 'modal-content--visible' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-detail-title"
       >
         {/* ── Cover image banner ── */}
         {coverImage && (
@@ -473,6 +478,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <CreditCard size={18} style={{ color: '#596773' }} />
             <input
+              id="card-detail-title"
               value={title}
               onChange={e => setTitle(e.target.value)}
               onBlur={handleTitleBlur}

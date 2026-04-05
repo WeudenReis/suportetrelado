@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, X, FileText, ChevronDown, Copy, Trash2 } from 'lucide-react'
+import { Plus, X, FileText, ChevronDown, Copy, Trash2, Loader2 } from 'lucide-react'
 import type { Ticket, TicketStatus } from '../../lib/supabase'
 import type { BoardColumn } from '../../lib/boardColumns'
 
@@ -30,9 +30,10 @@ interface AddTicketModalProps {
   onClose: () => void
   onShowToast: (msg: string, type: 'ok' | 'err') => void
   initialStatus: TicketStatus
+  isCreating?: boolean
 }
 
-export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, initialStatus }: AddTicketModalProps) {
+export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, initialStatus, isCreating }: AddTicketModalProps) {
   const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: initialStatus, cliente: '', instancia: '' })
   const [showTemplates, setShowTemplates] = useState(false)
   const [templateVersion, setTemplateVersion] = useState(0)
@@ -55,6 +56,9 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
         transition={{ type: 'spring', stiffness: 400, damping: 28 }}
         className="rounded-2xl w-full max-w-md overflow-hidden"
         style={{ background: '#1a1f23', border: '1px solid rgba(37,208,102,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Criar novo ticket"
       >
         {/* Header */}
         <div className="px-6 pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -165,8 +169,12 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
             title="Salvar como template"
           ><FileText size={13} /></button>
           <button onClick={onClose} style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#8C96A3', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#E5E7EB' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#8C96A3' }}>Cancelar</button>
-          <button onClick={handleAdd} disabled={!newTicket.title.trim()} style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', background: newTicket.title.trim() ? '#25D066' : 'rgba(37,208,102,0.3)', border: 'none', cursor: newTicket.title.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif", boxShadow: newTicket.title.trim() ? '0 2px 12px rgba(37,208,102,0.3)' : 'none' }} onMouseEnter={e => { if (newTicket.title.trim()) e.currentTarget.style.background = '#1BAD53' }} onMouseLeave={e => { if (newTicket.title.trim()) e.currentTarget.style.background = '#25D066' }}>
-            <Plus size={15} className="inline mr-1" style={{ verticalAlign: '-2px' }} />Criar Ticket
+          <button onClick={handleAdd} disabled={!newTicket.title.trim() || isCreating} style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', background: (newTicket.title.trim() && !isCreating) ? '#25D066' : 'rgba(37,208,102,0.3)', border: 'none', cursor: (newTicket.title.trim() && !isCreating) ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif", boxShadow: (newTicket.title.trim() && !isCreating) ? '0 2px 12px rgba(37,208,102,0.3)' : 'none' }} onMouseEnter={e => { if (newTicket.title.trim() && !isCreating) e.currentTarget.style.background = '#1BAD53' }} onMouseLeave={e => { if (newTicket.title.trim() && !isCreating) e.currentTarget.style.background = '#25D066' }}>
+            {isCreating ? (
+              <><Loader2 size={15} className="inline mr-1 animate-spin" style={{ verticalAlign: '-2px' }} />Criando...</>
+            ) : (
+              <><Plus size={15} className="inline mr-1" style={{ verticalAlign: '-2px' }} />Criar Ticket</>
+            )}
           </button>
         </div>
       </motion.div>

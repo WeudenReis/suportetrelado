@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, MotionConfig, useReducedMotion } from 'framer-motion'
 import { Inbox, X, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'
-import gsap from 'gsap'
+import { animate } from 'framer-motion'
 import { supabase } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
 import { OrgProvider } from './lib/org'
 import { NotificationProvider, useNotificationContext } from './components/NotificationContext'
 import { AnnouncementProvider } from './components/AnnouncementContext'
+import ErrorBoundary from './components/ErrorBoundary'
+import { initSentry, setSentryUser, captureException } from './lib/sentry'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
 import BottomNav from './components/BottomNav'
@@ -18,6 +20,10 @@ const PlannerSidebar = lazy(() => import('./components/PlannerSidebar'))
 const AnnouncementsView = lazy(() => import('./components/AnnouncementsView'))
 const LinksView = lazy(() => import('./components/LinksView'))
 const DashboardView = lazy(() => import('./components/DashboardView'))
+const Onboarding = lazy(() => import('./components/Onboarding'))
+
+// Inicializar Sentry no carregamento do módulo
+initSentry()
 
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
@@ -74,11 +80,13 @@ export default function App() {
   const handleLogin = (email: string) => {
     setUser(email)
     setUnauthorizedEmail(null)
+    setSentryUser(email)
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setUser(null)
+    setSentryUser(null)
   }
 
   if (loading) {
@@ -91,25 +99,29 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      {!user ? (
-        <Login onLogin={handleLogin} unauthorizedEmail={unauthorizedEmail} />
-      ) : (
-        <OrgProvider user={user!}>
-          <NotificationProvider user={user!}>
-            <AnnouncementProvider>
-              <AppContent
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                user={user!}
-                plannerTickets={plannerTickets}
-                openTicketId={openTicketId}
-                setOpenTicketId={setOpenTicketId}
-                onLogout={handleLogout}
-              />
-            </AnnouncementProvider>
-          </NotificationProvider>
-        </OrgProvider>
-      )}
+      <MotionConfig reducedMotion="user">
+        <ErrorBoundary onError={(error, info) => captureException(error, { componentStack: info.componentStack })}>
+          {!user ? (
+            <Login onLogin={handleLogin} unauthorizedEmail={unauthorizedEmail} />
+          ) : (
+            <OrgProvider user={user!}>
+              <NotificationProvider user={user!}>
+                <AnnouncementProvider>
+                  <AppContent
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    user={user!}
+                    plannerTickets={plannerTickets}
+                    openTicketId={openTicketId}
+                    setOpenTicketId={setOpenTicketId}
+                    onLogout={handleLogout}
+                  />
+                </AnnouncementProvider>
+              </NotificationProvider>
+            </OrgProvider>
+          )}
+        </ErrorBoundary>
+      </MotionConfig>
     </ThemeProvider>
   )
 }
@@ -135,21 +147,13 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
   const handleTabChange = useCallback((tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => {
     if (isAnimating.current) return
 
-    // Clicking the active sidebar tab → close with GSAP then go to board
+    // Clicking the active sidebar tab → close then go to board
     if (tab === activeTab && tab !== 'board') {
       const el = sidebarRef.current
       if (el) {
         isAnimating.current = true
-        gsap.to(el, {
-          x: -el.offsetWidth,
-          opacity: 0,
-          duration: 0.35,
-          ease: 'power3.in',
-          onComplete: () => {
-            isAnimating.current = false
-            setActiveTab('board')
-          },
-        })
+        animate(el, { x: -el.offsetWidth, opacity: 0 }, { duration: 0.35, ease: 'easeIn' })
+          .then(() => { isAnimating.current = false; setActiveTab('board') })
       } else {
         setActiveTab('board')
       }
@@ -161,16 +165,8 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
       const el = sidebarRef.current
       if (el) {
         isAnimating.current = true
-        gsap.to(el, {
-          x: -el.offsetWidth,
-          opacity: 0,
-          duration: 0.35,
-          ease: 'power3.in',
-          onComplete: () => {
-            isAnimating.current = false
-            setActiveTab('board')
-          },
-        })
+        animate(el, { x: -el.offsetWidth, opacity: 0 }, { duration: 0.35, ease: 'easeIn' })
+          .then(() => { isAnimating.current = false; setActiveTab('board') })
         return
       }
     }
@@ -178,26 +174,25 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
     setActiveTab(tab)
   }, [activeTab, setActiveTab])
 
-  // GSAP entrance animation when sidebar mounts
+  // Entrance animation when sidebar mounts (Framer Motion)
   useEffect(() => {
     const el = sidebarRef.current
     if (!el || activeTab === 'board') return
 
-    gsap.set(el, { x: -el.offsetWidth, opacity: 0 })
-    gsap.to(el, {
-      x: 0,
-      opacity: 1,
-      duration: 0.45,
-      ease: 'power3.out',
-    })
+    // Animate sidebar slide-in
+    el.style.transform = `translateX(${-el.offsetWidth}px)`
+    el.style.opacity = '0'
+    animate(el, { x: 0, opacity: 1 }, { duration: 0.45, ease: 'easeOut' })
 
-    // Stagger-in children of the sidebar content
+    // Stagger-in children
     const children = el.querySelectorAll('[data-gsap-child]')
     if (children.length > 0) {
-      gsap.fromTo(children,
-        { y: 12, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.35, stagger: 0.06, ease: 'power2.out', delay: 0.15 }
-      )
+      children.forEach((child, i) => {
+        const htmlChild = child as HTMLElement
+        htmlChild.style.transform = 'translateY(12px)'
+        htmlChild.style.opacity = '0'
+        animate(htmlChild, { y: 0, opacity: 1 }, { duration: 0.35, ease: 'easeOut', delay: 0.15 + i * 0.06 })
+      })
     }
   }, [activeTab])
 
@@ -218,39 +213,41 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
           {/* ▸ Sidebar content */}
           <div className="sidebar-panel__content">
             <Suspense fallback={<div style={{ padding: 20, color: '#596773', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif" }}>Carregando...</div>}>
-              {activeTab === 'inbox' && (
-                <InboxSidebar
-                  user={user}
-                  onClose={() => handleTabChange('board')}
-                  onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
-                />
-              )}
-              {activeTab === 'planner' && (
-                <PlannerSidebar
-                  tickets={plannerTickets}
-                  onClose={() => handleTabChange('board')}
-                  user={user}
-                  onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
-                />
-              )}
-              {activeTab === 'announcements' && (
-                <AnnouncementsView
-                  user={user}
-                  onClose={() => handleTabChange('board')}
-                />
-              )}
-              {activeTab === 'links' && (
-                <LinksView
-                  user={user}
-                  onClose={() => handleTabChange('board')}
-                />
-              )}
-              {activeTab === 'dashboard' && (
-                <DashboardView
-                  user={user}
-                  onClose={() => handleTabChange('board')}
-                />
-              )}
+              <ErrorBoundary>
+                {activeTab === 'inbox' && (
+                  <InboxSidebar
+                    user={user}
+                    onClose={() => handleTabChange('board')}
+                    onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
+                  />
+                )}
+                {activeTab === 'planner' && (
+                  <PlannerSidebar
+                    tickets={plannerTickets}
+                    onClose={() => handleTabChange('board')}
+                    user={user}
+                    onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
+                  />
+                )}
+                {activeTab === 'announcements' && (
+                  <AnnouncementsView
+                    user={user}
+                    onClose={() => handleTabChange('board')}
+                  />
+                )}
+                {activeTab === 'links' && (
+                  <LinksView
+                    user={user}
+                    onClose={() => handleTabChange('board')}
+                  />
+                )}
+                {activeTab === 'dashboard' && (
+                  <DashboardView
+                    user={user}
+                    onClose={() => handleTabChange('board')}
+                  />
+                )}
+              </ErrorBoundary>
             </Suspense>
           </div>
         </div>
@@ -272,6 +269,11 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
           <NotificationToast notif={toastNotification} onDismiss={dismissToast} onClickOpen={() => { dismissToast(); handleTabChange('inbox') }} />
         )}
       </AnimatePresence>
+
+      {/* ── Onboarding tour para novos usuários ── */}
+      <Suspense fallback={null}>
+        <Onboarding />
+      </Suspense>
     </div>
   )
 }

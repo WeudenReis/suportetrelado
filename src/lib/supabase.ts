@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
+import { logger } from './logger'
 
 // Credenciais via variáveis de ambiente (.env / .env.production)
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
 const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('[Supabase] VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não definidas. Verifique seu .env')
+  logger.error('Supabase', 'VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não definidas. Verifique seu .env')
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
@@ -154,7 +155,7 @@ export async function insertTicket(ticket: TicketInsert): Promise<Ticket> {
     .select()
     .single()
   if (error) {
-    console.error('insertTicket error:', error)
+    logger.error('Tickets', 'Falha ao inserir ticket', { error })
     if (error.message?.includes('schema cache')) {
       throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
     }
@@ -171,7 +172,7 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
     .select()
     .single()
   if (error) {
-    console.error('updateTicket error:', error)
+    logger.error('Tickets', 'Falha ao atualizar ticket', { error })
     if (error.message?.includes('schema cache')) {
       throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
     }
@@ -195,7 +196,7 @@ export async function fetchComments(ticketId: string): Promise<Comment[]> {
     .select('*')
     .eq('ticket_id', ticketId)
     .order('created_at', { ascending: true })
-  if (error) { console.warn('comments table may not exist:', error.message); return [] }
+  if (error) { logger.warn('Comments', 'Tabela comments pode não existir', { error: error.message }); return [] }
   return (data ?? []) as Comment[]
 }
 
@@ -207,7 +208,7 @@ export async function insertComment(ticketId: string, userName: string, content:
     .insert(row)
     .select()
     .single()
-  if (error) { console.error('Failed to insert comment:', error.message); return null }
+  if (error) { logger.error('Comments', 'Falha ao inserir comentário', { error: error.message }); return null }
   return data as Comment
 }
 
@@ -220,7 +221,7 @@ export async function fetchAttachmentCounts(departmentId?: string): Promise<Reco
   let query = supabase.from('attachments').select('ticket_id')
   if (departmentId) query = query.eq('department_id', departmentId)
   const { data, error } = await query
-  if (error) { console.warn('attachments count error:', error.message); return {} }
+  if (error) { logger.warn('Attachments', 'Erro ao contar anexos', { error: error.message }); return {} }
   const counts: Record<string, number> = {}
   for (const row of data ?? []) {
     counts[row.ticket_id] = (counts[row.ticket_id] || 0) + 1
@@ -234,7 +235,7 @@ export async function fetchAttachments(ticketId: string): Promise<Attachment[]> 
     .select('*')
     .eq('ticket_id', ticketId)
     .order('created_at', { ascending: true })
-  if (error) { console.warn('attachments table may not exist:', error.message); return [] }
+  if (error) { logger.warn('Attachments', 'Tabela attachments pode não existir', { error: error.message }); return [] }
   return (data ?? []) as Attachment[]
 }
 
@@ -245,7 +246,7 @@ export async function uploadAttachment(ticketId: string, file: File, userName: s
   const { error: uploadError } = await supabase.storage
     .from('attachments')
     .upload(filePath, file)
-  if (uploadError) { console.error('Upload failed:', uploadError.message); return null }
+  if (uploadError) { logger.error('Attachments', 'Falha no upload', { error: uploadError.message }); return null }
 
   // Usar URL assinada (expira em 1h) em vez de URL pública
   const { data: signedData, error: signError } = await supabase.storage
@@ -256,13 +257,13 @@ export async function uploadAttachment(ticketId: string, file: File, userName: s
   if (signError || !fileUrl) {
     // Fallback: tentar URL pública (caso storage policies antigas)
     const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath)
-    console.warn('[Attachments] Signed URL falhou, usando public URL:', signError?.message)
+    logger.warn('Attachments', 'Signed URL falhou, usando public URL', { error: signError?.message })
     const fallbackUrl = publicUrl
     const fileType = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file'
     const row: Record<string, unknown> = { ticket_id: ticketId, file_name: file.name, file_url: fallbackUrl, file_type: fileType, uploaded_by: userName, storage_path: filePath }
     if (departmentId) row.department_id = departmentId
     const { data, error } = await supabase.from('attachments').insert(row).select().single()
-    if (error) { console.error('Failed to save attachment:', error.message); return null }
+    if (error) { logger.error('Attachments', 'Falha ao salvar anexo', { error: error.message }); return null }
     return data as Attachment
   }
 
@@ -276,7 +277,7 @@ export async function uploadAttachment(ticketId: string, file: File, userName: s
     .insert(row)
     .select()
     .single()
-  if (error) { console.error('Failed to save attachment:', error.message); return null }
+  if (error) { logger.error('Attachments', 'Falha ao salvar anexo', { error: error.message }); return null }
   return data as Attachment
 }
 
@@ -285,7 +286,7 @@ export async function getSignedAttachmentUrl(storagePath: string, expiresIn = 36
   const { data, error } = await supabase.storage
     .from('attachments')
     .createSignedUrl(storagePath, expiresIn)
-  if (error) { console.warn('[Attachments] Signed URL error:', error.message); return null }
+  if (error) { logger.warn('Attachments', 'Signed URL error', { error: error.message }); return null }
   return data.signedUrl
 }
 
@@ -308,7 +309,7 @@ export async function fetchActivityLog(cardId: string): Promise<ActivityLog[]> {
     .select('*')
     .eq('card_id', cardId)
     .order('created_at', { ascending: true })
-  if (error) { console.warn('activity_log table may not exist:', error.message); return [] }
+  if (error) { logger.warn('ActivityLog', 'Tabela activity_log pode não existir', { error: error.message }); return [] }
   return (data ?? []) as ActivityLog[]
 }
 
@@ -320,7 +321,7 @@ export async function insertActivityLog(cardId: string, userName: string, action
     .insert(row)
     .select()
     .single()
-  if (error) { console.warn('Failed to insert activity:', error.message); return null }
+  if (error) { logger.warn('ActivityLog', 'Falha ao inserir atividade', { error: error.message }); return null }
   return data as ActivityLog
 }
 
@@ -342,7 +343,7 @@ export async function checkAuthorizedUser(email: string): Promise<boolean> {
     .select('id')
     .eq('email', email)
     .maybeSingle()
-  if (error) { console.warn('checkAuthorizedUser:', error.message); return false }
+  if (error) { logger.warn('UserProfiles', 'checkAuthorizedUser falhou', { error: error.message }); return false }
   return !!data
 }
 
@@ -361,7 +362,7 @@ export async function upsertUserProfile(email: string): Promise<void> {
       { email, name, avatar_color: color, last_seen_at: new Date().toISOString() },
       { onConflict: 'email' }
     )
-  if (error) console.warn('upsertUserProfile:', error.message)
+  if (error) logger.warn('UserProfiles', 'upsertUserProfile falhou', { error: error.message })
 }
 
 export async function updateLastSeen(email: string): Promise<void> {
@@ -369,7 +370,7 @@ export async function updateLastSeen(email: string): Promise<void> {
     .from('user_profiles')
     .update({ last_seen_at: new Date().toISOString() })
     .eq('email', email)
-  if (error) console.warn('updateLastSeen:', error.message)
+  if (error) logger.warn('UserProfiles', 'updateLastSeen falhou', { error: error.message })
 }
 
 export async function fetchUserProfiles(): Promise<UserProfile[]> {
@@ -377,7 +378,7 @@ export async function fetchUserProfiles(): Promise<UserProfile[]> {
     .from('user_profiles')
     .select('*')
     .order('last_seen_at', { ascending: false })
-  if (error) { console.warn('user_profiles table may not exist:', error.message); return [] }
+  if (error) { logger.warn('UserProfiles', 'Tabela user_profiles pode não existir', { error: error.message }); return [] }
   return (data ?? []) as UserProfile[]
 }
 
@@ -408,13 +409,13 @@ export async function fetchNotifications(email: string, opts?: PaginationOptions
   query = query.range(from, from + pageSize - 1)
 
   const { data, error } = await query
-  if (error) { console.warn('notifications table may not exist:', error.message); return [] }
+  if (error) { logger.warn('Notifications', 'Tabela notifications pode não existir', { error: error.message }); return [] }
   return (data ?? []) as Notification[]
 }
 
 export async function insertNotification(notif: Omit<Notification, 'id' | 'is_read' | 'created_at'>): Promise<void> {
   const { error } = await supabase.from('notifications').insert(notif as Record<string, unknown>)
-  if (error) console.warn('insertNotification:', error.message)
+  if (error) logger.warn('Notifications', 'insertNotification falhou', { error: error.message })
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
@@ -473,7 +474,7 @@ export async function fetchAnnouncements(departmentId?: string): Promise<Announc
   const { data, error } = await query
     .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false })
-  if (error) { console.warn('announcements error:', error.message); return [] }
+  if (error) { logger.warn('Announcements', 'Erro ao buscar avisos', { error: error.message }); return [] }
   return (data ?? []) as Announcement[]
 }
 
@@ -483,7 +484,7 @@ export async function insertAnnouncement(ann: { title: string; content: string; 
     .insert(ann)
     .select()
     .single()
-  if (error) { console.error('insert announcement error:', error.message); return null }
+  if (error) { logger.error('Announcements', 'Falha ao inserir aviso', { error: error.message }); return null }
   return data as Announcement
 }
 
@@ -515,7 +516,7 @@ export async function fetchUsefulLinks(departmentId?: string): Promise<UsefulLin
   const { data, error } = await query
     .order('category', { ascending: true })
     .order('title', { ascending: true })
-  if (error) { console.warn('useful_links error:', error.message); return [] }
+  if (error) { logger.warn('Links', 'Erro ao buscar links', { error: error.message }); return [] }
   return (data ?? []) as UsefulLink[]
 }
 
@@ -525,7 +526,7 @@ export async function insertUsefulLink(link: { title: string; url: string; descr
     .insert(link)
     .select()
     .single()
-  if (error) { console.error('insert link error:', error.message); return null }
+  if (error) { logger.error('Links', 'Falha ao inserir link', { error: error.message }); return null }
   return data as UsefulLink
 }
 
@@ -535,7 +536,7 @@ export async function updateUsefulLink(id: string, updates: Partial<UsefulLink>)
 
 export async function deleteUsefulLink(id: string): Promise<void> {
   const { error } = await supabase.from('useful_links').delete().eq('id', id)
-  if (error) console.error('[Links] Falha ao deletar link:', error.message)
+  if (error) logger.error('Links', 'Falha ao deletar link', { error: error.message })
 }
   
 // ── Planner Events & Settings ──
@@ -566,7 +567,7 @@ export async function fetchPlannerEvents(email: string): Promise<PlannerEvent[]>
     .from('planner_events')
     .select('*')
     .eq('user_email', email)
-  if (error) { console.warn('planner_events table may not exist:', error.message); return [] }
+  if (error) { logger.warn('Planner', 'Tabela planner_events pode não existir', { error: error.message }); return [] }
   return (data ?? []) as PlannerEvent[]
 }
 
@@ -576,7 +577,7 @@ export async function insertPlannerEvent(event: Omit<PlannerEvent, 'id' | 'creat
     .insert(event)
     .select()
     .single()
-  if (error) { console.error('insert planner event error:', error.message); return null }
+  if (error) { logger.error('Planner', 'Falha ao inserir evento', { error: error.message }); return null }
   return data as PlannerEvent
 }
 
@@ -594,7 +595,7 @@ export async function fetchPlannerSettings(email: string): Promise<PlannerNotifi
     .select('*')
     .eq('user_email', email)
     .maybeSingle()
-  if (error) { console.warn('planner_notification_settings table may not exist:', error.message); return null }
+  if (error) { logger.warn('Planner', 'Tabela planner_notification_settings pode não existir', { error: error.message }); return null }
   return data as PlannerNotificationSettings
 }
 
@@ -602,6 +603,6 @@ export async function upsertPlannerSettings(settings: Omit<PlannerNotificationSe
   const { error } = await supabase
     .from('planner_notification_settings')
     .upsert({ ...settings, updated_at: new Date().toISOString() }, { onConflict: 'user_email' })
-  if (error) console.error('upsert planner settings error:', error.message)
+  if (error) logger.error('Planner', 'Falha ao salvar configurações', { error: error.message })
 }
 
