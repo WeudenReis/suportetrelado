@@ -2109,6 +2109,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             onClose={() => setShowAddModal(false)}
             onShowToast={showToast}
             isCreating={creatingTicket}
+            user={user}
           />
         )}
       </AnimatePresence>
@@ -2158,6 +2159,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             onClose={() => setShowAutoRules(false)}
             onRunRules={() => { setShowAutoRules(true) }}
             onShowToast={showToast}
+            user={user}
           />
         )}
       </AnimatePresence>

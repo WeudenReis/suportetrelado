@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Settings, X, RefreshCw, Trash2, Check } from 'lucide-react'
 import type { BoardColumn } from '../../lib/boardColumns'
+import { fetchAutoRules, insertAutoRule, updateAutoRule, deleteAutoRule } from '../../lib/api/templates'
 
 export interface AutoRule {
   id: string
@@ -20,6 +22,8 @@ export const AUTO_RULE_CONDITIONS: Record<string, string> = {
   overdue_24h: 'Parado há +24h',
 }
 
+// Manter loadAutoRules sincrono para compatibilidade com KanbanBoard
+// (usa localStorage como cache, DB como fonte de verdade)
 export function loadAutoRules(): AutoRule[] {
   try {
     const raw = localStorage.getItem('chatpro-auto-rules')
@@ -27,7 +31,7 @@ export function loadAutoRules(): AutoRule[] {
   } catch { return [] }
 }
 
-export function saveAutoRules(rules: AutoRule[]): void {
+function saveAutoRulesLocal(rules: AutoRule[]): void {
   localStorage.setItem('chatpro-auto-rules', JSON.stringify(rules))
 }
 
@@ -36,40 +40,61 @@ interface AutoRulesModalProps {
   onClose: () => void
   onRunRules: () => void
   onShowToast: (msg: string, type: 'ok' | 'err') => void
+  user: string
 }
 
-export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToast }: AutoRulesModalProps) {
-  const rules = loadAutoRules()
+export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToast, user }: AutoRulesModalProps) {
+  const [rules, setRules] = useState<AutoRule[]>(loadAutoRules())
 
-  const handleToggle = (ruleId: string) => {
+  // Carregar do banco na montagem e sincronizar cache local
+  useEffect(() => {
+    fetchAutoRules(user).then(dbRules => {
+      const mapped = dbRules as AutoRule[]
+      if (mapped.length > 0 || loadAutoRules().length === 0) {
+        setRules(mapped)
+        saveAutoRulesLocal(mapped)
+      }
+    })
+  }, [user])
+
+  const handleToggle = async (ruleId: string) => {
+    const rule = rules.find(r => r.id === ruleId)
+    if (!rule) return
     const updated = rules.map(r => r.id === ruleId ? { ...r, enabled: !r.enabled } : r)
-    saveAutoRules(updated)
+    setRules(updated)
+    saveAutoRulesLocal(updated)
+    await updateAutoRule(ruleId, { enabled: !rule.enabled })
     onClose()
     setTimeout(() => onRunRules(), 10)
   }
 
-  const handleDelete = (ruleId: string) => {
+  const handleDelete = async (ruleId: string) => {
     const updated = rules.filter(r => r.id !== ruleId)
-    saveAutoRules(updated)
+    setRules(updated)
+    saveAutoRulesLocal(updated)
+    await deleteAutoRule(ruleId)
     onClose()
     setTimeout(() => onRunRules(), 10)
   }
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const condEl = document.getElementById('rule-condition') as HTMLSelectElement
     const targetEl = document.getElementById('rule-target') as HTMLSelectElement
     if (!condEl?.value || !targetEl?.value) { onShowToast('Selecione condição e destino', 'err'); return }
     const condLabel = AUTO_RULE_CONDITIONS[condEl.value] || condEl.value
     const targetLabel = columns.find(c => c.id === targetEl.value)?.title || targetEl.value
-    const updated = [...rules, {
-      id: `rule-${Date.now()}`,
+    const newRule = await insertAutoRule({
       name: `${condLabel} → ${targetLabel}`,
-      condition: condEl.value as AutoRule['condition'],
-      action: 'move_to' as const,
+      condition: condEl.value,
+      action: 'move_to',
       targetColumn: targetEl.value,
       enabled: true,
-    }]
-    saveAutoRules(updated)
+    }, user)
+    if (newRule) {
+      const updated = [...rules, newRule as AutoRule]
+      setRules(updated)
+      saveAutoRulesLocal(updated)
+    }
     onClose()
     setTimeout(() => onRunRules(), 10)
     onShowToast('Regra criada!', 'ok')

@@ -1,28 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, X, FileText, ChevronDown, Copy, Trash2, Loader2 } from 'lucide-react'
 import type { Ticket, TicketStatus } from '../../lib/supabase'
 import type { BoardColumn } from '../../lib/boardColumns'
+import { fetchTemplates, insertTemplate, deleteTemplate, type TicketTemplate } from '../../lib/api/templates'
 
-export interface TicketTemplate {
-  id: string
-  name: string
-  title: string
-  description: string
-  priority: 'low' | 'medium' | 'high'
-  status: string
-}
-
-export function loadTemplates(): TicketTemplate[] {
-  try {
-    const raw = localStorage.getItem('chatpro-templates')
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-export function saveTemplates(templates: TicketTemplate[]): void {
-  localStorage.setItem('chatpro-templates', JSON.stringify(templates))
-}
+// Re-export para compatibilidade
+export type { TicketTemplate }
 
 interface AddTicketModalProps {
   columns: BoardColumn[]
@@ -31,21 +15,22 @@ interface AddTicketModalProps {
   onShowToast: (msg: string, type: 'ok' | 'err') => void
   initialStatus: TicketStatus
   isCreating?: boolean
+  user: string
 }
 
-export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, initialStatus, isCreating }: AddTicketModalProps) {
+export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, initialStatus, isCreating, user }: AddTicketModalProps) {
   const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: initialStatus, cliente: '', instancia: '' })
   const [showTemplates, setShowTemplates] = useState(false)
-  const [templateVersion, setTemplateVersion] = useState(0)
+  const [templates, setTemplates] = useState<TicketTemplate[]>([])
+
+  useEffect(() => {
+    fetchTemplates(user).then(setTemplates)
+  }, [user])
 
   const handleAdd = () => {
     if (!newTicket.title.trim()) return
     onAdd(newTicket)
   }
-
-  // Force re-read of templates when version changes
-  const templates = loadTemplates()
-  void templateVersion
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
@@ -101,7 +86,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
                     <span style={{ fontWeight: 700, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tmpl.name}</span>
                     <span style={{ fontSize: 10, color: '#596773' }}>{tmpl.title}</span>
                   </div>
-                  <button onClick={e => { e.stopPropagation(); const updated = templates.filter(t => t.id !== tmpl.id); saveTemplates(updated); setTemplateVersion(v => v + 1) }}
+                  <button onClick={async e => { e.stopPropagation(); await deleteTemplate(tmpl.id); setTemplates(prev => prev.filter(t => t.id !== tmpl.id)) }}
                     style={{ background: 'transparent', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex', transition: 'color 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
                     onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
@@ -153,14 +138,12 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
 
         {/* Footer */}
         <div className="px-6 py-4 flex gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => {
+          <button onClick={async () => {
             if (!newTicket.title.trim()) { onShowToast('Preencha o título para salvar como template', 'err'); return }
             const templateName = prompt('Nome do template:')
             if (!templateName?.trim()) return
-            const all = loadTemplates()
-            all.push({ id: `tmpl-${Date.now()}`, name: templateName.trim(), title: newTicket.title, description: newTicket.description, priority: newTicket.priority, status: newTicket.status })
-            saveTemplates(all)
-            setTemplateVersion(v => v + 1)
+            const saved = await insertTemplate({ name: templateName.trim(), title: newTicket.title, description: newTicket.description, priority: newTicket.priority, status: newTicket.status }, user)
+            if (saved) setTemplates(prev => [...prev, saved])
             onShowToast('Template salvo!', 'ok')
           }}
             style={{ padding: '11px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#25D066', background: 'rgba(37,208,102,0.06)', border: '1px solid rgba(37,208,102,0.15)', cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif", display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}

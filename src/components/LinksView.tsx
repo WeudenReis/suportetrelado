@@ -78,8 +78,12 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
   }
 
   const handleDelete = async (id: string) => {
+    const backup = links
     setLinks(prev => prev.filter(l => l.id !== id))
-    await deleteUsefulLink(id)
+    const success = await deleteUsefulLink(id)
+    if (!success) {
+      setLinks(backup)
+    }
   }
 
   const font = "'Space Grotesk', sans-serif"

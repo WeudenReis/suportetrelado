@@ -1,0 +1,13 @@
+// Barrel re-export de todos os modulos de API
+export { fetchTickets, insertTicket, updateTicket, deleteTicket } from './tickets'
+export { fetchComments, insertComment, deleteComment } from './comments'
+export { fetchAttachmentCounts, fetchAttachments, uploadAttachment, getSignedAttachmentUrl, deleteAttachment } from './attachments'
+export { fetchActivityLog, insertActivityLog } from './activity'
+export { checkAuthorizedUser, upsertUserProfile, updateLastSeen, fetchUserProfiles } from './users'
+export { fetchNotifications, insertNotification, markNotificationRead, markAllNotificationsRead, extractMentionNames, resolveMentionsToEmails } from './notifications'
+export { fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement } from './announcements'
+export { fetchUsefulLinks, insertUsefulLink, updateUsefulLink, deleteUsefulLink } from './links'
+export { fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from './labels'
+export { fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent, fetchPlannerSettings, upsertPlannerSettings } from './planner'
+export { fetchTemplates, insertTemplate, deleteTemplate, fetchAutoRules, insertAutoRule, updateAutoRule, deleteAutoRule } from './templates'
+export type { TicketTemplate, AutoRule } from './templates'
