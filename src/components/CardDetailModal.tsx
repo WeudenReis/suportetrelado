@@ -381,14 +381,10 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       const coverPath = `${ticket.id}/cover_${ts}.webp`
       const thumbPath = `${ticket.id}/thumb_${ts}.webp`
 
-      console.log('[Cover] Uploading to storage...', { coverPath, thumbPath, coverSize: coverFile.size, thumbSize: thumbFile.size })
-
       const [coverResult, thumbResult] = await Promise.all([
         supabase.storage.from('attachments').upload(coverPath, coverFile),
         supabase.storage.from('attachments').upload(thumbPath, thumbFile),
       ])
-
-      console.log('[Cover] Storage result:', { coverError: coverResult.error, thumbError: thumbResult.error })
 
       if (coverResult.error) {
         console.error('[Cover] Storage upload FAILED:', coverResult.error)
@@ -399,22 +395,26 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         return
       }
 
-      const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(coverPath)
-      const thumbUrl = !thumbResult.error
-        ? supabase.storage.from('attachments').getPublicUrl(thumbPath).data.publicUrl
-        : publicUrl
+      // Usar signed URLs (10 anos) em vez de public URLs — funciona mesmo com bucket não-público
+      const TEN_YEARS = 60 * 60 * 24 * 365 * 10
+      const [coverSigned, thumbSigned] = await Promise.all([
+        supabase.storage.from('attachments').createSignedUrl(coverPath, TEN_YEARS),
+        !thumbResult.error
+          ? supabase.storage.from('attachments').createSignedUrl(thumbPath, TEN_YEARS)
+          : Promise.resolve({ data: null, error: null }),
+      ])
 
-      console.log('[Cover] Public URLs:', { publicUrl, thumbUrl })
+      const coverUrl = coverSigned.data?.signedUrl
+        || supabase.storage.from('attachments').getPublicUrl(coverPath).data.publicUrl
+      const thumbUrl = thumbSigned.data?.signedUrl || coverUrl
 
       try {
-        const updated = await updateTicket(ticket.id, { cover_image_url: publicUrl, cover_thumb_url: thumbUrl })
-        console.log('[Cover] DB save OK:', { cover_image_url: updated.cover_image_url })
-        setCoverImage(publicUrl)
+        const updated = await updateTicket(ticket.id, { cover_image_url: coverUrl, cover_thumb_url: thumbUrl })
+        setCoverImage(coverUrl)
         URL.revokeObjectURL(localPreview)
         onUpdate(updated)
       } catch (dbErr) {
         console.error('[Cover] DB save FAILED:', dbErr)
-        // Manter o preview local mesmo que o DB falhe — melhor UX
       }
     } catch (err) {
       console.error('[Cover] Unexpected error:', err)
