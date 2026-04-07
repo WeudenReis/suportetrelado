@@ -1,17 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
-import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrg, type OrgRole } from '../../lib/org'
 import { logger } from '../../lib/logger'
-
-interface OrgMemberRow {
-  id: string
-  user_email: string
-  role: OrgRole
-  department_id: string | null
-  created_at: string
-}
 
 interface MemberDisplay {
   id: string
@@ -21,7 +13,7 @@ interface MemberDisplay {
   role: OrgRole
   departmentName: string | null
   lastSeenAt: string | null
-  createdAt: string
+  source: 'org_members' | 'user_profiles'
 }
 
 interface MembersManagerPanelProps {
@@ -37,86 +29,78 @@ const ROLE_CONFIG: Record<OrgRole, { label: string; color: string; bg: string; i
 const ROLE_ORDER: OrgRole[] = ['admin', 'supervisor', 'agent']
 
 export default function MembersManagerPanel({ onClose }: MembersManagerPanelProps) {
-  const { organizationId, hasPermission, departments } = useOrg()
+  const { organizationId, hasPermission, departments, role: myRole } = useOrg()
   const [members, setMembers] = useState<MemberDisplay[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [changingRole, setChangingRole] = useState<string | null>(null)
+  const [updatingRole, setUpdatingRole] = useState(false)
+
+  const canChangeRoles = myRole === 'admin' && hasPermission('members:change_role')
 
   const fetchMembers = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      let mapped: MemberDisplay[] = []
+      // Buscar user_profiles primeiro (RLS permite SELECT para qualquer autenticado)
+      const { data: profiles, error: profErr } = await supabase
+        .from('user_profiles')
+        .select('id, email, name, avatar_color, role, last_seen_at')
+        .order('last_seen_at', { ascending: false })
 
-      // Tentar buscar via org_members (fonte primária de roles)
+      if (profErr) {
+        logger.warn('MembersPanel', 'Falha ao buscar user_profiles', { error: profErr.message })
+      }
+
+      // Tentar enriquecer com org_members (roles reais do RBAC)
+      const orgMembersMap = new Map<string, { role: OrgRole; departmentId: string | null }>()
       if (organizationId) {
         try {
           const { data: orgMembers, error: omErr } = await supabase
             .from('org_members')
-            .select('id, user_email, role, department_id, created_at')
+            .select('user_email, role, department_id')
             .eq('organization_id', organizationId)
-            .order('role')
 
-          if (!omErr && orgMembers && orgMembers.length > 0) {
-            const rows = orgMembers as OrgMemberRow[]
-            const emails = rows.map(r => r.user_email)
-            const { data: profiles } = await supabase
-              .from('user_profiles')
-              .select('email, name, avatar_color, last_seen_at')
-              .in('email', emails)
-
-            const profileMap = new Map(
-              (profiles ?? []).map(p => [p.email.toLowerCase(), p])
-            )
-            const deptMap = new Map(departments.map(d => [d.id, d.name]))
-
-            mapped = rows.map(row => {
-              const profile = profileMap.get(row.user_email.toLowerCase())
-              return {
-                id: row.id,
-                email: row.user_email,
-                name: profile?.name ?? row.user_email.split('@')[0],
-                avatarColor: profile?.avatar_color ?? '#579DFF',
-                role: row.role,
-                departmentName: row.department_id ? (deptMap.get(row.department_id) ?? null) : null,
-                lastSeenAt: profile?.last_seen_at ?? null,
-                createdAt: row.created_at,
-              }
-            })
+          if (!omErr && orgMembers) {
+            for (const om of orgMembers) {
+              orgMembersMap.set(om.user_email.toLowerCase(), {
+                role: om.role as OrgRole,
+                departmentId: om.department_id,
+              })
+            }
           }
         } catch {
-          logger.warn('MembersPanel', 'org_members falhou, tentando fallback via user_profiles')
+          logger.warn('MembersPanel', 'org_members indisponível')
         }
       }
 
-      // Fallback: se org_members falhou ou retornou vazio, usar user_profiles
-      if (mapped.length === 0) {
-        const { data: profiles, error: profErr } = await supabase
-          .from('user_profiles')
-          .select('id, email, name, avatar_color, role, last_seen_at, created_at')
-          .order('last_seen_at', { ascending: false })
+      const deptMap = new Map(departments.map(d => [d.id, d.name]))
+      const profileList = profiles ?? []
 
-        if (profErr) {
-          logger.warn('MembersPanel', 'Fallback user_profiles também falhou', { error: profErr.message })
-          setError('Falha ao carregar membros')
-          setLoading(false)
-          return
-        }
+      if (profileList.length === 0 && orgMembersMap.size === 0) {
+        setMembers([])
+        setLoading(false)
+        return
+      }
 
-        mapped = (profiles ?? []).map(p => ({
+      const mapped: MemberDisplay[] = profileList.map(p => {
+        const orgMember = orgMembersMap.get(p.email.toLowerCase())
+        const resolvedRole = orgMember?.role ?? (p.role === 'admin' || p.role === 'supervisor' ? p.role as OrgRole : 'agent')
+        const deptName = orgMember?.departmentId ? (deptMap.get(orgMember.departmentId) ?? null) : null
+
+        return {
           id: p.id,
           email: p.email,
           name: p.name || p.email.split('@')[0],
           avatarColor: p.avatar_color || '#579DFF',
-          role: (p.role === 'admin' || p.role === 'supervisor' || p.role === 'agent' ? p.role : 'agent') as OrgRole,
-          departmentName: null,
+          role: resolvedRole,
+          departmentName: deptName,
           lastSeenAt: p.last_seen_at,
-          createdAt: p.created_at,
-        }))
-      }
+          source: orgMember ? 'org_members' : 'user_profiles',
+        }
+      })
 
-      // Ordenar por role (admin > supervisor > agent) e depois por nome
       mapped.sort((a, b) => {
         const ra = ROLE_ORDER.indexOf(a.role)
         const rb = ROLE_ORDER.indexOf(b.role)
@@ -137,6 +121,53 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
     fetchMembers()
   }, [fetchMembers])
 
+  const handleRoleChange = useCallback(async (memberEmail: string, newRole: OrgRole) => {
+    setUpdatingRole(true)
+    try {
+      // Atualizar em org_members
+      if (organizationId) {
+        const { error: omErr } = await supabase
+          .from('org_members')
+          .update({ role: newRole })
+          .eq('organization_id', organizationId)
+          .eq('user_email', memberEmail)
+
+        if (omErr) {
+          logger.warn('MembersPanel', 'Falha ao atualizar role em org_members', { error: omErr.message })
+        }
+      }
+
+      // Atualizar em user_profiles
+      const { error: upErr } = await supabase
+        .from('user_profiles')
+        .update({ role: newRole })
+        .eq('email', memberEmail)
+
+      if (upErr) {
+        logger.warn('MembersPanel', 'Falha ao atualizar role em user_profiles', { error: upErr.message })
+      }
+
+      // Atualizar estado local
+      setMembers(prev => {
+        const updated = prev.map(m =>
+          m.email === memberEmail ? { ...m, role: newRole } : m
+        )
+        updated.sort((a, b) => {
+          const ra = ROLE_ORDER.indexOf(a.role)
+          const rb = ROLE_ORDER.indexOf(b.role)
+          if (ra !== rb) return ra - rb
+          return a.name.localeCompare(b.name)
+        })
+        return updated
+      })
+      setChangingRole(null)
+    } catch (err) {
+      logger.error('MembersPanel', 'Exceção ao alterar role', { error: String(err) })
+    } finally {
+      setUpdatingRole(false)
+    }
+  }, [organizationId])
+
   const formatLastSeen = (iso: string | null) => {
     if (!iso) return 'nunca'
     const diff = Date.now() - new Date(iso).getTime()
@@ -150,13 +181,10 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
     return `há ${days} dias`
   }
 
-  // Agrupar por role
   const grouped = ROLE_ORDER.map(role => ({
     role,
     members: members.filter(m => m.role === role),
   })).filter(g => g.members.length > 0)
-
-  const canManageMembers = hasPermission('members:invite')
 
   return (
     <motion.div
@@ -165,7 +193,12 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex justify-end"
       style={{ background: 'rgba(0,0,0,0.5)' }}
-      onClick={e => e.target === e.currentTarget && onClose()}
+      onClick={e => {
+        if (e.target === e.currentTarget) {
+          if (changingRole) { setChangingRole(null); return }
+          onClose()
+        }
+      }}
     >
       <motion.div
         initial={{ x: 340 }}
@@ -212,7 +245,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
 
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
           {/* Resumo de roles */}
-          {!loading && !error && (
+          {!loading && !error && members.length > 0 && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               {ROLE_ORDER.map(role => {
                 const count = members.filter(m => m.role === role).length
@@ -258,7 +291,6 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
             const RoleIcon = cfg.icon
             return (
               <div key={group.role} style={{ marginBottom: 12 }}>
-                {/* Section header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0 8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                   <RoleIcon size={12} style={{ color: cfg.color }} />
                   <span style={{
@@ -269,72 +301,148 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                   </span>
                 </div>
 
-                {/* Members */}
-                {group.members.map(member => (
-                  <div
-                    key={member.id}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '8px 4px', borderRadius: 6,
-                      transition: 'background 0.1s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                  >
-                    {/* Avatar */}
-                    <div style={{
-                      width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 12, fontWeight: 700, color: '#fff',
-                      background: member.avatarColor,
-                    }}>
-                      {member.name.slice(0, 2).toUpperCase()}
-                    </div>
+                {group.members.map(member => {
+                  const memberCfg = ROLE_CONFIG[member.role]
+                  return (
+                    <div
+                      key={member.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '8px 4px', borderRadius: 6,
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      {/* Avatar */}
+                      <div style={{
+                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 700, color: '#fff',
+                        background: member.avatarColor,
+                      }}>
+                        {member.name.slice(0, 2).toUpperCase()}
+                      </div>
 
-                    {/* Info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <span style={{
                           fontSize: 13, fontWeight: 500, color: '#B6C2CF',
                           fontFamily: "'Space Grotesk', sans-serif",
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          display: 'block',
                         }}>
                           {member.name}
                         </span>
-                      </div>
-                      <span style={{
-                        fontSize: 10, color: '#596773',
-                        fontFamily: "'Space Grotesk', sans-serif",
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        display: 'block',
-                      }}>
-                        {member.email}
-                      </span>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-                        {member.departmentName && (
-                          <span style={{ fontSize: 9, color: '#596773', fontFamily: "'Space Grotesk', sans-serif", display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <Building2 size={9} />
-                            {member.departmentName}
-                          </span>
-                        )}
-                        <span style={{ fontSize: 9, color: '#596773', fontFamily: "'Space Grotesk', sans-serif" }}>
-                          {formatLastSeen(member.lastSeenAt)}
+                        <span style={{
+                          fontSize: 10, color: '#596773',
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          display: 'block',
+                        }}>
+                          {member.email}
                         </span>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                          {member.departmentName && (
+                            <span style={{ fontSize: 9, color: '#596773', fontFamily: "'Space Grotesk', sans-serif", display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <Building2 size={9} />
+                              {member.departmentName}
+                            </span>
+                          )}
+                          <span style={{ fontSize: 9, color: '#596773', fontFamily: "'Space Grotesk', sans-serif" }}>
+                            {formatLastSeen(member.lastSeenAt)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Role badge */}
-                    <div style={{
-                      flexShrink: 0, padding: '2px 8px', borderRadius: 4,
-                      fontSize: 9, fontWeight: 700,
-                      fontFamily: "'Space Grotesk', sans-serif",
-                      background: cfg.bg, color: cfg.color,
-                      textTransform: 'uppercase', letterSpacing: '0.3px',
-                    }}>
-                      {cfg.label}
+                      {/* Role badge / selector (admin only) */}
+                      {canChangeRoles ? (
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <button
+                            onClick={() => setChangingRole(changingRole === member.email ? null : member.email)}
+                            disabled={updatingRole}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              padding: '3px 8px', borderRadius: 4,
+                              fontSize: 9, fontWeight: 700,
+                              fontFamily: "'Space Grotesk', sans-serif",
+                              background: memberCfg.bg, color: memberCfg.color,
+                              border: `1px solid ${memberCfg.color}30`,
+                              cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.3px',
+                              transition: 'all 0.15s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = memberCfg.color }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = `${memberCfg.color}30` }}
+                          >
+                            {memberCfg.label}
+                            <ChevronDown size={10} />
+                          </button>
+
+                          <AnimatePresence>
+                            {changingRole === member.email && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                                transition={{ duration: 0.12 }}
+                                style={{
+                                  position: 'absolute', right: 0, top: '100%', marginTop: 4,
+                                  minWidth: 140, borderRadius: 8, overflow: 'hidden', zIndex: 10,
+                                  background: '#282E33', border: '1px solid rgba(166,197,226,0.12)',
+                                  boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+                                }}
+                              >
+                                <div style={{ padding: '6px 10px 4px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: '#596773', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: "'Space Grotesk', sans-serif" }}>
+                                    Alterar role
+                                  </span>
+                                </div>
+                                {ROLE_ORDER.map(r => {
+                                  const rc = ROLE_CONFIG[r]
+                                  const RIcon = rc.icon
+                                  const isActive = member.role === r
+                                  return (
+                                    <button
+                                      key={r}
+                                      onClick={() => !isActive && handleRoleChange(member.email, r)}
+                                      disabled={isActive || updatingRole}
+                                      style={{
+                                        width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                                        padding: '7px 10px', border: 'none',
+                                        background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
+                                        color: isActive ? rc.color : '#9FADBC',
+                                        cursor: isActive ? 'default' : 'pointer',
+                                        fontSize: 12, fontWeight: 500,
+                                        fontFamily: "'Space Grotesk', sans-serif",
+                                        transition: 'background 0.1s',
+                                      }}
+                                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                                    >
+                                      <RIcon size={13} style={{ color: rc.color, flexShrink: 0 }} />
+                                      <span style={{ flex: 1, textAlign: 'left' }}>{rc.label}</span>
+                                      {isActive && <Check size={13} style={{ color: rc.color, flexShrink: 0 }} />}
+                                    </button>
+                                  )
+                                })}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ) : (
+                        <div style={{
+                          flexShrink: 0, padding: '2px 8px', borderRadius: 4,
+                          fontSize: 9, fontWeight: 700,
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          background: memberCfg.bg, color: memberCfg.color,
+                          textTransform: 'uppercase', letterSpacing: '0.3px',
+                        }}>
+                          {memberCfg.label}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )
           })}
@@ -346,15 +454,15 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
             </div>
           )}
 
-          {/* Info de permissão */}
-          {!canManageMembers && !loading && (
+          {/* Info de permissão (não-admin) */}
+          {!canChangeRoles && !loading && members.length > 0 && (
             <div style={{
               marginTop: 8, padding: '10px 12px', borderRadius: 8,
               background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
               fontSize: 11, color: '#596773', fontFamily: "'Space Grotesk', sans-serif",
               textAlign: 'center',
             }}>
-              Somente admins podem gerenciar membros
+              Somente admins podem alterar roles
             </div>
           )}
         </div>
