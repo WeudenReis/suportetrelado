@@ -385,8 +385,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
       // Upload cover + thumbnail em paralelo
       const [coverResult, thumbResult] = await Promise.all([
-        supabase.storage.from('attachments').upload(coverPath, coverFile),
-        supabase.storage.from('attachments').upload(thumbPath, thumbFile),
+        supabase.storage.from('attachments').upload(coverPath, coverFile, { upsert: true }),
+        supabase.storage.from('attachments').upload(thumbPath, thumbFile, { upsert: true }),
       ])
 
       if (!coverResult.error) {
@@ -394,9 +394,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         const thumbUrl = !thumbResult.error
           ? supabase.storage.from('attachments').getPublicUrl(thumbPath).data.publicUrl
           : publicUrl
-        await save({ cover_image_url: publicUrl, cover_thumb_url: thumbUrl })
+        // Salvar direto no banco (sem fila) para garantir persistência
+        const updated = await updateTicket(ticket.id, { cover_image_url: publicUrl, cover_thumb_url: thumbUrl })
+        setCoverImage(publicUrl)
+        URL.revokeObjectURL(localPreview)
+        onUpdate(updated)
       } else {
-        console.error('Cover upload error:', coverResult.error)
+        console.error('Cover upload storage error:', coverResult.error)
         setCoverImage('')
         URL.revokeObjectURL(localPreview)
       }
