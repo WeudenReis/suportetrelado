@@ -374,6 +374,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         compressCover(file),
         compressThumbnail(file),
       ])
+
+      // Preview local imediato (blob nunca falha ao carregar)
+      const localPreview = URL.createObjectURL(coverFile)
+      setCoverImage(localPreview)
+
       const ts = Date.now()
       const coverPath = `${ticket.id}/cover_${ts}.webp`
       const thumbPath = `${ticket.id}/thumb_${ts}.webp`
@@ -389,11 +394,15 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         const thumbUrl = !thumbResult.error
           ? supabase.storage.from('attachments').getPublicUrl(thumbPath).data.publicUrl
           : publicUrl
-        setCoverImage(publicUrl)
         await save({ cover_image_url: publicUrl, cover_thumb_url: thumbUrl })
+      } else {
+        console.error('Cover upload error:', coverResult.error)
+        setCoverImage('')
+        URL.revokeObjectURL(localPreview)
       }
     } catch (err) {
       console.error('Cover upload error:', err)
+      setCoverImage('')
     }
     setUploadingCover(false)
     if (coverInputRef.current) coverInputRef.current.value = ''
@@ -464,7 +473,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         {/* ── Cover image banner ── */}
         {coverImage && (
           <div className="relative w-full h-[100px] overflow-hidden flex-shrink-0" style={{ background: '#010d1a' }}>
-            <img src={coverImage} alt="" className="w-full h-full object-cover" onError={() => setCoverImage('')} />
+            <img src={coverImage} alt="" className="w-full h-full object-cover" onError={() => { if (!coverImage.startsWith('blob:')) setCoverImage('') }} />
             <div className="absolute bottom-2 right-2 flex gap-1">
               <button onClick={() => coverInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#b6c2cf' }}>Alterar capa</button>
               <button onClick={handleRemoveCover} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#f87171' }}>Remover</button>
