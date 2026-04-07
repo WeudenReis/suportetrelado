@@ -369,13 +369,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     if (!file) return
     setUploadingCover(true)
     try {
-      // Comprimir: cover (800x400) + thumbnail (400x200) em paralelo
       const [coverFile, thumbFile] = await Promise.all([
         compressCover(file),
         compressThumbnail(file),
       ])
 
-      // Preview local imediato (blob nunca falha ao carregar)
       const localPreview = URL.createObjectURL(coverFile)
       setCoverImage(localPreview)
 
@@ -383,29 +381,43 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       const coverPath = `${ticket.id}/cover_${ts}.webp`
       const thumbPath = `${ticket.id}/thumb_${ts}.webp`
 
-      // Upload cover + thumbnail em paralelo
+      console.log('[Cover] Uploading to storage...', { coverPath, thumbPath, coverSize: coverFile.size, thumbSize: thumbFile.size })
+
       const [coverResult, thumbResult] = await Promise.all([
-        supabase.storage.from('attachments').upload(coverPath, coverFile, { upsert: true }),
-        supabase.storage.from('attachments').upload(thumbPath, thumbFile, { upsert: true }),
+        supabase.storage.from('attachments').upload(coverPath, coverFile),
+        supabase.storage.from('attachments').upload(thumbPath, thumbFile),
       ])
 
-      if (!coverResult.error) {
-        const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(coverPath)
-        const thumbUrl = !thumbResult.error
-          ? supabase.storage.from('attachments').getPublicUrl(thumbPath).data.publicUrl
-          : publicUrl
-        // Salvar direto no banco (sem fila) para garantir persistência
+      console.log('[Cover] Storage result:', { coverError: coverResult.error, thumbError: thumbResult.error })
+
+      if (coverResult.error) {
+        console.error('[Cover] Storage upload FAILED:', coverResult.error)
+        URL.revokeObjectURL(localPreview)
+        setCoverImage('')
+        setUploadingCover(false)
+        if (coverInputRef.current) coverInputRef.current.value = ''
+        return
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(coverPath)
+      const thumbUrl = !thumbResult.error
+        ? supabase.storage.from('attachments').getPublicUrl(thumbPath).data.publicUrl
+        : publicUrl
+
+      console.log('[Cover] Public URLs:', { publicUrl, thumbUrl })
+
+      try {
         const updated = await updateTicket(ticket.id, { cover_image_url: publicUrl, cover_thumb_url: thumbUrl })
+        console.log('[Cover] DB save OK:', { cover_image_url: updated.cover_image_url })
         setCoverImage(publicUrl)
         URL.revokeObjectURL(localPreview)
         onUpdate(updated)
-      } else {
-        console.error('Cover upload storage error:', coverResult.error)
-        setCoverImage('')
-        URL.revokeObjectURL(localPreview)
+      } catch (dbErr) {
+        console.error('[Cover] DB save FAILED:', dbErr)
+        // Manter o preview local mesmo que o DB falhe — melhor UX
       }
     } catch (err) {
-      console.error('Cover upload error:', err)
+      console.error('[Cover] Unexpected error:', err)
       setCoverImage('')
     }
     setUploadingCover(false)
@@ -414,7 +426,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   const handleRemoveCover = async () => {
     setCoverImage('')
-    await save({ cover_image_url: null })
+    try {
+      const updated = await updateTicket(ticket.id, { cover_image_url: null, cover_thumb_url: null })
+      onUpdate(updated)
+    } catch (err) {
+      console.error('[Cover] Falha ao remover capa:', err)
+    }
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -477,7 +494,17 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         {/* ── Cover image banner ── */}
         {coverImage && (
           <div className="relative w-full h-[100px] overflow-hidden flex-shrink-0" style={{ background: '#010d1a' }}>
-            <img src={coverImage} alt="" className="w-full h-full object-cover" onError={() => { if (!coverImage.startsWith('blob:')) setCoverImage('') }} />
+            <img
+              src={coverImage}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={(ev) => {
+                const src = ev.currentTarget.src
+                console.warn('[Cover] Image load failed:', src)
+                // Nunca limpar blob preview (sempre carrega) nem durante upload
+                if (!src.startsWith('blob:') && !uploadingCover) setCoverImage('')
+              }}
+            />
             <div className="absolute bottom-2 right-2 flex gap-1">
               <button onClick={() => coverInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#b6c2cf' }}>Alterar capa</button>
               <button onClick={handleRemoveCover} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#f87171' }}>Remover</button>
