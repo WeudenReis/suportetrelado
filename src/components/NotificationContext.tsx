@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchTickets, fetchPlannerSettings, fetchPlannerEvents, insertNotification } from '../lib/supabase';
 import type { Notification } from '../lib/supabase';
+import { useOrg } from '../lib/org';
 
 interface NotificationContextProps {
   notifications: Notification[];
@@ -22,6 +23,7 @@ export const useNotificationContext = () => {
 };
 
 export const NotificationProvider: React.FC<{ user: string; children: React.ReactNode }> = ({ user, children }) => {
+  const { departmentId } = useOrg();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [toastNotification, setToastNotification] = useState<Notification | null>(null);
@@ -107,6 +109,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
               const notifId = `${t.id}_due_${diffDays}`;
               if (!newCache[notifId]) {
                 await insertNotification({
+                  department_id: t.department_id,
                   recipient_email: user,
                   sender_name: 'Sistema',
                   type: 'due_date_alert',
@@ -135,6 +138,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
             const notifId = `planner_${ev.id}_days_${diffDays}`;
             if (!newCache[notifId]) {
               await insertNotification({
+                department_id: departmentId ?? '',
                 recipient_email: user,
                 sender_name: 'Sistema',
                 type: 'planner_event',
@@ -165,6 +169,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
                   ? 'agora'
                   : `há ${diff} min`;
                 await insertNotification({
+                  department_id: departmentId ?? '',
                   recipient_email: user,
                   sender_name: 'Sistema',
                   type: 'planner_event',
@@ -180,6 +185,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
               const notifId = `planner_${ev.id}_today_allday`;
               if (!newCache[notifId]) {
                 await insertNotification({
+                  department_id: departmentId ?? '',
                   recipient_email: user,
                   sender_name: 'Sistema',
                   type: 'planner_event',

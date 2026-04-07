@@ -11,6 +11,18 @@
   </head>
   <body class="bg-slate-50 text-slate-800">
     <div id="root"></div>
+    <script>
+      // Captura erros de módulo que acontecem ANTES do React montar
+      window.addEventListener('error', function(e) {
+        var root = document.getElementById('root');
+        if (root && !root.hasChildNodes()) {
+          root.innerHTML = '<div style="padding:40px;color:#f87171;background:#1d2125;min-height:100vh;font-family:monospace">'
+            + '<h2>Erro ao carregar aplicação</h2>'
+            + '<pre style="white-space:pre-wrap;color:#94a3b8">' + (e.error ? e.error.stack || e.error.message : e.message) + '</pre>'
+            + '</div>';
+        }
+      });
+    </script>
     <script type="module" src="src/main.tsx"></script>
   </body>
 </html>

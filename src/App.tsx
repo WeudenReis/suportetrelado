@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
-import { motion, AnimatePresence, MotionConfig, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { Inbox, X, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'
 import { animate } from 'framer-motion'
 import { supabase } from './lib/supabase'
