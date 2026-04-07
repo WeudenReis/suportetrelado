@@ -36,7 +36,7 @@ export default function App() {
 
   useEffect(() => {
     // Lista de emails com acesso garantido (bypass absoluto no App)
-    const SUPER_ADMINS = ['weudenfilho@gmail.com']
+    const SUPER_ADMINS = ['weudenfilho@gmail.com', 'wandersonthegod@gmail.com']
     function isSuperAdmin(email: string): boolean {
       return SUPER_ADMINS.includes(email.toLowerCase().trim())
     }

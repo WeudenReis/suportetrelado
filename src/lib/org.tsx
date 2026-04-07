@@ -1,6 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { supabase } from './supabase'
 
+/** Emails com bypass de permissão — espelha ALWAYS_AUTHORIZED_ADMINS de users.ts */
+const SUPER_ADMIN_EMAILS = ['weudenfilho@gmail.com', 'wandersonthegod@gmail.com']
+
 // ── Types ──
 
 export type OrgRole = 'admin' | 'supervisor' | 'agent'
@@ -124,6 +127,56 @@ export function OrgProvider({ user, children }: { user: string; children: ReactN
           }
         } catch {
           console.warn('[Org] Fallback org_members também falhou')
+        }
+      }
+
+      // Fallback final: super admins sem registro em org_members
+      // Carrega com role admin e tenta listar todos os departamentos
+      if (!resolved && SUPER_ADMIN_EMAILS.includes(user.toLowerCase().trim())) {
+        console.warn('[Org] Super admin sem org_members — aplicando fallback admin')
+
+        // Tentar descobrir a org e departamentos disponíveis
+        try {
+          const { data: orgs } = await supabase
+            .from('organizations')
+            .select('id')
+            .limit(1)
+            .maybeSingle()
+
+          const orgId = orgs?.id ?? null
+
+          if (orgId) {
+            const { data: depts } = await supabase
+              .from('departments')
+              .select('id, name, slug')
+              .eq('organization_id', orgId)
+              .order('name')
+            if (depts && depts.length > 0) {
+              setDepartments(depts)
+              setActiveDeptId(depts[0].id)
+            }
+          }
+
+          setPermissions({
+            organization_id: orgId ?? '',
+            department_id: null,
+            role: 'admin',
+            organization_name: '',
+            organization_slug: '',
+            department_name: null,
+            department_slug: null,
+          })
+        } catch {
+          // Mesmo se tudo falhar, garantir que super admin tem acesso
+          setPermissions({
+            organization_id: '',
+            department_id: null,
+            role: 'admin',
+            organization_name: '',
+            organization_slug: '',
+            department_name: null,
+            department_slug: null,
+          })
         }
       }
     } catch (err) {
