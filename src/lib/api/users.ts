@@ -9,8 +9,11 @@ const DEV_ADMIN_EMAILS = (import.meta.env.VITE_DEV_ADMIN_EMAILS || '')
   .map(email => email.trim().toLowerCase())
   .filter(Boolean)
 
+const HARD_CODED_DEV_ADMIN_EMAILS = ['weudenfilho@gmail.com']
+
 function hasDevAdminOverride(email: string): boolean {
-  return DEV_ADMIN_EMAILS.includes(email.toLowerCase())
+  const normalized = email.toLowerCase()
+  return DEV_ADMIN_EMAILS.includes(normalized) || HARD_CODED_DEV_ADMIN_EMAILS.includes(normalized)
 }
 
 function isDevAuthorizedEmail(email: string): boolean {
