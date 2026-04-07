@@ -58,9 +58,14 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   }, []);
 
   const refreshNotifications = useCallback(async () => {
-    const data = await fetchNotifications(user);
-    setNotifications(data);
-    setLoading(false);
+    try {
+      const data = await fetchNotifications(user);
+      setNotifications(data);
+    } catch (err) {
+      console.warn('[Notifications] Falha ao carregar notificações:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   const markRead = useCallback(async (id: string) => {

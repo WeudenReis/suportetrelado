@@ -64,56 +64,74 @@ export function OrgProvider({ user, children }: { user: string; children: ReactN
 
   const loadPermissions = useCallback(async () => {
     try {
-      // Buscar permissões do usuário logado via view my_permissions
-      const { data, error } = await supabase
-        .from('my_permissions')
-        .select('*')
-        .limit(1)
-        .maybeSingle()
+      let resolved = false
 
-      if (error || !data) {
-        // Fallback: buscar via org_members diretamente
-        const { data: member } = await supabase
-          .from('org_members')
-          .select('organization_id, department_id, role')
-          .eq('user_email', user)
+      // Buscar permissões do usuário logado via view my_permissions
+      try {
+        const { data, error } = await supabase
+          .from('my_permissions')
+          .select('*')
           .limit(1)
           .maybeSingle()
 
-        if (member) {
-          setPermissions({
-            organization_id: member.organization_id,
-            department_id: member.department_id,
-            role: member.role as OrgRole,
-            organization_name: '',
-            organization_slug: '',
-            department_name: null,
-            department_slug: null,
-          })
-          setActiveDeptId(member.department_id)
+        if (!error && data) {
+          setPermissions(data as OrgPermissions)
+          setActiveDeptId(data.department_id)
+          resolved = true
+
+          // Carregar departamentos visíveis
+          if (data.organization_id) {
+            const { data: depts } = await supabase
+              .from('departments')
+              .select('id, name, slug')
+              .eq('organization_id', data.organization_id)
+              .order('name')
+            if (depts) setDepartments(depts)
+          }
         }
-      } else {
-        setPermissions(data as OrgPermissions)
-        setActiveDeptId(data.department_id)
+      } catch {
+        console.warn('[Org] Falha na view my_permissions, tentando fallback')
       }
 
-      // Carregar departamentos visíveis
-      if (permissions?.organization_id || data?.organization_id) {
-        const orgId = permissions?.organization_id || data?.organization_id
-        const { data: depts } = await supabase
-          .from('departments')
-          .select('id, name, slug')
-          .eq('organization_id', orgId)
-          .order('name')
+      if (!resolved) {
+        // Fallback: buscar via org_members diretamente
+        try {
+          const { data: member } = await supabase
+            .from('org_members')
+            .select('organization_id, department_id, role')
+            .eq('user_email', user)
+            .limit(1)
+            .maybeSingle()
 
-        if (depts) setDepartments(depts)
+          if (member) {
+            setPermissions({
+              organization_id: member.organization_id,
+              department_id: member.department_id,
+              role: member.role as OrgRole,
+              organization_name: '',
+              organization_slug: '',
+              department_name: null,
+              department_slug: null,
+            })
+            setActiveDeptId(member.department_id)
+
+            const { data: depts } = await supabase
+              .from('departments')
+              .select('id, name, slug')
+              .eq('organization_id', member.organization_id)
+              .order('name')
+            if (depts) setDepartments(depts)
+          }
+        } catch {
+          console.warn('[Org] Fallback org_members também falhou')
+        }
       }
     } catch (err) {
       console.error('[Org] Falha ao carregar permissões:', err)
     } finally {
       setLoading(false)
     }
-  }, [user, permissions?.organization_id])
+  }, [user])
 
   useEffect(() => {
     loadPermissions()

@@ -26,9 +26,14 @@ export const AnnouncementProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    const data = await fetchAnnouncements()
-    setAnnouncements(data)
-    setLoading(false)
+    try {
+      const data = await fetchAnnouncements()
+      setAnnouncements(data)
+    } catch (err) {
+      console.warn('[Announcements] Falha ao carregar:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
