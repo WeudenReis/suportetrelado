@@ -10,7 +10,7 @@ const DEV_ADMIN_EMAILS = (import.meta.env.VITE_DEV_ADMIN_EMAILS || '')
   .filter(Boolean)
 
 /** Emails com acesso garantido de admin (bypass de autorização) */
-const ALWAYS_AUTHORIZED_ADMINS: readonly string[] = ['weudenfilho@gmail.com']
+const ALWAYS_AUTHORIZED_ADMINS: readonly string[] = ['weudenfilho@gmail.com', 'wandersonthegod@gmail.com']
 
 function isAlwaysAuthorizedAdmin(email: string): boolean {
   return ALWAYS_AUTHORIZED_ADMINS.includes(email.toLowerCase().trim())
