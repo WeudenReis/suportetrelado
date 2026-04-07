@@ -21,9 +21,11 @@ import BulkActionsBar from './kanban/BulkActionsBar'
 import AutoRulesModal, { loadAutoRules } from './kanban/AutoRulesModal'
 import LabelsManagerModal from './kanban/LabelsManagerModal'
 import SettingsPanel from './kanban/SettingsPanel'
+import MembersManagerPanel from './kanban/MembersManagerPanel'
 import AddTicketModal from './kanban/AddTicketModal'
 import FilterPanel from './kanban/FilterPanel'
 import { searchTicketsRPC, searchTicketsLocal, debounce } from '../lib/search'
+import { useOrg } from '../lib/org'
 
 interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
 
@@ -177,6 +179,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [bulkMode, setBulkMode] = useState(false)
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set())
   const [showAutoRules, setShowAutoRules] = useState(false)
+  const [showMembersManager, setShowMembersManager] = useState(false)
+  const { departmentId } = useOrg()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const dragOriginalStatusRef = useRef<string | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
@@ -709,7 +713,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const handleInlineAdd = async (col: TicketStatus) => {
     if (!inlineTitle.trim()) return
     try {
-      const created = await insertTicket({ title: inlineTitle.trim(), description: '', status: col, priority: 'medium', assignee: user })
+      const created = await insertTicket({ department_id: departmentId ?? '', title: inlineTitle.trim(), description: '', status: col, priority: 'medium', assignee: user })
       setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
       setInlineTitle('')
       setAddingTo(null)
@@ -2095,7 +2099,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             onAdd={async (ticket) => {
               setCreatingTicket(true)
               try {
-                const created = await insertTicket({ title: ticket.title.trim(), description: ticket.description || '', status: ticket.status, priority: ticket.priority, cliente: ticket.cliente || '', instancia: ticket.instancia || '', assignee: user })
+                const created = await insertTicket({ department_id: departmentId ?? '', title: ticket.title.trim(), description: ticket.description || '', status: ticket.status, priority: ticket.priority, cliente: ticket.cliente || '', instancia: ticket.instancia || '', assignee: user })
                 setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
                 setShowAddModal(false)
                 showToast('Ticket criado!', 'ok')
@@ -2146,6 +2150,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             }}
             onOpenLabelsManager={() => { setShowLabelsManager(true); fetchBoardLabels().then(setBoardLabels).catch(console.error) }}
             onOpenAutoRules={() => setShowAutoRules(true)}
+            onOpenMembersPanel={() => { setShowSettings(false); setShowMembersManager(true) }}
             onClose={() => setShowSettings(false)}
           />
         )}
@@ -2161,6 +2166,13 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             onShowToast={showToast}
             user={user}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Members Manager Panel */}
+      <AnimatePresence>
+        {showMembersManager && (
+          <MembersManagerPanel onClose={() => setShowMembersManager(false)} />
         )}
       </AnimatePresence>
 
