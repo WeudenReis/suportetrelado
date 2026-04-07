@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 interface LoginProps {
   onLogin: (email: string) => void
@@ -65,6 +65,10 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
   function dismissToast(id: string) { setToasts(prev => prev.filter(t => t.id !== id)) }
 
   async function handleGoogleLogin() {
+    if (!isSupabaseConfigured) {
+      pushToast('error', 'Erro de configuração', 'As variáveis de ambiente do Supabase não estão configuradas na Vercel. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY com escopo Preview.')
+      return
+    }
     setLoadingGoogle(true)
     try {
       const { error } = await supabase.auth.signInWithOAuth({

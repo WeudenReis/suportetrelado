@@ -9,21 +9,14 @@ const supabaseAnonKeyProd = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim(
 const supabaseUrl = supabaseUrlDev || supabaseUrlProd
 const supabaseAnonKey = supabaseUrlDev ? supabaseAnonKeyDev || supabaseAnonKeyProd : supabaseAnonKeyProd
 
+/** Indica se as env vars do Supabase estão configuradas */
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
+
 function createSafeClient(): SupabaseClient {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    const msg = 'VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não definidas. Verifique seu .env'
-    console.error('[Supabase] ' + msg)
-    // Exibir erro visual para o usuário ao invés de crashar silenciosamente
-    const root = document.getElementById('root')
-    if (root) {
-      root.innerHTML = `<div style="padding:40px;color:#f87171;background:#1d2125;min-height:100vh;font-family:monospace">
-        <h2>⚠️ Erro de Configuração</h2>
-        <p style="color:#94a3b8">As variáveis de ambiente do Supabase não estão configuradas.</p>
-        <p style="color:#94a3b8">Verifique <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code> no painel da Vercel (Settings → Environment Variables) com escopo <strong>Preview</strong>.</p>
-      </div>`
-    }
-    // Criar client com placeholder para evitar crash — nenhuma query funcionará
-    return createClient('https://placeholder.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder')
+  if (!isSupabaseConfigured) {
+    console.error('[Supabase] VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não definidas. Verifique as env vars da Vercel.')
+    // Client dummy para evitar crash em imports — auth/queries não funcionarão
+    return createClient('https://localhost', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder')
   }
   return createClient(supabaseUrl, supabaseAnonKey)
 }

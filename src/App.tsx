@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { Inbox, X, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'
 import { animate } from 'framer-motion'
-import { supabase } from './lib/supabase'
+import { supabase, isSupabaseConfigured } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
 import { OrgProvider } from './lib/org'
 import { NotificationProvider, useNotificationContext } from './components/NotificationContext'
@@ -35,6 +35,12 @@ export default function App() {
   const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null)
 
   useEffect(() => {
+    // Se o Supabase não está configurado, nem tenta verificar sessão
+    if (!isSupabaseConfigured) {
+      setLoading(false)
+      return
+    }
+
     // Lista de emails com acesso garantido (bypass absoluto no App)
     const SUPER_ADMINS = ['weudenfilho@gmail.com', 'wandersonthegod@gmail.com']
     function isSuperAdmin(email: string): boolean {
