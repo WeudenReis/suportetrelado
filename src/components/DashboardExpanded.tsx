@@ -184,13 +184,24 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
   }, [filtered])
   const maxPriority = Math.max(...Object.values(priorityDist), 1)
 
+  const resolveAssigneeName = useCallback((raw: string): string => {
+    const p = profiles.find(pr => pr.email === raw || pr.name === raw || pr.email.split('@')[0].toLowerCase() === raw.toLowerCase())
+    return p?.name || raw.split('@')[0]
+  }, [profiles])
+
   const memberDist = useMemo(() => {
     const m: Record<string, number> = {}
+    const emailToName = new Map<string, string>()
     for (const t of filtered) {
-      (t.assignee ? t.assignee.split(',').map(s => s.trim()).filter(Boolean) : ['Sem responsável']).forEach(a => { m[a] = (m[a] || 0) + 1 })
+      const assignees = t.assignee ? t.assignee.split(',').map(s => s.trim()).filter(Boolean) : ['Sem responsável']
+      assignees.forEach(a => {
+        const displayName = a === 'Sem responsável' ? a : resolveAssigneeName(a)
+        if (a !== 'Sem responsável') emailToName.set(displayName, a)
+        m[displayName] = (m[displayName] || 0) + 1
+      })
     }
     return Object.entries(m).sort(([, a], [, b]) => b - a)
-  }, [filtered])
+  }, [filtered, resolveAssigneeName])
   const maxMember = Math.max(...memberDist.map(([, c]) => c), 1)
 
   const days = dateRange === '7d' ? 7 : 14
@@ -585,7 +596,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                   <SectionH icon={<Users size={12} />} title="Carga por responsável" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {memberDist.slice(0, 10).map(([name, count]) => (
-                      <HBar key={name} label={name.split('@')[0]} value={count} max={maxMember} color={name === 'Sem responsável' ? '#596773' : '#25D066'} />
+                      <HBar key={name} label={name} value={count} max={maxMember} color={name === 'Sem responsável' ? '#596773' : '#25D066'} />
                     ))}
                     {memberDist.length === 0 && <p style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Sem dados</p>}
                   </div>
@@ -669,18 +680,24 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
           {activeTab === 'team' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 14 }}>
               {memberDist.map(([name, count]) => {
-                const inProgress = active.filter(t => (t.assignee || '').includes(name) && t.status === 'in_progress').length
-                const done = active.filter(t => (t.assignee || '').includes(name) && t.status === 'resolved').length
-                const isOnline = profiles.find(p => p.email === name && p.last_seen_at && (Date.now() - new Date(p.last_seen_at).getTime()) < 300000)
+                const profile = profiles.find(p => p.name === name || p.email.split('@')[0] === name)
+                const matchAssignee = (t: Ticket) => {
+                  const a = t.assignee || ''
+                  return a.includes(name) || (profile && (a.includes(profile.email) || a.includes(profile.name)))
+                }
+                const inProgress = active.filter(t => matchAssignee(t) && t.status === 'in_progress').length
+                const done = active.filter(t => matchAssignee(t) && t.status === 'resolved').length
+                const isOnline = profile && profile.last_seen_at && (Date.now() - new Date(profile.last_seen_at).getTime()) < 300000
+                const avatarBg = name === 'Sem responsável' ? '#454F59' : (profile?.avatar_color || avatarColor(name))
                 const load = maxMember > 0 ? Math.round(count / maxMember * 100) : 0
                 return (
                   <div key={name} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 12, background: name === 'Sem responsável' ? '#454F59' : avatarColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', fontFamily: font, flexShrink: 0 }}>
-                        {name.replace(/@.*/, '').slice(0, 2).toUpperCase()}
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', fontFamily: font, flexShrink: 0 }}>
+                        {name.slice(0, 2).toUpperCase()}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#E5E7EB', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name.split('@')[0]}</p>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#E5E7EB', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: isOnline ? '#25D066' : '#454F59' }} />
                           <span style={{ fontSize: 10, color: isOnline ? '#25D066' : '#596773', fontFamily: font }}>{isOnline ? 'Online' : 'Offline'}</span>
