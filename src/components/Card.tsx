@@ -250,7 +250,14 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
       {/* ── CAPA ─────────────────────────── */}
       {(card.cover_thumb_url || card.cover_image_url) && (
         <div className={styles.cover}>
-          <img src={card.cover_thumb_url || card.cover_image_url || undefined} alt="" className={styles.coverImg} loading="lazy" decoding="async" />
+          <img
+            src={card.cover_thumb_url || card.cover_image_url || undefined}
+            alt=""
+            className={styles.coverImg}
+            loading="lazy"
+            decoding="async"
+            onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none' }}
+          />
         </div>
       )}
 
