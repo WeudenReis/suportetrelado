@@ -71,6 +71,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
   const [isHovered, setIsHovered] = useState(false);
+  const [coverError, setCoverError] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const justToggledRef = useRef(false);
@@ -248,7 +249,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
       ) : (
       <>
       {/* ── CAPA ─────────────────────────── */}
-      {(card.cover_thumb_url || card.cover_image_url) && (
+      {(card.cover_thumb_url || card.cover_image_url) && !coverError && (
         <div className={styles.cover}>
           <img
             src={card.cover_thumb_url || card.cover_image_url || undefined}
@@ -256,7 +257,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
             className={styles.coverImg}
             loading="lazy"
             decoding="async"
-            onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none' }}
+            onError={() => setCoverError(true)}
           />
         </div>
       )}
