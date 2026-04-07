@@ -9,10 +9,14 @@ const DEV_ADMIN_EMAILS = (import.meta.env.VITE_DEV_ADMIN_EMAILS || '')
   .map(email => email.trim().toLowerCase())
   .filter(Boolean)
 
-function isDevAuthorizedEmail(email: string): boolean {
-  if (!isDevEnvironment) return false
-  if (DEV_ADMIN_EMAILS.length === 0) return true
+function hasDevAdminOverride(email: string): boolean {
   return DEV_ADMIN_EMAILS.includes(email.toLowerCase())
+}
+
+function isDevAuthorizedEmail(email: string): boolean {
+  if (hasDevAdminOverride(email)) return true
+  if (!isDevEnvironment) return false
+  return DEV_ADMIN_EMAILS.length === 0
 }
 
 export async function checkAuthorizedUser(email: string): Promise<boolean> {

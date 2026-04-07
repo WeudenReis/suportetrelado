@@ -2,15 +2,20 @@ import { createClient } from '@supabase/supabase-js'
 import { logger } from './logger'
 
 // ── Client Supabase ──────────────────────────────────────────
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
+const supabaseUrlDev = (import.meta.env.VITE_SUPABASE_URL_DEV || '').trim().replace(/\/+$/, '')
+const supabaseAnonKeyDev = (import.meta.env.VITE_SUPABASE_ANON_KEY_DEV || '').trim()
+const supabaseUrlProd = (import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
+const supabaseAnonKeyProd = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
+
+const supabaseUrl = supabaseUrlDev || supabaseUrlProd
+const supabaseAnonKey = supabaseUrlDev ? supabaseAnonKeyDev || supabaseAnonKeyProd : supabaseAnonKeyProd
 
 if (!supabaseUrl || !supabaseAnonKey) {
   logger.error('Supabase', 'VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não definidas. Verifique seu .env')
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-export const isDevEnvironment = !supabaseUrl.includes('qacrxpfoamarslxskcyb')
+export const isDevEnvironment = Boolean(supabaseUrlDev) || !supabaseUrlProd.includes('qacrxpfoamarslxskcyb')
 
 // ── Types ────────────────────────────────────────────────────
 export type TicketStatus = string
