@@ -9,11 +9,16 @@ const DEV_ADMIN_EMAILS = (import.meta.env.VITE_DEV_ADMIN_EMAILS || '')
   .map(email => email.trim().toLowerCase())
   .filter(Boolean)
 
-const HARD_CODED_DEV_ADMIN_EMAILS = ['weudenfilho@gmail.com']
+/** Emails com acesso garantido de admin (bypass de autorização) */
+const ALWAYS_AUTHORIZED_ADMINS: readonly string[] = ['weudenfilho@gmail.com']
+
+function isAlwaysAuthorizedAdmin(email: string): boolean {
+  return ALWAYS_AUTHORIZED_ADMINS.includes(email.toLowerCase().trim())
+}
 
 function hasDevAdminOverride(email: string): boolean {
   const normalized = email.toLowerCase()
-  return DEV_ADMIN_EMAILS.includes(normalized) || HARD_CODED_DEV_ADMIN_EMAILS.includes(normalized)
+  return DEV_ADMIN_EMAILS.includes(normalized) || isAlwaysAuthorizedAdmin(normalized)
 }
 
 function isDevAuthorizedEmail(email: string): boolean {
@@ -23,6 +28,11 @@ function isDevAuthorizedEmail(email: string): boolean {
 }
 
 export async function checkAuthorizedUser(email: string): Promise<boolean> {
+  // Bypass direto para admins garantidos (funciona em qualquer ambiente)
+  if (isAlwaysAuthorizedAdmin(email)) {
+    return true
+  }
+
   if (isDevAuthorizedEmail(email)) {
     return true
   }
@@ -42,7 +52,7 @@ export async function upsertUserProfile(email: string): Promise<void> {
   const firstName = fullName ? fullName.split(' ')[0] : (email.includes('@') ? email.split('@')[0] : email)
   const name = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
-  const devRole = isDevAuthorizedEmail(email) ? 'admin' : undefined
+  const devRole = isAlwaysAuthorizedAdmin(email) || isDevAuthorizedEmail(email) ? 'admin' : undefined
   const payload = {
     email,
     name,
