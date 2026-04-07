@@ -120,14 +120,15 @@ export default function App() {
   return (
     <ThemeProvider>
       <MotionConfig reducedMotion="user">
-        <ErrorBoundary onError={(error, info) => captureException(error, { componentStack: info.componentStack })}>
+        <ErrorBoundary onError={(error, info) => { console.error('[App ErrorBoundary]', error, info); captureException(error, { componentStack: info.componentStack }) }}>
           {!user ? (
             <Login onLogin={handleLogin} unauthorizedEmail={unauthorizedEmail} />
           ) : (
-            <OrgProvider user={user!}>
-              <NotificationProvider user={user!}>
-                <AnnouncementProvider>
-                  <AppContent
+            <ErrorBoundary>
+              <OrgProvider user={user!}>
+                <NotificationProvider user={user!}>
+                  <AnnouncementProvider>
+                    <AppContent
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
                     user={user!}
@@ -139,6 +140,7 @@ export default function App() {
                 </AnnouncementProvider>
               </NotificationProvider>
             </OrgProvider>
+            </ErrorBoundary>
           )}
         </ErrorBoundary>
       </MotionConfig>
