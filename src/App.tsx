@@ -37,7 +37,9 @@ export default function App() {
   useEffect(() => {
     async function checkSession(email: string | null) {
       if (!email) { setUser(null); setLoading(false); return }
+      console.log('[Auth] checkSession chamado com email:', email)
       const authorized = await checkAuthorizedUser(email)
+      console.log('[Auth] checkAuthorizedUser resultado:', authorized, 'para:', email)
       if (!authorized) {
         setUnauthorizedEmail(email)
         await supabase.auth.signOut()

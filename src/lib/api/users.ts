@@ -28,19 +28,23 @@ function isDevAuthorizedEmail(email: string): boolean {
 }
 
 export async function checkAuthorizedUser(email: string): Promise<boolean> {
+  const normalizedEmail = email.toLowerCase().trim()
+  logger.info('Auth', 'checkAuthorizedUser', { email: normalizedEmail, isAdmin: isAlwaysAuthorizedAdmin(normalizedEmail), isDev: isDevEnvironment })
+
   // Bypass direto para admins garantidos (funciona em qualquer ambiente)
-  if (isAlwaysAuthorizedAdmin(email)) {
+  if (isAlwaysAuthorizedAdmin(normalizedEmail)) {
+    logger.info('Auth', 'Admin bypass aplicado', { email: normalizedEmail })
     return true
   }
 
-  if (isDevAuthorizedEmail(email)) {
+  if (isDevAuthorizedEmail(normalizedEmail)) {
     return true
   }
 
   const { data, error } = await supabase
     .from('user_profiles')
     .select('id')
-    .eq('email', email)
+    .eq('email', normalizedEmail)
     .maybeSingle()
   if (error) { logger.warn('UserProfiles', 'checkAuthorizedUser falhou', { error: error.message }); return false }
   return !!data
