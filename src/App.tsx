@@ -35,9 +35,25 @@ export default function App() {
   const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null)
 
   useEffect(() => {
+    // Lista de emails com acesso garantido (bypass absoluto no App)
+    const SUPER_ADMINS = ['weudenfilho@gmail.com']
+    function isSuperAdmin(email: string): boolean {
+      return SUPER_ADMINS.includes(email.toLowerCase().trim())
+    }
+
     async function checkSession(email: string | null) {
       if (!email) { setUser(null); setLoading(false); return }
       console.log('[Auth] checkSession chamado com email:', email)
+
+      // Bypass absoluto para super admins — antes de qualquer query
+      if (isSuperAdmin(email)) {
+        console.log('[Auth] Super admin bypass aplicado para:', email)
+        setUnauthorizedEmail(null)
+        setUser(email)
+        setLoading(false)
+        return
+      }
+
       const authorized = await checkAuthorizedUser(email)
       console.log('[Auth] checkAuthorizedUser resultado:', authorized, 'para:', email)
       if (!authorized) {
@@ -53,11 +69,13 @@ export default function App() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
+      console.log('[Auth] getSession email:', email)
       checkSession(email)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
+      console.log('[Auth] onAuthStateChange event:', _event, 'email:', email)
       checkSession(email)
     })
 
