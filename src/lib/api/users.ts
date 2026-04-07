@@ -1,10 +1,25 @@
-import { supabase } from '../supabase'
+import { supabase, isDevEnvironment } from '../supabase'
 import { logger } from '../logger'
 import type { UserProfile } from '../supabase'
 
 const AVATAR_COLORS = ['#579dff', '#4bce97', '#f5a623', '#ef5c48', '#a259ff', '#20c997', '#6366f1', '#ec4899']
 
+const DEV_ADMIN_EMAILS = (import.meta.env.VITE_DEV_ADMIN_EMAILS || '')
+  .split(',')
+  .map(email => email.trim().toLowerCase())
+  .filter(Boolean)
+
+function isDevAuthorizedEmail(email: string): boolean {
+  if (!isDevEnvironment) return false
+  if (DEV_ADMIN_EMAILS.length === 0) return true
+  return DEV_ADMIN_EMAILS.includes(email.toLowerCase())
+}
+
 export async function checkAuthorizedUser(email: string): Promise<boolean> {
+  if (isDevAuthorizedEmail(email)) {
+    return true
+  }
+
   const { data, error } = await supabase
     .from('user_profiles')
     .select('id')
@@ -20,12 +35,18 @@ export async function upsertUserProfile(email: string): Promise<void> {
   const firstName = fullName ? fullName.split(' ')[0] : (email.includes('@') ? email.split('@')[0] : email)
   const name = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
+  const devRole = isDevAuthorizedEmail(email) ? 'admin' : undefined
+  const payload = {
+    email,
+    name,
+    avatar_color: color,
+    last_seen_at: new Date().toISOString(),
+    ...(devRole ? { role: devRole } : {}),
+  }
+
   const { error } = await supabase
     .from('user_profiles')
-    .upsert(
-      { email, name, avatar_color: color, last_seen_at: new Date().toISOString() },
-      { onConflict: 'email' }
-    )
+    .upsert(payload, { onConflict: 'email' })
   if (error) logger.warn('UserProfiles', 'upsertUserProfile falhou', { error: error.message })
 }
 
