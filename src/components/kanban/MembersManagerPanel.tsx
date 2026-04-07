@@ -43,59 +43,78 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
   const [error, setError] = useState<string | null>(null)
 
   const fetchMembers = useCallback(async () => {
-    if (!organizationId) {
-      setError('Organização não encontrada')
-      setLoading(false)
-      return
-    }
-
     setLoading(true)
     setError(null)
 
     try {
-      // Buscar org_members
-      const { data: orgMembers, error: omErr } = await supabase
-        .from('org_members')
-        .select('id, user_email, role, department_id, created_at')
-        .eq('organization_id', organizationId)
-        .order('role')
+      let mapped: MemberDisplay[] = []
 
-      if (omErr) {
-        logger.warn('MembersPanel', 'Falha ao buscar org_members', { error: omErr.message })
-        setError('Falha ao carregar membros')
-        setLoading(false)
-        return
+      // Tentar buscar via org_members (fonte primária de roles)
+      if (organizationId) {
+        try {
+          const { data: orgMembers, error: omErr } = await supabase
+            .from('org_members')
+            .select('id, user_email, role, department_id, created_at')
+            .eq('organization_id', organizationId)
+            .order('role')
+
+          if (!omErr && orgMembers && orgMembers.length > 0) {
+            const rows = orgMembers as OrgMemberRow[]
+            const emails = rows.map(r => r.user_email)
+            const { data: profiles } = await supabase
+              .from('user_profiles')
+              .select('email, name, avatar_color, last_seen_at')
+              .in('email', emails)
+
+            const profileMap = new Map(
+              (profiles ?? []).map(p => [p.email.toLowerCase(), p])
+            )
+            const deptMap = new Map(departments.map(d => [d.id, d.name]))
+
+            mapped = rows.map(row => {
+              const profile = profileMap.get(row.user_email.toLowerCase())
+              return {
+                id: row.id,
+                email: row.user_email,
+                name: profile?.name ?? row.user_email.split('@')[0],
+                avatarColor: profile?.avatar_color ?? '#579DFF',
+                role: row.role,
+                departmentName: row.department_id ? (deptMap.get(row.department_id) ?? null) : null,
+                lastSeenAt: profile?.last_seen_at ?? null,
+                createdAt: row.created_at,
+              }
+            })
+          }
+        } catch {
+          logger.warn('MembersPanel', 'org_members falhou, tentando fallback via user_profiles')
+        }
       }
 
-      const rows = (orgMembers ?? []) as OrgMemberRow[]
+      // Fallback: se org_members falhou ou retornou vazio, usar user_profiles
+      if (mapped.length === 0) {
+        const { data: profiles, error: profErr } = await supabase
+          .from('user_profiles')
+          .select('id, email, name, avatar_color, role, last_seen_at, created_at')
+          .order('last_seen_at', { ascending: false })
 
-      // Buscar user_profiles para enriquecer com nome e avatar
-      const emails = rows.map(r => r.user_email)
-      const { data: profiles } = await supabase
-        .from('user_profiles')
-        .select('email, name, avatar_color, last_seen_at')
-        .in('email', emails)
-
-      const profileMap = new Map(
-        (profiles ?? []).map(p => [p.email.toLowerCase(), p])
-      )
-
-      // Mapear departamentos
-      const deptMap = new Map(departments.map(d => [d.id, d.name]))
-
-      const mapped: MemberDisplay[] = rows.map(row => {
-        const profile = profileMap.get(row.user_email.toLowerCase())
-        return {
-          id: row.id,
-          email: row.user_email,
-          name: profile?.name ?? row.user_email.split('@')[0],
-          avatarColor: profile?.avatar_color ?? '#579DFF',
-          role: row.role,
-          departmentName: row.department_id ? (deptMap.get(row.department_id) ?? null) : null,
-          lastSeenAt: profile?.last_seen_at ?? null,
-          createdAt: row.created_at,
+        if (profErr) {
+          logger.warn('MembersPanel', 'Fallback user_profiles também falhou', { error: profErr.message })
+          setError('Falha ao carregar membros')
+          setLoading(false)
+          return
         }
-      })
+
+        mapped = (profiles ?? []).map(p => ({
+          id: p.id,
+          email: p.email,
+          name: p.name || p.email.split('@')[0],
+          avatarColor: p.avatar_color || '#579DFF',
+          role: (p.role === 'admin' || p.role === 'supervisor' || p.role === 'agent' ? p.role : 'agent') as OrgRole,
+          departmentName: null,
+          lastSeenAt: p.last_seen_at,
+          createdAt: p.created_at,
+        }))
+      }
 
       // Ordenar por role (admin > supervisor > agent) e depois por nome
       mapped.sort((a, b) => {
