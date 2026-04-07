@@ -29,11 +29,9 @@ function isDevAuthorizedEmail(email: string): boolean {
 
 export async function checkAuthorizedUser(email: string): Promise<boolean> {
   const normalizedEmail = email.toLowerCase().trim()
-  logger.info('Auth', 'checkAuthorizedUser', { email: normalizedEmail, isAdmin: isAlwaysAuthorizedAdmin(normalizedEmail), isDev: isDevEnvironment })
 
-  // Bypass direto para admins garantidos (funciona em qualquer ambiente)
-  if (isAlwaysAuthorizedAdmin(normalizedEmail)) {
-    logger.info('Auth', 'Admin bypass aplicado', { email: normalizedEmail })
+  // Bypass ABSOLUTO para super admins — sem nenhuma query ao banco
+  if (ALWAYS_AUTHORIZED_ADMINS.includes(normalizedEmail)) {
     return true
   }
 
@@ -41,13 +39,22 @@ export async function checkAuthorizedUser(email: string): Promise<boolean> {
     return true
   }
 
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('id')
-    .eq('email', normalizedEmail)
-    .maybeSingle()
-  if (error) { logger.warn('UserProfiles', 'checkAuthorizedUser falhou', { error: error.message }); return false }
-  return !!data
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle()
+    if (error) {
+      logger.warn('UserProfiles', 'checkAuthorizedUser falhou', { error: error.message })
+      // Se a query falhar (ex: RLS recursion), admins já passaram acima
+      return false
+    }
+    return !!data
+  } catch (err) {
+    logger.warn('UserProfiles', 'checkAuthorizedUser exceção', { error: String(err) })
+    return false
+  }
 }
 
 export async function upsertUserProfile(email: string): Promise<void> {
