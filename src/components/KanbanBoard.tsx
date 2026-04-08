@@ -1142,22 +1142,24 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             {compactMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
 
-          {/* Recolher / Expandir tudo */}
-          <button
-            onClick={() => {
-              if (collapsedColumns.size === allColumns.length) {
-                setCollapsedColumns(new Set())
-              } else {
-                setCollapsedColumns(new Set(allColumns.map(c => c.id)))
-              }
-            }}
-            className="trello-icon-btn"
-            type="button"
-            title={collapsedColumns.size === allColumns.length ? 'Expandir tudo' : 'Recolher tudo'}
-            style={collapsedColumns.size === allColumns.length ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
-          >
-            {collapsedColumns.size === allColumns.length ? <ChevronsUpDown size={16} /> : <ChevronsDownUp size={16} />}
-          </button>
+          {/* Recolher / Expandir tudo (só no modo lista) */}
+          {viewMode === 'list' && (
+            <button
+              onClick={() => {
+                if (collapsedColumns.size === allColumns.length) {
+                  setCollapsedColumns(new Set())
+                } else {
+                  setCollapsedColumns(new Set(allColumns.map(c => c.id)))
+                }
+              }}
+              className="trello-icon-btn"
+              type="button"
+              title={collapsedColumns.size === allColumns.length ? 'Expandir tudo' : 'Recolher tudo'}
+              style={collapsedColumns.size === allColumns.length ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
+            >
+              {collapsedColumns.size === allColumns.length ? <ChevronsUpDown size={16} /> : <ChevronsDownUp size={16} />}
+            </button>
+          )}
 
           {/* Filtros avançados */}
           <button
