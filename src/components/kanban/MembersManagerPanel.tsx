@@ -279,6 +279,11 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
     return `há ${days} dias`
   }
 
+  const isOnline = (iso: string | null) => {
+    if (!iso) return false
+    return (Date.now() - new Date(iso).getTime()) < 300000 // 5 min
+  }
+
   const grouped = ROLE_ORDER.map(role => ({
     role,
     members: members.filter(m => m.role === role),
@@ -299,22 +304,37 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
       }}
     >
       <motion.div
-        initial={{ x: 340 }}
+        initial={{ x: 360 }}
         animate={{ x: 0 }}
-        exit={{ x: 340 }}
+        exit={{ x: 360 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        style={{ width: 340, height: '100%', overflowY: 'auto', background: '#1d2125', borderLeft: '1px solid rgba(255,255,255,0.06)' }}
+        style={{
+          width: 360, height: '100%', overflowY: 'auto',
+          background: '#1d2125', borderLeft: '1px solid rgba(37,208,102,0.08)',
+          display: 'flex', flexDirection: 'column',
+        }}
       >
         {/* Header */}
-        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(37,208,102,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Users size={16} style={{ color: '#25D066' }} />
+        <div style={{
+          padding: '24px 20px 20px',
+          background: 'linear-gradient(180deg, rgba(37,208,102,0.06) 0%, transparent 100%)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: 12,
+                background: 'linear-gradient(135deg, #25D066 0%, #1BAD53 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(37,208,102,0.2)',
+              }}>
+                <Users size={18} style={{ color: '#fff' }} />
               </div>
               <div>
-                <h2 style={{ fontSize: 15, fontWeight: 900, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Equipe</h2>
-                <span style={{ fontSize: 11, color: '#596773', fontFamily: "'Space Grotesk', sans-serif" }}>
+                <h2 style={{ fontSize: 17, fontWeight: 900, color: '#fff', margin: 0, fontFamily: "'Paytone One', sans-serif", letterSpacing: '-0.01em' }}>
+                  Equipe
+                </h2>
+                <span style={{ fontSize: 12, color: '#6B7685', fontFamily: "'Space Grotesk', sans-serif" }}>
                   {members.length} {members.length === 1 ? 'membro' : 'membros'}
                 </span>
               </div>
@@ -322,246 +342,312 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
             <div style={{ display: 'flex', gap: 4 }}>
               <button
                 onClick={fetchMembers}
-                style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'transparent', color: '#596773', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+                style={{
+                  width: 32, height: 32, borderRadius: 10, border: 'none',
+                  background: 'rgba(255,255,255,0.04)', color: '#6B7685', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.1)'; e.currentTarget.style.color = '#25D066' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#6B7685' }}
                 title="Atualizar"
               >
                 <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               </button>
               <button
                 onClick={onClose}
-                style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'transparent', color: '#596773', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+                style={{
+                  width: 32, height: 32, borderRadius: 10, border: 'none',
+                  background: 'rgba(255,255,255,0.04)', color: '#6B7685', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#6B7685' }}
               >
                 <X size={15} />
               </button>
             </div>
           </div>
-        </div>
 
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {/* Resumo de roles */}
+          {/* Contadores rápidos */}
           {!loading && !error && members.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 6 }}>
               {ROLE_ORDER.map(role => {
                 const count = members.filter(m => m.role === role).length
                 if (count === 0) return null
                 const cfg = ROLE_CONFIG[role]
+                const Icon = cfg.icon
                 return (
                   <div
                     key={role}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '4px 10px', borderRadius: 6,
-                      background: cfg.bg, fontSize: 11, fontWeight: 600,
-                      fontFamily: "'Space Grotesk', sans-serif", color: cfg.color,
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      padding: '8px 0', borderRadius: 10,
+                      background: '#22272B', border: '1px solid rgba(255,255,255,0.04)',
+                      fontFamily: "'Space Grotesk', sans-serif",
                     }}
                   >
-                    <cfg.icon size={12} />
-                    {count} {cfg.label}{count > 1 ? 's' : ''}
+                    <Icon size={13} style={{ color: cfg.color }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#E5E7EB' }}>{count}</span>
+                    <span style={{ fontSize: 11, color: '#6B7685' }}>{cfg.label}{count > 1 ? 's' : ''}</span>
                   </div>
                 )
               })}
             </div>
           )}
+        </div>
 
+        {/* Conteúdo */}
+        <div style={{ flex: 1, padding: '12px 16px 20px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {/* Loading */}
           {loading && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: 8, color: '#596773', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif" }}>
-              <RefreshCw size={16} className="animate-spin" />
-              Carregando membros...
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0', gap: 12, color: '#6B7685' }}>
+              <RefreshCw size={20} className="animate-spin" style={{ color: '#25D066' }} />
+              <span style={{ fontSize: 13, fontFamily: "'Space Grotesk', sans-serif" }}>Carregando equipe...</span>
             </div>
           )}
 
           {/* Error */}
           {error && !loading && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 12px', borderRadius: 8, background: 'rgba(239,92,72,0.08)', border: '1px solid rgba(239,92,72,0.2)', color: '#ef5c48', fontSize: 12, fontFamily: "'Space Grotesk', sans-serif" }}>
-              <AlertCircle size={14} />
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 12,
+              background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)',
+              color: '#f87171', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
+            }}>
+              <AlertCircle size={16} />
               {error}
             </div>
           )}
 
-          {/* Lista agrupada por role */}
+          {/* Lista de membros */}
           {!loading && !error && grouped.map(group => {
             const cfg = ROLE_CONFIG[group.role]
             const RoleIcon = cfg.icon
             return (
-              <div key={group.role} style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0 8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <RoleIcon size={12} style={{ color: cfg.color }} />
+              <div key={group.role} style={{ marginBottom: 8 }}>
+                {/* Separador de seção */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '10px 4px 8px',
+                }}>
+                  <RoleIcon size={13} style={{ color: cfg.color }} />
                   <span style={{
-                    fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px',
+                    fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px',
                     color: cfg.color, fontFamily: "'Space Grotesk', sans-serif",
                   }}>
-                    {cfg.label}s ({group.members.length})
+                    {cfg.label}s
                   </span>
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, color: '#4B5563',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                  }}>
+                    ({group.members.length})
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.04)' }} />
                 </div>
 
-                {group.members.map(member => {
-                  const memberCfg = ROLE_CONFIG[member.role]
-                  return (
-                    <div
-                      key={member.id}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '8px 4px', borderRadius: 6,
-                        transition: 'background 0.1s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-                    >
-                      {/* Avatar */}
-                      <div style={{
-                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 12, fontWeight: 700, color: '#fff',
-                        background: member.avatarColor,
-                      }}>
-                        {member.name.slice(0, 2).toUpperCase()}
-                      </div>
+                {/* Cards dos membros */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {group.members.map(member => {
+                    const memberCfg = ROLE_CONFIG[member.role]
+                    const online = isOnline(member.lastSeenAt)
+                    return (
+                      <div
+                        key={member.id}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '10px 12px', borderRadius: 12,
+                          background: '#22272B',
+                          border: '1px solid rgba(255,255,255,0.03)',
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = '#282E33'
+                          e.currentTarget.style.borderColor = 'rgba(37,208,102,0.1)'
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = '#22272B'
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.03)'
+                        }}
+                      >
+                        {/* Avatar com indicador online */}
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 12,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 13, fontWeight: 700, color: '#fff',
+                            background: member.avatarColor,
+                            fontFamily: "'Space Grotesk', sans-serif",
+                          }}>
+                            {member.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          {/* Status dot */}
+                          <div style={{
+                            position: 'absolute', bottom: -1, right: -1,
+                            width: 12, height: 12, borderRadius: '50%',
+                            background: online ? '#25D066' : '#4B5563',
+                            border: '2px solid #22272B',
+                            transition: 'background 0.3s',
+                          }} />
+                        </div>
 
-                      {/* Info */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{
-                          fontSize: 13, fontWeight: 500, color: '#B6C2CF',
-                          fontFamily: "'Space Grotesk', sans-serif",
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          display: 'block',
-                        }}>
-                          {member.name}
-                        </span>
-                        <span style={{
-                          fontSize: 10, color: '#596773',
-                          fontFamily: "'Space Grotesk', sans-serif",
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          display: 'block',
-                        }}>
-                          {member.email}
-                        </span>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                        {/* Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{
+                              fontSize: 14, fontWeight: 600, color: '#E5E7EB',
+                              fontFamily: "'Space Grotesk', sans-serif",
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            }}>
+                              {member.name}
+                            </span>
+                            {online && (
+                              <span style={{
+                                fontSize: 9, fontWeight: 600, color: '#25D066',
+                                fontFamily: "'Space Grotesk', sans-serif",
+                                background: 'rgba(37,208,102,0.1)', padding: '1px 6px', borderRadius: 4,
+                              }}>
+                                online
+                              </span>
+                            )}
+                          </div>
+                          <span style={{
+                            fontSize: 11, color: '#596773',
+                            fontFamily: "'Space Grotesk', sans-serif",
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            display: 'block', marginTop: 1,
+                          }}>
+                            {member.email}
+                          </span>
                           {member.departmentName && (
-                            <span style={{ fontSize: 9, color: '#596773', fontFamily: "'Space Grotesk', sans-serif", display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <span style={{
+                              fontSize: 10, color: '#4B5563', fontFamily: "'Space Grotesk', sans-serif",
+                              display: 'flex', alignItems: 'center', gap: 3, marginTop: 2,
+                            }}>
                               <Building2 size={9} />
                               {member.departmentName}
                             </span>
                           )}
-                          <span style={{ fontSize: 9, color: '#596773', fontFamily: "'Space Grotesk', sans-serif" }}>
-                            {formatLastSeen(member.lastSeenAt)}
-                          </span>
+                          {!online && member.lastSeenAt && (
+                            <span style={{
+                              fontSize: 10, color: '#4B5563', fontFamily: "'Space Grotesk', sans-serif",
+                              marginTop: 2, display: 'block',
+                            }}>
+                              Visto {formatLastSeen(member.lastSeenAt)}
+                            </span>
+                          )}
                         </div>
-                      </div>
 
-                      {/* Role badge / selector (admin only) */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                        {/* Botão reset senha (admin only) */}
-                        {canChangeRoles && (
-                          <button
-                            onClick={() => { setResetPasswordEmail(member.email); setNewPassword(''); setCurrentPassword(''); setShowNewPassword(false); setShowCurrentPassword(false) }}
-                            style={{
-                              width: 26, height: 26, borderRadius: 6, border: 'none',
-                              background: resetSuccess === member.email ? 'rgba(37,208,102,0.12)' : 'transparent',
-                              color: resetSuccess === member.email ? '#25D066' : '#596773',
-                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              transition: 'all 0.15s',
-                            }}
-                            onMouseEnter={e => { if (resetSuccess !== member.email) { e.currentTarget.style.background = 'rgba(245,158,11,0.12)'; e.currentTarget.style.color = '#fbbf24' } }}
-                            onMouseLeave={e => { if (resetSuccess !== member.email) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' } }}
-                            title={resetSuccess === member.email ? 'Senha redefinida!' : 'Redefinir senha'}
-                          >
-                            {resetSuccess === member.email ? <CheckCircle2 size={13} /> : <KeyRound size={13} />}
-                          </button>
-                        )}
+                        {/* Ações */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                          {/* Botão reset senha (admin only) */}
+                          {canChangeRoles && (
+                            <button
+                              onClick={() => { setResetPasswordEmail(member.email); setNewPassword(''); setCurrentPassword(''); setShowNewPassword(false); setShowCurrentPassword(false) }}
+                              style={{
+                                width: 30, height: 30, borderRadius: 8, border: 'none',
+                                background: resetSuccess === member.email ? 'rgba(37,208,102,0.12)' : 'transparent',
+                                color: resetSuccess === member.email ? '#25D066' : '#596773',
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.15s',
+                              }}
+                              onMouseEnter={e => { if (resetSuccess !== member.email) { e.currentTarget.style.background = 'rgba(37,208,102,0.08)'; e.currentTarget.style.color = '#25D066' } }}
+                              onMouseLeave={e => { if (resetSuccess !== member.email) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' } }}
+                              title={resetSuccess === member.email ? 'Senha redefinida!' : 'Redefinir senha'}
+                            >
+                              {resetSuccess === member.email ? <CheckCircle2 size={14} /> : <KeyRound size={14} />}
+                            </button>
+                          )}
 
-                        {canChangeRoles ? (
-                        <div style={{ position: 'relative', flexShrink: 0 }}>
-                          <button
-                            onClick={() => setChangingRole(changingRole === member.email ? null : member.email)}
-                            disabled={updatingRole}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 4,
-                              padding: '3px 8px', borderRadius: 4,
-                              fontSize: 9, fontWeight: 700,
+                          {/* Seletor de role */}
+                          {canChangeRoles ? (
+                            <div style={{ position: 'relative', flexShrink: 0 }}>
+                              <button
+                                onClick={() => setChangingRole(changingRole === member.email ? null : member.email)}
+                                disabled={updatingRole}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 4,
+                                  padding: '5px 10px', borderRadius: 8,
+                                  fontSize: 11, fontWeight: 700,
+                                  fontFamily: "'Space Grotesk', sans-serif",
+                                  background: memberCfg.bg, color: memberCfg.color,
+                                  border: `1px solid ${memberCfg.color}20`,
+                                  cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.3px',
+                                  transition: 'all 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = `${memberCfg.color}60` }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = `${memberCfg.color}20` }}
+                              >
+                                {memberCfg.label}
+                                <ChevronDown size={11} />
+                              </button>
+
+                              <AnimatePresence>
+                                {changingRole === member.email && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                                    transition={{ duration: 0.12 }}
+                                    style={{
+                                      position: 'absolute', right: 0, top: '100%', marginTop: 6,
+                                      minWidth: 150, borderRadius: 12, overflow: 'hidden', zIndex: 10,
+                                      background: '#282E33', border: '1px solid rgba(255,255,255,0.08)',
+                                      boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+                                    }}
+                                  >
+                                    <div style={{ padding: '8px 12px 6px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: "'Space Grotesk', sans-serif" }}>
+                                        Alterar função
+                                      </span>
+                                    </div>
+                                    {ROLE_ORDER.map(r => {
+                                      const rc = ROLE_CONFIG[r]
+                                      const RIcon = rc.icon
+                                      const isActive = member.role === r
+                                      return (
+                                        <button
+                                          key={r}
+                                          onClick={() => !isActive && handleRoleChange(member.email, r)}
+                                          disabled={isActive || updatingRole}
+                                          style={{
+                                            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                                            padding: '9px 12px', border: 'none',
+                                            background: isActive ? 'rgba(37,208,102,0.06)' : 'transparent',
+                                            color: isActive ? rc.color : '#9FADBC',
+                                            cursor: isActive ? 'default' : 'pointer',
+                                            fontSize: 13, fontWeight: isActive ? 600 : 400,
+                                            fontFamily: "'Space Grotesk', sans-serif",
+                                            transition: 'background 0.1s',
+                                          }}
+                                          onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                                          onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                                        >
+                                          <RIcon size={14} style={{ color: rc.color, flexShrink: 0 }} />
+                                          <span style={{ flex: 1, textAlign: 'left' }}>{rc.label}</span>
+                                          {isActive && <Check size={14} style={{ color: '#25D066', flexShrink: 0 }} />}
+                                        </button>
+                                      )
+                                    })}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          ) : (
+                            <div style={{
+                              flexShrink: 0, padding: '4px 10px', borderRadius: 8,
+                              fontSize: 10, fontWeight: 700,
                               fontFamily: "'Space Grotesk', sans-serif",
                               background: memberCfg.bg, color: memberCfg.color,
-                              border: `1px solid ${memberCfg.color}30`,
-                              cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.3px',
-                              transition: 'all 0.15s',
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = memberCfg.color }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = `${memberCfg.color}30` }}
-                          >
-                            {memberCfg.label}
-                            <ChevronDown size={10} />
-                          </button>
-
-                          <AnimatePresence>
-                            {changingRole === member.email && (
-                              <motion.div
-                                initial={{ opacity: 0, y: -4, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                                transition={{ duration: 0.12 }}
-                                style={{
-                                  position: 'absolute', right: 0, top: '100%', marginTop: 4,
-                                  minWidth: 140, borderRadius: 8, overflow: 'hidden', zIndex: 10,
-                                  background: '#282E33', border: '1px solid rgba(166,197,226,0.12)',
-                                  boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
-                                }}
-                              >
-                                <div style={{ padding: '6px 10px 4px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                  <span style={{ fontSize: 9, fontWeight: 700, color: '#596773', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: "'Space Grotesk', sans-serif" }}>
-                                    Alterar role
-                                  </span>
-                                </div>
-                                {ROLE_ORDER.map(r => {
-                                  const rc = ROLE_CONFIG[r]
-                                  const RIcon = rc.icon
-                                  const isActive = member.role === r
-                                  return (
-                                    <button
-                                      key={r}
-                                      onClick={() => !isActive && handleRoleChange(member.email, r)}
-                                      disabled={isActive || updatingRole}
-                                      style={{
-                                        width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                                        padding: '7px 10px', border: 'none',
-                                        background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
-                                        color: isActive ? rc.color : '#9FADBC',
-                                        cursor: isActive ? 'default' : 'pointer',
-                                        fontSize: 12, fontWeight: 500,
-                                        fontFamily: "'Space Grotesk', sans-serif",
-                                        transition: 'background 0.1s',
-                                      }}
-                                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-                                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
-                                    >
-                                      <RIcon size={13} style={{ color: rc.color, flexShrink: 0 }} />
-                                      <span style={{ flex: 1, textAlign: 'left' }}>{rc.label}</span>
-                                      {isActive && <Check size={13} style={{ color: rc.color, flexShrink: 0 }} />}
-                                    </button>
-                                  )
-                                })}
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                              textTransform: 'uppercase', letterSpacing: '0.3px',
+                            }}>
+                              {memberCfg.label}
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div style={{
-                          flexShrink: 0, padding: '2px 8px', borderRadius: 4,
-                          fontSize: 9, fontWeight: 700,
-                          fontFamily: "'Space Grotesk', sans-serif",
-                          background: memberCfg.bg, color: memberCfg.color,
-                          textTransform: 'uppercase', letterSpacing: '0.3px',
-                        }}>
-                          {memberCfg.label}
-                        </div>
-                      )}
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
             )
           })}
@@ -576,94 +662,104 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                 style={{
                   position: 'fixed', inset: 0, zIndex: 60,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                  background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
                 }}
                 onClick={e => { if (e.target === e.currentTarget) { setResetPasswordEmail(null); setNewPassword(''); setCurrentPassword(''); setShowNewPassword(false); setShowCurrentPassword(false) } }}
               >
                 <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.95, opacity: 0 }}
+                  initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                   style={{
-                    width: '100%', maxWidth: 380, borderRadius: 16, padding: '24px',
-                    background: '#22272B', border: '1px solid rgba(255,255,255,0.06)',
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+                    width: '100%', maxWidth: 400, borderRadius: 20, padding: '28px',
+                    background: '#22272B', border: '1px solid rgba(37,208,102,0.08)',
+                    boxShadow: '0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <KeyRound size={18} style={{ color: '#fbbf24' }} />
+                  {/* Header do modal */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                    <div style={{
+                      width: 42, height: 42, borderRadius: 12,
+                      background: 'linear-gradient(135deg, #25D066 0%, #1BAD53 100%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(37,208,102,0.2)',
+                    }}>
+                      <KeyRound size={20} style={{ color: '#fff' }} />
                     </div>
                     <div>
-                      <h3 style={{ fontSize: 15, fontWeight: 700, color: '#E5E7EB', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: '#E5E7EB', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
                         Redefinir senha
                       </h3>
-                      <p style={{ fontSize: 11, color: '#596773', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                      <p style={{ fontSize: 12, color: '#596773', margin: '2px 0 0', fontFamily: "'Space Grotesk', sans-serif" }}>
                         {resetPasswordEmail}
                       </p>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {/* Campo senha atual do admin */}
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showCurrentPassword ? 'text' : 'password'}
-                        placeholder="Sua senha atual"
-                        value={currentPassword}
-                        onChange={e => setCurrentPassword(e.target.value)}
-                        style={{
-                          width: '100%', padding: '11px 44px 11px 14px', borderRadius: 10, fontSize: 14,
-                          fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
-                          border: '1px solid rgba(255,255,255,0.08)', outline: 'none',
-                          boxSizing: 'border-box',
-                        }}
-                        onFocus={e => { e.currentTarget.style.borderColor = '#fbbf24'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.12)' }}
-                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCurrentPassword(p => !p)}
-                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
-                      >
-                        {showCurrentPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* Senha atual */}
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: '#6B7685', fontFamily: "'Space Grotesk', sans-serif", display: 'block', marginBottom: 6 }}>
+                        Sua senha atual
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          placeholder="Confirme sua identidade"
+                          value={currentPassword}
+                          onChange={e => setCurrentPassword(e.target.value)}
+                          style={{
+                            width: '100%', padding: '12px 44px 12px 14px', borderRadius: 12, fontSize: 14,
+                            fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
+                            border: '1px solid rgba(255,255,255,0.06)', outline: 'none', boxSizing: 'border-box',
+                            transition: 'border-color 0.2s, box-shadow 0.2s',
+                          }}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }}
+                        />
+                        <button type="button" onClick={() => setShowCurrentPassword(p => !p)}
+                          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+                          {showCurrentPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Campo nova senha */}
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showNewPassword ? 'text' : 'password'}
-                        placeholder="Nova senha"
-                        value={newPassword}
-                        onChange={e => setNewPassword(e.target.value)}
-                        style={{
-                          width: '100%', padding: '11px 80px 11px 14px', borderRadius: 10, fontSize: 14,
-                          fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
-                          border: '1px solid rgba(255,255,255,0.08)', outline: 'none',
-                          boxSizing: 'border-box',
-                        }}
-                        onFocus={e => { e.currentTarget.style.borderColor = '#fbbf24'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.12)' }}
-                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
-                      />
-                      <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 2 }}>
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPassword(p => !p)}
-                          style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
-                        >
-                          {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </button>
-                        {newPassword && (
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(newPassword)}
-                            style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
-                            title="Copiar senha"
-                          >
-                            <Copy size={14} />
+                    {/* Divisor */}
+                    <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '2px 0' }} />
+
+                    {/* Nova senha */}
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: '#6B7685', fontFamily: "'Space Grotesk', sans-serif", display: 'block', marginBottom: 6 }}>
+                        Nova senha do membro
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          placeholder="Criar nova senha"
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          style={{
+                            width: '100%', padding: '12px 80px 12px 14px', borderRadius: 12, fontSize: 14,
+                            fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
+                            border: '1px solid rgba(255,255,255,0.06)', outline: 'none', boxSizing: 'border-box',
+                            transition: 'border-color 0.2s, box-shadow 0.2s',
+                          }}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }}
+                        />
+                        <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 2 }}>
+                          <button type="button" onClick={() => setShowNewPassword(p => !p)}
+                            style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+                            {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                           </button>
-                        )}
+                          {newPassword && (
+                            <button type="button" onClick={() => copyToClipboard(newPassword)} title="Copiar senha"
+                              style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+                              <Copy size={15} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -672,33 +768,33 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                       type="button"
                       onClick={() => { const pw = generateTempPassword(); setNewPassword(pw); setShowNewPassword(true) }}
                       style={{
-                        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600,
-                        fontFamily: "'Space Grotesk', sans-serif", color: '#9FADBC', cursor: 'pointer',
-                        transition: 'background 0.15s',
+                        background: 'rgba(37,208,102,0.06)', border: '1px solid rgba(37,208,102,0.12)',
+                        borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 600,
+                        fontFamily: "'Space Grotesk', sans-serif", color: '#25D066', cursor: 'pointer',
+                        transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.1)'; e.currentTarget.style.borderColor = 'rgba(37,208,102,0.2)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)'; e.currentTarget.style.borderColor = 'rgba(37,208,102,0.12)' }}
                     >
-                      Gerar senha temporária
+                      Gerar senha segura
                     </button>
 
-                    {/* Validação visual */}
+                    {/* Validação */}
                     {newPassword.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 2px' }}>
                         {[
                           { label: 'Mínimo 8 caracteres', valid: newPassword.length >= 8 },
                           { label: 'Uma letra maiúscula', valid: /[A-Z]/.test(newPassword) },
                           { label: 'Um caractere especial', valid: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(newPassword) },
                         ].map((check, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                             {check.valid ? (
-                              <CheckCircle2 size={12} style={{ color: '#25D066', flexShrink: 0 }} />
+                              <CheckCircle2 size={13} style={{ color: '#25D066', flexShrink: 0 }} />
                             ) : (
-                              <X size={12} style={{ color: '#596773', flexShrink: 0 }} />
+                              <X size={13} style={{ color: '#4B5563', flexShrink: 0 }} />
                             )}
                             <span style={{
-                              fontSize: 11, fontFamily: "'Space Grotesk', sans-serif",
+                              fontSize: 12, fontFamily: "'Space Grotesk', sans-serif",
                               color: check.valid ? '#25D066' : '#596773',
                             }}>
                               {check.label}
@@ -709,17 +805,17 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                     )}
 
                     {/* Botões */}
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
                       <button
                         onClick={() => { setResetPasswordEmail(null); setNewPassword(''); setCurrentPassword(''); setShowNewPassword(false); setShowCurrentPassword(false) }}
                         style={{
-                          flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                          flex: 1, padding: '12px 0', borderRadius: 12, fontSize: 14, fontWeight: 600,
                           fontFamily: "'Space Grotesk', sans-serif", cursor: 'pointer',
-                          background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
-                          color: '#9FADBC', transition: 'background 0.15s',
+                          background: 'transparent', border: '1px solid rgba(255,255,255,0.06)',
+                          color: '#9FADBC', transition: 'all 0.15s',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
                       >
                         Cancelar
                       </button>
@@ -727,14 +823,15 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                         onClick={() => handleResetPassword(resetPasswordEmail)}
                         disabled={resettingPassword || !currentPassword.trim() || newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(newPassword)}
                         style={{
-                          flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                          flex: 1, padding: '12px 0', borderRadius: 12, fontSize: 14, fontWeight: 700,
                           fontFamily: "'Space Grotesk', sans-serif", cursor: resettingPassword ? 'not-allowed' : 'pointer',
-                          background: '#fbbf24', border: 'none', color: '#1d2125',
-                          opacity: (resettingPassword || !currentPassword.trim() || newPassword.length < 8) ? 0.5 : 1,
-                          transition: 'background 0.15s, opacity 0.15s',
+                          background: '#25D066', border: 'none', color: '#fff',
+                          opacity: (resettingPassword || !currentPassword.trim() || newPassword.length < 8) ? 0.4 : 1,
+                          transition: 'all 0.15s',
+                          boxShadow: '0 4px 12px rgba(37,208,102,0.2)',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#f59e0b' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = '#fbbf24' }}
+                        onMouseEnter={e => { if (!resettingPassword) e.currentTarget.style.background = '#1BAD53' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
                       >
                         {resettingPassword ? 'Redefinindo...' : 'Redefinir senha'}
                       </button>
@@ -747,20 +844,23 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
 
           {/* Vazio */}
           {!loading && !error && members.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#596773', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif" }}>
-              Nenhum membro encontrado.
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <Users size={32} style={{ color: '#4B5563', marginBottom: 12 }} />
+              <p style={{ fontSize: 14, color: '#6B7685', fontFamily: "'Space Grotesk', sans-serif", margin: 0 }}>
+                Nenhum membro encontrado
+              </p>
             </div>
           )}
 
           {/* Info de permissão (não-admin) */}
           {!canChangeRoles && !loading && members.length > 0 && (
             <div style={{
-              marginTop: 8, padding: '10px 12px', borderRadius: 8,
-              background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
-              fontSize: 11, color: '#596773', fontFamily: "'Space Grotesk', sans-serif",
+              marginTop: 12, padding: '12px 14px', borderRadius: 10,
+              background: 'rgba(37,208,102,0.04)', border: '1px solid rgba(37,208,102,0.08)',
+              fontSize: 12, color: '#6B7685', fontFamily: "'Space Grotesk', sans-serif",
               textAlign: 'center',
             }}>
-              Somente admins podem alterar roles
+              Somente admins podem alterar funções
             </div>
           )}
         </div>
