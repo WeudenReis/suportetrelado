@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check } from 'lucide-react'
+import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check, KeyRound, Eye, EyeOff, Copy, CheckCircle2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrg, type OrgRole } from '../../lib/org'
 import { logger } from '../../lib/logger'
@@ -35,6 +35,11 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
   const [error, setError] = useState<string | null>(null)
   const [changingRole, setChangingRole] = useState<string | null>(null)
   const [updatingRole, setUpdatingRole] = useState(false)
+  const [resetPasswordEmail, setResetPasswordEmail] = useState<string | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [resettingPassword, setResettingPassword] = useState(false)
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null)
 
   const canChangeRoles = myRole === 'admin' && hasPermission('members:change_role')
 
@@ -167,6 +172,74 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
       setUpdatingRole(false)
     }
   }, [organizationId])
+
+  const handleResetPassword = useCallback(async (email: string) => {
+    if (!newPassword.trim()) return
+    // Validar senha: 8+ chars, 1 maiúscula, 1 especial
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(newPassword)) {
+      logger.warn('MembersPanel', 'Senha não atende requisitos')
+      return
+    }
+    setResettingPassword(true)
+    try {
+      // Usar Supabase Admin API via Edge Function ou enviar e-mail de reset
+      // Como não temos acesso ao service_role no frontend, vamos usar o método nativo
+      const { error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { email, newPassword: newPassword.trim() },
+      })
+      if (error) {
+        logger.error('MembersPanel', 'Falha ao redefinir senha via Edge Function', { error: String(error) })
+        // Fallback: enviar e-mail de redefinição
+        const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
+        })
+        if (resetErr) {
+          logger.error('MembersPanel', 'Falha ao enviar e-mail de redefinição', { error: resetErr.message })
+        } else {
+          setResetSuccess(email)
+          setTimeout(() => setResetSuccess(null), 4000)
+        }
+      } else {
+        setResetSuccess(email)
+        setTimeout(() => setResetSuccess(null), 4000)
+      }
+    } catch {
+      // Fallback: enviar e-mail de redefinição
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      })
+      if (resetErr) {
+        logger.error('MembersPanel', 'Falha ao enviar e-mail de redefinição (fallback)', { error: resetErr.message })
+      } else {
+        setResetSuccess(email)
+        setTimeout(() => setResetSuccess(null), 4000)
+      }
+    } finally {
+      setResettingPassword(false)
+      setNewPassword('')
+      setResetPasswordEmail(null)
+      setShowNewPassword(false)
+    }
+  }, [newPassword])
+
+  function generateTempPassword(): string {
+    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    const lower = 'abcdefghijklmnopqrstuvwxyz'
+    const digits = '0123456789'
+    const special = '!@#$%&*'
+    const all = upper + lower + digits + special
+    let pw = ''
+    pw += upper[Math.floor(Math.random() * upper.length)]
+    pw += special[Math.floor(Math.random() * special.length)]
+    pw += digits[Math.floor(Math.random() * digits.length)]
+    for (let i = 0; i < 5; i++) pw += all[Math.floor(Math.random() * all.length)]
+    // Shuffle
+    return pw.split('').sort(() => Math.random() - 0.5).join('')
+  }
+
+  async function copyToClipboard(text: string) {
+    try { await navigator.clipboard.writeText(text) } catch { /* no-op */ }
+  }
 
   const formatLastSeen = (iso: string | null) => {
     if (!iso) return 'nunca'
@@ -356,7 +429,27 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                       </div>
 
                       {/* Role badge / selector (admin only) */}
-                      {canChangeRoles ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        {/* Botão reset senha (admin only) */}
+                        {canChangeRoles && (
+                          <button
+                            onClick={() => { setResetPasswordEmail(member.email); setNewPassword(''); setShowNewPassword(false) }}
+                            style={{
+                              width: 26, height: 26, borderRadius: 6, border: 'none',
+                              background: resetSuccess === member.email ? 'rgba(37,208,102,0.12)' : 'transparent',
+                              color: resetSuccess === member.email ? '#25D066' : '#596773',
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              transition: 'all 0.15s',
+                            }}
+                            onMouseEnter={e => { if (resetSuccess !== member.email) { e.currentTarget.style.background = 'rgba(245,158,11,0.12)'; e.currentTarget.style.color = '#fbbf24' } }}
+                            onMouseLeave={e => { if (resetSuccess !== member.email) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' } }}
+                            title={resetSuccess === member.email ? 'Senha redefinida!' : 'Redefinir senha'}
+                          >
+                            {resetSuccess === member.email ? <CheckCircle2 size={13} /> : <KeyRound size={13} />}
+                          </button>
+                        )}
+
+                        {canChangeRoles ? (
                         <div style={{ position: 'relative', flexShrink: 0 }}>
                           <button
                             onClick={() => setChangingRole(changingRole === member.email ? null : member.email)}
@@ -440,12 +533,167 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                           {memberCfg.label}
                         </div>
                       )}
+                      </div>
                     </div>
                   )
                 })}
               </div>
             )
           })}
+
+          {/* Modal de redefinir senha */}
+          <AnimatePresence>
+            {resetPasswordEmail && canChangeRoles && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{
+                  position: 'fixed', inset: 0, zIndex: 60,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                }}
+                onClick={e => { if (e.target === e.currentTarget) { setResetPasswordEmail(null); setNewPassword(''); setShowNewPassword(false) } }}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  style={{
+                    width: '100%', maxWidth: 380, borderRadius: 16, padding: '24px',
+                    background: '#22272B', border: '1px solid rgba(255,255,255,0.06)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <KeyRound size={18} style={{ color: '#fbbf24' }} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: '#E5E7EB', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                        Redefinir senha
+                      </h3>
+                      <p style={{ fontSize: 11, color: '#596773', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                        {resetPasswordEmail}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* Campo nova senha */}
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        placeholder="Nova senha"
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        style={{
+                          width: '100%', padding: '11px 80px 11px 14px', borderRadius: 10, fontSize: 14,
+                          fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
+                          border: '1px solid rgba(255,255,255,0.08)', outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#fbbf24'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.12)' }}
+                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
+                      />
+                      <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 2 }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(p => !p)}
+                          style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+                        >
+                          {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                        {newPassword && (
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(newPassword)}
+                            style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+                            title="Copiar senha"
+                          >
+                            <Copy size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Gerar senha */}
+                    <button
+                      type="button"
+                      onClick={() => { const pw = generateTempPassword(); setNewPassword(pw); setShowNewPassword(true) }}
+                      style={{
+                        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600,
+                        fontFamily: "'Space Grotesk', sans-serif", color: '#9FADBC', cursor: 'pointer',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                    >
+                      Gerar senha temporária
+                    </button>
+
+                    {/* Validação visual */}
+                    {newPassword.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {[
+                          { label: 'Mínimo 8 caracteres', valid: newPassword.length >= 8 },
+                          { label: 'Uma letra maiúscula', valid: /[A-Z]/.test(newPassword) },
+                          { label: 'Um caractere especial', valid: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(newPassword) },
+                        ].map((check, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {check.valid ? (
+                              <CheckCircle2 size={12} style={{ color: '#25D066', flexShrink: 0 }} />
+                            ) : (
+                              <X size={12} style={{ color: '#596773', flexShrink: 0 }} />
+                            )}
+                            <span style={{
+                              fontSize: 11, fontFamily: "'Space Grotesk', sans-serif",
+                              color: check.valid ? '#25D066' : '#596773',
+                            }}>
+                              {check.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Botões */}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button
+                        onClick={() => { setResetPasswordEmail(null); setNewPassword(''); setShowNewPassword(false) }}
+                        style={{
+                          flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                          fontFamily: "'Space Grotesk', sans-serif", cursor: 'pointer',
+                          background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
+                          color: '#9FADBC', transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => handleResetPassword(resetPasswordEmail)}
+                        disabled={resettingPassword || newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(newPassword)}
+                        style={{
+                          flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                          fontFamily: "'Space Grotesk', sans-serif", cursor: resettingPassword ? 'not-allowed' : 'pointer',
+                          background: '#fbbf24', border: 'none', color: '#1d2125',
+                          opacity: (resettingPassword || newPassword.length < 8) ? 0.5 : 1,
+                          transition: 'background 0.15s, opacity 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#f59e0b' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = '#fbbf24' }}
+                      >
+                        {resettingPassword ? 'Redefinindo...' : 'Redefinir senha'}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Vazio */}
           {!loading && !error && members.length === 0 && (

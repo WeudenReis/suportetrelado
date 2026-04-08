@@ -60,8 +60,7 @@ export async function checkAuthorizedUser(email: string): Promise<boolean> {
 export async function upsertUserProfile(email: string): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession()
   const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
-  const firstName = fullName ? fullName.split(' ')[0] : (email.includes('@') ? email.split('@')[0] : email)
-  const name = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+  const name = fullName.trim() || (email.includes('@') ? email.split('@')[0] : email)
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
   const devRole = isAlwaysAuthorizedAdmin(email) || isDevAuthorizedEmail(email) ? 'admin' : undefined
   const payload = {

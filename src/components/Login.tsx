@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX, Mail, Lock, Eye, EyeOff, ArrowRight, User, CheckCircle, XCircle } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 interface LoginProps {
@@ -8,8 +8,26 @@ interface LoginProps {
   unauthorizedEmail: string | null
 }
 
+type AuthMode = 'login' | 'register'
 type ToastType = 'error' | 'success' | 'warning'
 interface Toast { id: string; type: ToastType; title: string; message: string }
+
+interface PasswordCheck {
+  label: string
+  valid: boolean
+}
+
+function validatePassword(pw: string): PasswordCheck[] {
+  return [
+    { label: 'Mínimo 8 caracteres', valid: pw.length >= 8 },
+    { label: 'Uma letra maiúscula', valid: /[A-Z]/.test(pw) },
+    { label: 'Um caractere especial (!@#$...)', valid: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(pw) },
+  ]
+}
+
+function isPasswordValid(pw: string): boolean {
+  return validatePassword(pw).every(c => c.valid)
+}
 
 const toastCfg = {
   error:   { icon: AlertTriangle, bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',   iconColor: '#f87171', titleColor: '#fca5a5' },
@@ -44,16 +62,25 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 }
 
 export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
+  const [mode, setMode] = useState<AuthMode>('login')
   const [loadingGoogle, setLoadingGoogle] = useState(false)
   const [loadingEmail, setLoadingEmail] = useState(false)
+  const [loadingRegister, setLoadingRegister] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [registerName, setRegisterName] = useState('')
+  const [registerEmail, setRegisterEmail] = useState('')
+  const [registerPassword, setRegisterPassword] = useState('')
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('')
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const captchaRef = useRef<HTMLDivElement>(null)
   const captchaWidgetId = useRef<number | null>(null)
   const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
+
+  const passwordChecks = validatePassword(registerPassword)
 
   // Carregar script do reCAPTCHA
   useEffect(() => {
@@ -187,6 +214,74 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
     }
   }
 
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault()
+    if (!registerName.trim()) {
+      pushToast('error', 'Nome obrigatório', 'Informe seu nome de usuário.')
+      return
+    }
+    if (!registerEmail.trim()) {
+      pushToast('error', 'E-mail obrigatório', 'Informe seu e-mail.')
+      return
+    }
+    if (!isPasswordValid(registerPassword)) {
+      pushToast('error', 'Senha fraca', 'A senha deve ter 8+ caracteres, 1 maiúscula e 1 caractere especial.')
+      return
+    }
+    if (registerPassword !== registerConfirmPassword) {
+      pushToast('error', 'Senhas diferentes', 'A confirmação de senha não confere.')
+      return
+    }
+    if (!isSupabaseConfigured) {
+      pushToast('error', 'Erro de configuração', 'As variáveis de ambiente do Supabase não estão configuradas.')
+      return
+    }
+    if (recaptchaSiteKey && !captchaToken) {
+      pushToast('warning', 'Verificação necessária', 'Complete o reCAPTCHA antes de continuar.')
+      return
+    }
+    setLoadingRegister(true)
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: registerEmail.trim(),
+        password: registerPassword,
+        options: {
+          data: {
+            full_name: registerName.trim(),
+            name: registerName.trim(),
+          },
+        },
+      })
+      if (error) {
+        if (error.message.includes('already registered')) {
+          pushToast('error', 'E-mail já cadastrado', 'Este e-mail já possui uma conta. Faça login.')
+        } else {
+          pushToast('error', 'Erro ao criar conta', error.message)
+        }
+        resetCaptcha()
+      } else {
+        pushToast('success', 'Conta criada com sucesso!', 'Você já pode fazer login com seu e-mail e senha.')
+        setMode('login')
+        setEmail(registerEmail.trim())
+        setRegisterName('')
+        setRegisterEmail('')
+        setRegisterPassword('')
+        setRegisterConfirmPassword('')
+        resetCaptcha()
+      }
+    } catch {
+      pushToast('error', 'Erro de rede', 'Verifique sua conexão e tente novamente.')
+      resetCaptcha()
+    } finally {
+      setLoadingRegister(false)
+    }
+  }
+
+  function switchMode(newMode: AuthMode) {
+    setMode(newMode)
+    resetCaptcha()
+  }
+
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '12px 14px 12px 42px', borderRadius: 10, fontSize: 14,
     fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
@@ -271,18 +366,18 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
               fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700,
               color: '#E5E7EB', margin: 0,
             }}>
-              Acessar sua conta
+              {mode === 'login' ? 'Acessar sua conta' : 'Criar sua conta'}
             </h2>
             <p style={{
               fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: '#6B7685',
               margin: '6px 0 0',
             }}>
-              Entre com seu e-mail e senha ou use o Google
+              {mode === 'login' ? 'Entre com seu e-mail e senha ou use o Google' : 'Preencha os dados abaixo para se cadastrar'}
             </p>
           </div>
 
           {/* Aviso de acesso negado */}
-          {unauthorizedEmail && (
+          {unauthorizedEmail && mode === 'login' && (
             <div style={{
               display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 10,
               background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
@@ -300,113 +395,302 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
             </div>
           )}
 
-          {/* Formulário de e-mail e senha */}
-          <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* E-mail */}
-            <div style={{ position: 'relative' }}>
-              <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
-              <input
-                type="email"
-                placeholder="Seu e-mail"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                onFocus={e => inputFocusStyle(e.currentTarget)}
-                onBlur={e => inputBlurStyle(e.currentTarget)}
-                style={inputStyle}
-                autoComplete="email"
-              />
-            </div>
+          <AnimatePresence mode="wait">
+            {mode === 'login' ? (
+              <motion.div key="login" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.25 }}>
+                {/* Formulário de e-mail e senha */}
+                <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* E-mail */}
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      type="email"
+                      placeholder="Seu e-mail"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={inputStyle}
+                      autoComplete="email"
+                    />
+                  </div>
 
-            {/* Senha */}
-            <div style={{ position: 'relative' }}>
-              <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Sua senha"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                onFocus={e => inputFocusStyle(e.currentTarget)}
-                onBlur={e => inputBlurStyle(e.currentTarget)}
-                style={{ ...inputStyle, paddingRight: 42 }}
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(p => !p)}
-                style={{
-                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'color 0.15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#9fadbc' }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+                  {/* Senha */}
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Sua senha"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={{ ...inputStyle, paddingRight: 42 }}
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(p => !p)}
+                      style={{
+                        position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'color 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#9fadbc' }}
+                      onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
 
-            {/* reCAPTCHA */}
-            {recaptchaSiteKey && (
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
-                <div ref={captchaRef} />
-              </div>
-            )}
+                  {/* reCAPTCHA */}
+                  {recaptchaSiteKey && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+                      <div ref={captchaRef} />
+                    </div>
+                  )}
 
-            {/* Botão Entrar */}
-            <button
-              type="submit"
-              disabled={loadingEmail || (!!recaptchaSiteKey && !captchaToken)}
-              onMouseEnter={e => { if (!loadingEmail) e.currentTarget.style.background = '#1BAD53' }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
-                fontFamily: "'Space Grotesk', sans-serif", cursor: loadingEmail ? 'not-allowed' : 'pointer',
-                background: '#25D066', border: 'none', color: '#fff',
-                opacity: loadingEmail ? 0.6 : 1, transition: 'background 0.15s, opacity 0.15s',
-                boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
-                marginTop: 4,
-              }}
-            >
-              {loadingEmail ? (
-                <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
-              ) : (
-                <ArrowRight size={17} />
-              )}
-              {loadingEmail ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
+                  {/* Botão Entrar */}
+                  <button
+                    type="submit"
+                    disabled={loadingEmail || (!!recaptchaSiteKey && !captchaToken)}
+                    onMouseEnter={e => { if (!loadingEmail) e.currentTarget.style.background = '#1BAD53' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
+                      fontFamily: "'Space Grotesk', sans-serif", cursor: loadingEmail ? 'not-allowed' : 'pointer',
+                      background: '#25D066', border: 'none', color: '#fff',
+                      opacity: loadingEmail ? 0.6 : 1, transition: 'background 0.15s, opacity 0.15s',
+                      boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
+                      marginTop: 4,
+                    }}
+                  >
+                    {loadingEmail ? (
+                      <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <ArrowRight size={17} />
+                    )}
+                    {loadingEmail ? 'Entrando...' : 'Entrar'}
+                  </button>
+                </form>
 
-          {/* Divisor */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-            <span style={{ fontSize: 11, fontWeight: 500, color: '#596773', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.06em' }}>ou</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-          </div>
+                {/* Divisor */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                  <span style={{ fontSize: 11, fontWeight: 500, color: '#596773', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.06em' }}>ou</span>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                </div>
 
-          {/* Botão Google */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={loadingGoogle || (!!recaptchaSiteKey && !captchaToken)}
-            onMouseEnter={e => { if (!loadingGoogle) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              padding: '13px 0', borderRadius: 12, fontWeight: 600, fontSize: 14,
-              fontFamily: "'Space Grotesk', sans-serif", cursor: loadingGoogle ? 'not-allowed' : 'pointer',
-              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-              color: '#b6c2cf', opacity: loadingGoogle ? 0.4 : 1, transition: 'background 0.15s',
-            }}
-          >
-            {loadingGoogle ? (
-              <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
+                {/* Botão Google */}
+                <button
+                  onClick={handleGoogleLogin}
+                  disabled={loadingGoogle || (!!recaptchaSiteKey && !captchaToken)}
+                  onMouseEnter={e => { if (!loadingGoogle) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                    padding: '13px 0', borderRadius: 12, fontWeight: 600, fontSize: 14,
+                    fontFamily: "'Space Grotesk', sans-serif", cursor: loadingGoogle ? 'not-allowed' : 'pointer',
+                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#b6c2cf', opacity: loadingGoogle ? 0.4 : 1, transition: 'background 0.15s',
+                  }}
+                >
+                  {loadingGoogle ? (
+                    <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                  )}
+                  {loadingGoogle ? 'Conectando...' : 'Continuar com Google'}
+                </button>
+
+                {/* Link para cadastro */}
+                <p style={{
+                  textAlign: 'center', marginTop: 20, marginBottom: 0, fontSize: 13, color: '#6B7685',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}>
+                  Não tem uma conta?{' '}
+                  <button
+                    onClick={() => switchMode('register')}
+                    style={{
+                      background: 'none', border: 'none', color: '#25D066', cursor: 'pointer',
+                      fontWeight: 600, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
+                      textDecoration: 'none', padding: 0,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
+                    onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
+                  >
+                    Criar conta
+                  </button>
+                </p>
+              </motion.div>
             ) : (
-              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+              <motion.div key="register" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
+                {/* Formulário de cadastro */}
+                <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Nome */}
+                  <div style={{ position: 'relative' }}>
+                    <User size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      type="text"
+                      placeholder="Seu nome completo"
+                      value={registerName}
+                      onChange={e => setRegisterName(e.target.value)}
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={inputStyle}
+                      autoComplete="name"
+                    />
+                  </div>
+
+                  {/* E-mail */}
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      type="email"
+                      placeholder="Seu e-mail"
+                      value={registerEmail}
+                      onChange={e => setRegisterEmail(e.target.value)}
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={inputStyle}
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  {/* Senha */}
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      type={showRegisterPassword ? 'text' : 'password'}
+                      placeholder="Criar senha"
+                      value={registerPassword}
+                      onChange={e => setRegisterPassword(e.target.value)}
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={{ ...inputStyle, paddingRight: 42 }}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterPassword(p => !p)}
+                      style={{
+                        position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'color 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#9fadbc' }}
+                      onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
+                      tabIndex={-1}
+                    >
+                      {showRegisterPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+
+                  {/* Indicadores de força da senha */}
+                  {registerPassword.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 2px' }}>
+                      {passwordChecks.map((check, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {check.valid ? (
+                            <CheckCircle size={13} style={{ color: '#25D066', flexShrink: 0 }} />
+                          ) : (
+                            <XCircle size={13} style={{ color: '#596773', flexShrink: 0 }} />
+                          )}
+                          <span style={{
+                            fontSize: 11, fontFamily: "'Space Grotesk', sans-serif",
+                            color: check.valid ? '#25D066' : '#596773',
+                            transition: 'color 0.2s',
+                          }}>
+                            {check.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Confirmar senha */}
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      type={showRegisterPassword ? 'text' : 'password'}
+                      placeholder="Confirmar senha"
+                      value={registerConfirmPassword}
+                      onChange={e => setRegisterConfirmPassword(e.target.value)}
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={inputStyle}
+                      autoComplete="new-password"
+                    />
+                    {registerConfirmPassword.length > 0 && (
+                      <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
+                        {registerPassword === registerConfirmPassword ? (
+                          <CheckCircle size={16} style={{ color: '#25D066' }} />
+                        ) : (
+                          <XCircle size={16} style={{ color: '#f87171' }} />
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* reCAPTCHA */}
+                  {recaptchaSiteKey && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+                      <div ref={captchaRef} />
+                    </div>
+                  )}
+
+                  {/* Botão Criar conta */}
+                  <button
+                    type="submit"
+                    disabled={loadingRegister || !isPasswordValid(registerPassword) || registerPassword !== registerConfirmPassword || (!!recaptchaSiteKey && !captchaToken)}
+                    onMouseEnter={e => { if (!loadingRegister) e.currentTarget.style.background = '#1BAD53' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
+                      fontFamily: "'Space Grotesk', sans-serif", cursor: loadingRegister ? 'not-allowed' : 'pointer',
+                      background: '#25D066', border: 'none', color: '#fff',
+                      opacity: (loadingRegister || !isPasswordValid(registerPassword) || registerPassword !== registerConfirmPassword) ? 0.5 : 1,
+                      transition: 'background 0.15s, opacity 0.15s',
+                      boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
+                      marginTop: 4,
+                    }}
+                  >
+                    {loadingRegister ? (
+                      <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <ArrowRight size={17} />
+                    )}
+                    {loadingRegister ? 'Criando conta...' : 'Criar conta'}
+                  </button>
+                </form>
+
+                {/* Link para login */}
+                <p style={{
+                  textAlign: 'center', marginTop: 20, marginBottom: 0, fontSize: 13, color: '#6B7685',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}>
+                  Já tem uma conta?{' '}
+                  <button
+                    onClick={() => switchMode('login')}
+                    style={{
+                      background: 'none', border: 'none', color: '#25D066', cursor: 'pointer',
+                      fontWeight: 600, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
+                      textDecoration: 'none', padding: 0,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
+                    onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
+                  >
+                    Fazer login
+                  </button>
+                </p>
+              </motion.div>
             )}
-            {loadingGoogle ? 'Conectando...' : 'Continuar com Google'}
-          </button>
+          </AnimatePresence>
 
           <p style={{
             textAlign: 'center', marginTop: 18, marginBottom: 0, fontSize: 11, color: '#4B5563',
