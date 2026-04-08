@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX } from 'lucide-react'
+import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 interface LoginProps {
@@ -45,7 +45,62 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 
 export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
   const [loadingGoogle, setLoadingGoogle] = useState(false)
+  const [loadingEmail, setLoadingEmail] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const captchaRef = useRef<HTMLDivElement>(null)
+  const captchaWidgetId = useRef<number | null>(null)
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
+
+  // Carregar script do reCAPTCHA
+  useEffect(() => {
+    if (!recaptchaSiteKey) return
+    const existingScript = document.querySelector('script[src*="recaptcha"]')
+    if (existingScript) return
+
+    const script = document.createElement('script')
+    script.src = 'https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit'
+    script.async = true
+    script.defer = true
+    document.head.appendChild(script)
+
+    ;(window as Record<string, unknown>).onRecaptchaLoad = () => {
+      if (captchaRef.current && window.grecaptcha && captchaWidgetId.current === null) {
+        captchaWidgetId.current = window.grecaptcha.render(captchaRef.current, {
+          sitekey: recaptchaSiteKey,
+          callback: (token: string) => setCaptchaToken(token),
+          'expired-callback': () => setCaptchaToken(null),
+          theme: 'dark',
+          size: 'normal',
+        })
+      }
+    }
+
+    return () => {
+      delete (window as Record<string, unknown>).onRecaptchaLoad
+    }
+  }, [recaptchaSiteKey])
+
+  // Renderizar widget quando o reCAPTCHA já estiver carregado
+  useEffect(() => {
+    if (!recaptchaSiteKey || !captchaRef.current || captchaWidgetId.current !== null) return
+    if (window.grecaptcha) {
+      window.grecaptcha.ready(() => {
+        if (captchaRef.current && window.grecaptcha && captchaWidgetId.current === null) {
+          captchaWidgetId.current = window.grecaptcha.render(captchaRef.current, {
+            sitekey: recaptchaSiteKey,
+            callback: (token: string) => setCaptchaToken(token),
+            'expired-callback': () => setCaptchaToken(null),
+            theme: 'dark',
+            size: 'normal',
+          })
+        }
+      })
+    }
+  }, [recaptchaSiteKey])
 
   useEffect(() => {
     const hash = window.location.hash
@@ -58,15 +113,19 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
     }
   }, [])
 
-  function pushToast(type: ToastType, title: string, message: string) {
+  const pushToast = useCallback((type: ToastType, title: string, message: string) => {
     const id = Math.random().toString(36).slice(2)
     setToasts(prev => [{ id, type, title, message }, ...prev])
-  }
+  }, [])
   function dismissToast(id: string) { setToasts(prev => prev.filter(t => t.id !== id)) }
 
   async function handleGoogleLogin() {
     if (!isSupabaseConfigured) {
       pushToast('error', 'Erro de configuração', 'As variáveis de ambiente do Supabase não estão configuradas na Vercel. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY com escopo Preview.')
+      return
+    }
+    if (recaptchaSiteKey && !captchaToken) {
+      pushToast('warning', 'Verificação necessária', 'Complete o reCAPTCHA antes de continuar.')
       return
     }
     setLoadingGoogle(true)
@@ -78,11 +137,70 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
       if (error) {
         pushToast('error', 'Erro ao entrar com Google', error.message)
         setLoadingGoogle(false)
+        resetCaptcha()
       }
     } catch {
       pushToast('error', 'Erro de rede', 'Verifique sua conexão e tente novamente.')
       setLoadingGoogle(false)
+      resetCaptcha()
     }
+  }
+
+  async function handleEmailLogin(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim() || !password.trim()) {
+      pushToast('error', 'Campos obrigatórios', 'Preencha o e-mail e a senha para continuar.')
+      return
+    }
+    if (!isSupabaseConfigured) {
+      pushToast('error', 'Erro de configuração', 'As variáveis de ambiente do Supabase não estão configuradas.')
+      return
+    }
+    if (recaptchaSiteKey && !captchaToken) {
+      pushToast('warning', 'Verificação necessária', 'Complete o reCAPTCHA antes de continuar.')
+      return
+    }
+    setLoadingEmail(true)
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      })
+      if (error) {
+        pushToast('error', 'Erro ao entrar', error.message === 'Invalid login credentials'
+          ? 'E-mail ou senha incorretos.'
+          : error.message)
+        resetCaptcha()
+      }
+    } catch {
+      pushToast('error', 'Erro de rede', 'Verifique sua conexão e tente novamente.')
+      resetCaptcha()
+    } finally {
+      setLoadingEmail(false)
+    }
+  }
+
+  function resetCaptcha() {
+    setCaptchaToken(null)
+    if (window.grecaptcha && captchaWidgetId.current !== null) {
+      window.grecaptcha.reset(captchaWidgetId.current)
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '12px 14px 12px 42px', borderRadius: 10, fontSize: 14,
+    fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
+    border: '1px solid rgba(255,255,255,0.08)', outline: 'none',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+  }
+
+  const inputFocusStyle = (el: HTMLInputElement) => {
+    el.style.borderColor = '#25D066'
+    el.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.12)'
+  }
+  const inputBlurStyle = (el: HTMLInputElement) => {
+    el.style.borderColor = 'rgba(255,255,255,0.08)'
+    el.style.boxShadow = 'none'
   }
 
   return (
@@ -90,10 +208,14 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
       minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: 24, background: '#1d2125', position: 'relative', overflow: 'hidden',
     }}>
-      {/* Fundo sutil */}
+      {/* Fundo gradiente */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        backgroundImage: 'radial-gradient(ellipse 70% 50% at 50% 20%, rgba(37,208,102,0.06) 0%, transparent 70%)',
+        backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(37,208,102,0.08) 0%, transparent 60%)',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'radial-gradient(ellipse 40% 40% at 80% 80%, rgba(37,208,102,0.04) 0%, transparent 60%)',
       }} />
 
       {/* Toasts */}
@@ -103,20 +225,20 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
         </AnimatePresence>
       </div>
 
-      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 360 }}>
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 400 }}>
         {/* Logo + Marca */}
         <motion.div
-          initial={{ opacity: 0, y: -16 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 32 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}
         >
           <div style={{
-            width: 56, height: 56, borderRadius: 16, background: '#25D066',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-            boxShadow: '0 8px 24px rgba(37,208,102,0.3)',
+            width: 60, height: 60, borderRadius: 18, background: 'linear-gradient(135deg, #25D066 0%, #1BAD53 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+            boxShadow: '0 12px 32px rgba(37,208,102,0.25), 0 4px 12px rgba(37,208,102,0.15)',
           }}>
-            <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+            <svg width="30" height="30" viewBox="0 0 100 100" fill="none">
               <rect x="4" y="4" width="92" height="68" rx="12" ry="12" fill="white" />
               <polygon points="50,92 40,68 60,68" fill="white" />
               <circle cx="30" cy="40" r="6" fill="#25D066" />
@@ -125,30 +247,40 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
             </svg>
           </div>
           <h1 style={{
-            fontFamily: "'Paytone One', sans-serif", fontSize: 26, color: '#fff',
-            margin: 0, lineHeight: 1,
+            fontFamily: "'Paytone One', sans-serif", fontSize: 30, color: '#fff',
+            margin: 0, lineHeight: 1, letterSpacing: '-0.01em',
           }}>
-            chatPro
+            Trelado
           </h1>
-          <p style={{
-            fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: '#8C96A3',
-            margin: '6px 0 0', fontWeight: 400,
-          }}>
-            Suporte interno
-          </p>
         </motion.div>
 
         {/* Card */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
           style={{
-            borderRadius: 16, padding: 28,
+            borderRadius: 20, padding: '32px 28px',
             background: '#22272B', border: '1px solid rgba(255,255,255,0.06)',
-            boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.03)',
           }}
         >
+          {/* Título do card */}
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <h2 style={{
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700,
+              color: '#E5E7EB', margin: 0,
+            }}>
+              Acessar sua conta
+            </h2>
+            <p style={{
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: '#6B7685',
+              margin: '6px 0 0',
+            }}>
+              Entre com seu e-mail e senha ou use o Google
+            </p>
+          </div>
+
           {/* Aviso de acesso negado */}
           {unauthorizedEmail && (
             <div style={{
@@ -168,18 +300,104 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
             </div>
           )}
 
+          {/* Formulário de e-mail e senha */}
+          <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* E-mail */}
+            <div style={{ position: 'relative' }}>
+              <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+              <input
+                type="email"
+                placeholder="Seu e-mail"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onFocus={e => inputFocusStyle(e.currentTarget)}
+                onBlur={e => inputBlurStyle(e.currentTarget)}
+                style={inputStyle}
+                autoComplete="email"
+              />
+            </div>
+
+            {/* Senha */}
+            <div style={{ position: 'relative' }}>
+              <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Sua senha"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onFocus={e => inputFocusStyle(e.currentTarget)}
+                onBlur={e => inputBlurStyle(e.currentTarget)}
+                style={{ ...inputStyle, paddingRight: 42 }}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(p => !p)}
+                style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#9fadbc' }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+
+            {/* reCAPTCHA */}
+            {recaptchaSiteKey && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+                <div ref={captchaRef} />
+              </div>
+            )}
+
+            {/* Botão Entrar */}
+            <button
+              type="submit"
+              disabled={loadingEmail || (!!recaptchaSiteKey && !captchaToken)}
+              onMouseEnter={e => { if (!loadingEmail) e.currentTarget.style.background = '#1BAD53' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
+                fontFamily: "'Space Grotesk', sans-serif", cursor: loadingEmail ? 'not-allowed' : 'pointer',
+                background: '#25D066', border: 'none', color: '#fff',
+                opacity: loadingEmail ? 0.6 : 1, transition: 'background 0.15s, opacity 0.15s',
+                boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
+                marginTop: 4,
+              }}
+            >
+              {loadingEmail ? (
+                <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <ArrowRight size={17} />
+              )}
+              {loadingEmail ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
+
+          {/* Divisor */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+            <span style={{ fontSize: 11, fontWeight: 500, color: '#596773', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.06em' }}>ou</span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+          </div>
+
           {/* Botão Google */}
           <button
             onClick={handleGoogleLogin}
-            disabled={loadingGoogle}
+            disabled={loadingGoogle || (!!recaptchaSiteKey && !captchaToken)}
             onMouseEnter={e => { if (!loadingGoogle) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
               padding: '13px 0', borderRadius: 12, fontWeight: 600, fontSize: 14,
               fontFamily: "'Space Grotesk', sans-serif", cursor: loadingGoogle ? 'not-allowed' : 'pointer',
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-              color: '#E5E7EB', opacity: loadingGoogle ? 0.4 : 1, transition: 'background 0.15s',
+              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+              color: '#b6c2cf', opacity: loadingGoogle ? 0.4 : 1, transition: 'background 0.15s',
             }}
           >
             {loadingGoogle ? (
@@ -187,11 +405,11 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
             ) : (
               <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
             )}
-            {loadingGoogle ? 'Conectando...' : 'Entrar com Google'}
+            {loadingGoogle ? 'Conectando...' : 'Continuar com Google'}
           </button>
 
           <p style={{
-            textAlign: 'center', marginTop: 16, marginBottom: 0, fontSize: 11, color: '#596773',
+            textAlign: 'center', marginTop: 18, marginBottom: 0, fontSize: 11, color: '#4B5563',
             fontFamily: "'Space Grotesk', sans-serif", lineHeight: 1.5,
           }}>
             Somente contas autorizadas pelo administrador podem acessar a plataforma.
@@ -204,11 +422,11 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.5 }}
           style={{
-            textAlign: 'center', marginTop: 24, fontSize: 11, color: '#4B5563',
+            textAlign: 'center', marginTop: 28, fontSize: 11, color: '#3B4754',
             fontFamily: "'Space Grotesk', sans-serif",
           }}
         >
-          chatPro · Suporte Interno
+          © {new Date().getFullYear()} Trelado
         </motion.p>
       </div>
     </div>
