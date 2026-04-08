@@ -4,7 +4,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable,
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Search, Share2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, LayoutGrid, List, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2 } from 'lucide-react'
+import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Search, Share2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, LayoutGrid, List, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { clsx } from 'clsx'
 import Card from './Card'
 import CardDetailModal, { parseTag } from './CardDetailModal'
@@ -1140,6 +1140,23 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             style={compactMode ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
           >
             {compactMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+
+          {/* Recolher / Expandir tudo */}
+          <button
+            onClick={() => {
+              if (collapsedColumns.size === allColumns.length) {
+                setCollapsedColumns(new Set())
+              } else {
+                setCollapsedColumns(new Set(allColumns.map(c => c.id)))
+              }
+            }}
+            className="trello-icon-btn"
+            type="button"
+            title={collapsedColumns.size === allColumns.length ? 'Expandir tudo' : 'Recolher tudo'}
+            style={collapsedColumns.size === allColumns.length ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
+          >
+            {collapsedColumns.size === allColumns.length ? <ChevronsUpDown size={16} /> : <ChevronsDownUp size={16} />}
           </button>
 
           {/* Filtros avançados */}
