@@ -25,6 +25,202 @@ const Onboarding = lazy(() => import('./components/Onboarding'))
 // Inicializar Sentry no carregamento do módulo
 initSentry()
 
+function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  const checks = [
+    { label: 'Mínimo 8 caracteres', valid: newPassword.length >= 8 },
+    { label: 'Uma letra maiúscula', valid: /[A-Z]/.test(newPassword) },
+    { label: 'Um caractere especial (!@#$...)', valid: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(newPassword) },
+  ]
+  const isValid = checks.every(c => c.valid) && newPassword === confirmPassword && confirmPassword.length > 0
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!isValid) return
+    setSaving(true)
+    setError(null)
+    try {
+      const { error: err } = await supabase.auth.updateUser({ password: newPassword })
+      if (err) {
+        setError(err.message)
+      } else {
+        setSuccess(true)
+        setTimeout(onDone, 2000)
+      }
+    } catch {
+      setError('Erro de rede. Tente novamente.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '12px 14px 12px 14px', borderRadius: 10, fontSize: 14,
+    fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
+    border: '1px solid rgba(255,255,255,0.08)', outline: 'none',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: 24, background: '#1d2125', position: 'relative', overflow: 'hidden',
+    }}>
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(37,208,102,0.08) 0%, transparent 60%)',
+      }} />
+
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 400 }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}>
+          <div style={{
+            width: 60, height: 60, borderRadius: 18, background: 'linear-gradient(135deg, #25D066 0%, #1BAD53 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+            boxShadow: '0 12px 32px rgba(37,208,102,0.25)',
+          }}>
+            <svg width="30" height="30" viewBox="0 0 100 100" fill="none">
+              <rect x="4" y="4" width="92" height="68" rx="12" ry="12" fill="white" />
+              <polygon points="50,92 40,68 60,68" fill="white" />
+              <circle cx="30" cy="40" r="6" fill="#25D066" />
+              <circle cx="50" cy="40" r="6" fill="#25D066" />
+              <circle cx="70" cy="40" r="6" fill="#25D066" />
+            </svg>
+          </div>
+          <h1 style={{ fontFamily: "'Paytone One', sans-serif", fontSize: 30, color: '#fff', margin: 0 }}>Trelado</h1>
+        </div>
+
+        {/* Card */}
+        <div style={{
+          borderRadius: 20, padding: '32px 28px',
+          background: '#22272B', border: '1px solid rgba(255,255,255,0.06)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, color: '#E5E7EB', margin: 0 }}>
+              {success ? 'Senha redefinida!' : 'Definir nova senha'}
+            </h2>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: '#6B7685', margin: '6px 0 0' }}>
+              {success ? 'Você será redirecionado em instantes...' : 'Crie uma senha segura para sua conta'}
+            </p>
+          </div>
+
+          {success ? (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%', background: 'rgba(37,208,102,0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px',
+              }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#25D066" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, color: '#25D066', fontWeight: 600 }}>
+                Senha alterada com sucesso!
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Nova senha"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.12)' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
+                  style={{ ...inputStyle, paddingRight: 42 }}
+                  autoComplete="new-password"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(p => !p)}
+                  style={{
+                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4,
+                  }}
+                  tabIndex={-1}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
+
+              {/* Validação visual */}
+              {newPassword.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 2px' }}>
+                  {checks.map((check, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 12, color: check.valid ? '#25D066' : '#596773' }}>
+                        {check.valid ? '✓' : '○'}
+                      </span>
+                      <span style={{
+                        fontSize: 11, fontFamily: "'Space Grotesk', sans-serif",
+                        color: check.valid ? '#25D066' : '#596773',
+                      }}>
+                        {check.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Confirmar nova senha"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.12)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
+                style={inputStyle}
+                autoComplete="new-password"
+              />
+
+              {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+                <p style={{ fontSize: 11, color: '#f87171', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                  As senhas não coincidem
+                </p>
+              )}
+
+              {error && (
+                <p style={{ fontSize: 12, color: '#f87171', margin: 0, fontFamily: "'Space Grotesk', sans-serif", textAlign: 'center' }}>
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={!isValid || saving}
+                style={{
+                  width: '100%', padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
+                  fontFamily: "'Space Grotesk', sans-serif", cursor: (!isValid || saving) ? 'not-allowed' : 'pointer',
+                  background: '#25D066', border: 'none', color: '#fff',
+                  opacity: (!isValid || saving) ? 0.5 : 1,
+                  transition: 'background 0.15s, opacity 0.15s',
+                  boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
+                  marginTop: 4,
+                }}
+              >
+                {saving ? 'Salvando...' : 'Redefinir senha'}
+              </button>
+            </form>
+          )}
+        </div>
+
+        <p style={{ textAlign: 'center', marginTop: 28, fontSize: 11, color: '#3B4754', fontFamily: "'Space Grotesk', sans-serif" }}>
+          © {new Date().getFullYear()} Trelado
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,6 +229,7 @@ export default function App() {
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
   const [openTicketId, setOpenTicketId] = useState<string | null>(null)
   const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null)
+  const [recoveryMode, setRecoveryMode] = useState(false)
 
   useEffect(() => {
     // Se o Supabase não está configurado, nem tenta verificar sessão
@@ -82,6 +279,10 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
       console.log('[Auth] onAuthStateChange event:', _event, 'email:', email)
+      if (_event === 'PASSWORD_RECOVERY') {
+        setRecoveryMode(true)
+        return
+      }
       checkSession(email)
     })
 
@@ -127,7 +328,9 @@ export default function App() {
     <ThemeProvider>
       <MotionConfig reducedMotion="user">
         <ErrorBoundary onError={(error, info) => { console.error('[App ErrorBoundary]', error, info); captureException(error, { componentStack: info.componentStack }) }}>
-          {!user ? (
+          {recoveryMode ? (
+            <ResetPasswordScreen onDone={() => { setRecoveryMode(false); window.location.reload() }} />
+          ) : !user ? (
             <Login onLogin={handleLogin} unauthorizedEmail={unauthorizedEmail} />
           ) : (
             <ErrorBoundary>
