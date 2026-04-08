@@ -49,24 +49,24 @@ export function useOnboarding() {
     setIsActive(true)
   }, [])
 
+  const completeTour = useCallback(() => {
+    setIsActive(false)
+    localStorage.setItem(STORAGE_KEY, 'true')
+  }, [])
+
   const nextStep = useCallback(() => {
     if (currentStep < TOUR_STEPS.length - 1) {
       setCurrentStep(prev => prev + 1)
     } else {
       completeTour()
     }
-  }, [currentStep])
+  }, [currentStep, completeTour])
 
   const prevStep = useCallback(() => {
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1)
     }
   }, [currentStep])
-
-  const completeTour = useCallback(() => {
-    setIsActive(false)
-    localStorage.setItem(STORAGE_KEY, 'true')
-  }, [])
 
   const skipTour = useCallback(() => {
     setIsActive(false)

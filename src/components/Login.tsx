@@ -43,9 +43,15 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   )
 }
 
-export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
+export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginProps) {
   const [loadingGoogle, setLoadingGoogle] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
+
+  function pushToast(type: ToastType, title: string, message: string) {
+    const id = Math.random().toString(36).slice(2)
+    setToasts(prev => [{ id, type, title, message }, ...prev])
+  }
+  function dismissToast(id: string) { setToasts(prev => prev.filter(t => t.id !== id)) }
 
   useEffect(() => {
     const hash = window.location.hash
@@ -53,16 +59,10 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
     const p2 = new URLSearchParams(window.location.search)
     const errorDesc = p1.get('error_description') ?? p2.get('error_description')
     if (errorDesc) {
-      pushToast('error', 'Falha na autenticação', decodeURIComponent(errorDesc).replace(/\+/g, ' '))
+      pushToast('error', 'Falha na autenticação', decodeURIComponent(errorDesc).replace(/\+/g, ' ')) // eslint-disable-line react-hooks/set-state-in-effect -- callback no mount
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [])
-
-  function pushToast(type: ToastType, title: string, message: string) {
-    const id = Math.random().toString(36).slice(2)
-    setToasts(prev => [{ id, type, title, message }, ...prev])
-  }
-  function dismissToast(id: string) { setToasts(prev => prev.filter(t => t.id !== id)) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- roda apenas uma vez no mount
 
   async function handleGoogleLogin() {
     if (!isSupabaseConfigured) {

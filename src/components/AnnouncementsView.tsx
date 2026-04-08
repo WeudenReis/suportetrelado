@@ -64,6 +64,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       for (const p of profiles) {
         if (p.email === user) continue
         await insertNotification({
+          department_id: '',
           recipient_email: p.email,
           sender_name: authorName,
           type: 'announcement',
@@ -88,8 +89,9 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
     const c = announcements.filter(a => a.severity === 'critical').length
     const w = announcements.filter(a => a.severity === 'warning').length
     const i = announcements.filter(a => a.severity === 'info').length
+    const now = Date.now() // eslint-disable-line react-hooks/purity -- estável dentro de useMemo com deps
     const recent24h = announcements.filter(a => {
-      const ms = Date.now() - new Date(a.created_at).getTime()
+      const ms = now - new Date(a.created_at).getTime()
       return ms < 86400000
     }).length
     return { critical: c, warning: w, info: i, recent24h, total: announcements.length }

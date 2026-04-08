@@ -81,7 +81,7 @@ export default function Onboarding() {
     if (!target) return
 
     const rect = target.getBoundingClientRect()
-    setTargetRect(rect)
+    setTargetRect(rect) // eslint-disable-line react-hooks/set-state-in-effect -- posicionamento imperativo do tooltip
 
     // Wait for tooltip to render to get its size
     requestAnimationFrame(() => {

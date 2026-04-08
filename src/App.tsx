@@ -37,7 +37,7 @@ export default function App() {
   useEffect(() => {
     // Se o Supabase não está configurado, nem tenta verificar sessão
     if (!isSupabaseConfigured) {
-      setLoading(false)
+      setLoading(false) // eslint-disable-line react-hooks/set-state-in-effect -- early return antes de qualquer async
       return
     }
 
@@ -166,10 +166,9 @@ interface AppContentProps {
 }
 
 function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketId, setOpenTicketId, onLogout }: AppContentProps) {
-  const { unreadCount, toastNotification, dismissToast } = useNotificationContext()
+  const { toastNotification, dismissToast } = useNotificationContext()
   const sidebarRef = useRef<HTMLDivElement>(null)
   const isAnimating = useRef(false)
-  const [sidebarExpanded] = useState(true)
   const sidebarWidth = 520
 
   const handleTabChange = useCallback((tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => {

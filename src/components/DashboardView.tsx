@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, RefreshCw, Download, CalendarDays, Target, Maximize2 } from 'lucide-react'
+import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, Download, CalendarDays, Target, Maximize2 } from 'lucide-react'
 import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../lib/supabase'
 import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
 import DashboardExpanded from './DashboardExpanded'

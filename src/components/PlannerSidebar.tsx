@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useMemo, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CalendarDays, X, Settings, Plus, AlignLeft } from 'lucide-react'
 import type { Ticket, PlannerEvent } from '../lib/supabase'
 import { fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent } from '../lib/supabase'
@@ -44,7 +44,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
     // Load local fallback first for instant UI
     const localRaw = localStorage.getItem(localKey)
     const localEvents: PlannerEvent[] = localRaw ? JSON.parse(localRaw) : []
-    if (localEvents.length > 0) setEvents(localEvents)
+    if (localEvents.length > 0) setEvents(localEvents) // eslint-disable-line react-hooks/set-state-in-effect -- carregamento inicial do localStorage
 
     // Then load from Supabase and merge
     fetchPlannerEvents(user).then(remoteEvents => {

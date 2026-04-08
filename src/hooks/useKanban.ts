@@ -154,6 +154,7 @@ export function useKanban(user: string) {
     setCreating(true)
     try {
       const created = await insertTicket({
+        department_id: '',
         title: data.title.trim(),
         description: data.description || '',
         status: data.status,
@@ -173,7 +174,7 @@ export function useKanban(user: string) {
   const addInlineTicket = async (col: TicketStatus, title: string) => {
     if (!title.trim()) return
     const created = await insertTicket({
-      title: title.trim(), description: '', status: col,
+      department_id: '', title: title.trim(), description: '', status: col,
       priority: 'medium', assignee: user,
     })
     setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])

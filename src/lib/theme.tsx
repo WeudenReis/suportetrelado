@@ -163,7 +163,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(saved)
         return parsed.presetKey || 'dark'
       }
-    } catch {}
+    } catch { /* ignore parse errors */ }
     return 'dark'
   })
 
@@ -174,7 +174,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(saved)
         return parsed.theme || PRESETS.dark
       }
-    } catch {}
+    } catch { /* ignore parse errors */ }
     return PRESETS.dark
   })
 

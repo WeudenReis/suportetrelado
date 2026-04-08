@@ -136,8 +136,8 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
         if (error) throw error
       }
       onClose()
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Erro ao salvar configuração')
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Erro ao salvar configuração')
     } finally {
       setSaving(false)
     }

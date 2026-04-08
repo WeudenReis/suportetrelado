@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Tag, X, Pencil, Trash2 } from 'lucide-react'
+import { Tag, X, Pencil } from 'lucide-react'
 import { fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../../lib/supabase'
 import type { BoardLabel } from '../../lib/supabase'
 

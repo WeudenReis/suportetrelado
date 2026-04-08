@@ -32,6 +32,7 @@ interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: 
 function buildFallbackColumns(): BoardColumn[] {
   return COLUMNS.map((c, i) => ({
     id: c.id,
+    department_id: '',
     title: c.label,
     position: i,
     dot_color: c.accent,
@@ -44,6 +45,7 @@ function buildFallbackColumns(): BoardColumn[] {
 function buildLocalColumn(title: string, position: number): BoardColumn {
   return {
     id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    department_id: '',
     title: title.trim(),
     position,
     dot_color: '#101204',
@@ -59,13 +61,13 @@ function DroppableColumn({ id, children, isOver }: { id: string; children: React
 }
 
 function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, isOverCard, activeTicket, compact, bulkMode, isSelected, onBulkToggle, isMutating }: {
-  ticket: any
-  onClick: (ticket: any) => void
-  onUpdate: (u: any) => void
+  ticket: Ticket
+  onClick: (ticket: Ticket) => void
+  onUpdate: (u: Ticket) => void
   onArchive: (id: string) => void
   onShowToast?: (msg: string, type: 'ok' | 'err') => void
   isOverCard: boolean
-  activeTicket: any | null
+  activeTicket: Ticket | null
   compact?: boolean
   bulkMode?: boolean
   isSelected?: boolean
@@ -717,8 +719,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
       setInlineTitle('')
       setAddingTo(null)
-    } catch (err: any) {
-      showToast(err?.message || 'Erro ao criar ticket', 'err')
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Erro ao criar ticket', 'err')
     }
   }
 

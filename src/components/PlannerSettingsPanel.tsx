@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Settings, Bell, CalendarIcon, Loader2 } from 'lucide-react'
+import { X, Settings, Bell, Loader2 } from 'lucide-react'
 import { fetchPlannerSettings, upsertPlannerSettings } from '../lib/supabase'
 
 interface PlannerSettingsPanelProps {
@@ -18,7 +18,7 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
 
   useEffect(() => {
     if (isOpen) {
-      setLoading(true)
+      setLoading(true) // eslint-disable-line react-hooks/set-state-in-effect -- reset de estado ao abrir
       fetchPlannerSettings(userEmail).then(settings => {
         if (settings && settings.notify_days_before) {
           setNotifyDaysBefore(settings.notify_days_before)
@@ -27,13 +27,6 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
       })
     }
   }, [isOpen, userEmail])
-
-  const toggleDay = (day: number) => {
-    setNotifyDaysBefore(prev => {
-      if (prev.includes(day)) return prev.filter(d => d !== day)
-      return [...prev, day].sort()
-    })
-  }
 
   const handleSave = async () => {
     setSaving(true)

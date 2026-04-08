@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Inbox, Lock, ChevronLeft, ChevronRight, SlidersHorizontal, MoreHorizontal } from 'lucide-react'
 
 const INTEGRATIONS = [
@@ -20,7 +20,7 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-export default function Sidebar({ user, collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ user: _user, collapsed, onToggle }: SidebarProps) {
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null)
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const isResizing = useRef(false)

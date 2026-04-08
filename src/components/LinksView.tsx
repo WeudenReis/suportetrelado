@@ -33,13 +33,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
     setLoading(false)
   }, [])
 
-  useEffect(() => { load() }, [load])
-
-  const categories = useMemo(() => {
-    const cats = new Set(links.map(l => l.category))
-    DEFAULT_CATEGORIES.forEach(c => cats.add(c))
-    return Array.from(cats).sort()
-  }, [links])
+  useEffect(() => { load() }, [load]) // eslint-disable-line react-hooks/set-state-in-effect -- carregamento inicial
 
   const filtered = useMemo(() => {
     if (!search.trim()) return links

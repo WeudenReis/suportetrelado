@@ -191,7 +191,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
     if (card.is_completed) return '';
     const updatedAt = card.updated_at;
     if (!updatedAt) return '';
-    const hoursIdle = (Date.now() - new Date(updatedAt).getTime()) / 3_600_000;
+    const hoursIdle = (Date.now() - new Date(updatedAt).getTime()) / 3_600_000; // eslint-disable-line react-hooks/purity -- IIFE calculada a cada render, sem cache
     if (hoursIdle >= 24) return styles.cardOverdue;
     return '';
   })();

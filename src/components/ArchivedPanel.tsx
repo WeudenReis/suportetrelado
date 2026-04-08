@@ -3,6 +3,21 @@ import { supabase } from '../lib/supabase';
 import { ArchiveRestore, Trash2, X, Search } from 'lucide-react';
 import styles from './ArchivedPanel.module.css';
 
+interface ArchivedCard {
+  id: string
+  title: string
+  priority: string
+  created_at: string
+  updated_at: string
+}
+
+interface ArchivedList {
+  id: string
+  title: string
+  created_at: string
+  updated_at: string
+}
+
 interface ArchivedPanelProps {
   onClose: () => void;
   onRestore: () => void;
@@ -23,8 +38,8 @@ const PRIORITY_COLOR: Record<string, { bg: string; text: string }> = {
 }
 
 export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
-  const [archivedCards, setArchivedCards] = useState<any[]>([]);
-  const [archivedLists, setArchivedLists] = useState<any[]>([]);
+  const [archivedCards, setArchivedCards] = useState<ArchivedCard[]>([]);
+  const [archivedLists, setArchivedLists] = useState<ArchivedList[]>([]);
   const [tab, setTab] = useState<'cards' | 'lists'>('cards');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -42,7 +57,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
     setLoading(false);
   };
 
-  useEffect(() => { fetchArchived(); }, []);
+  useEffect(() => { fetchArchived(); }, []); // eslint-disable-line react-hooks/set-state-in-effect -- carregamento inicial
 
   const restoreCard = async (cardId: string) => {
     await supabase.from('tickets')

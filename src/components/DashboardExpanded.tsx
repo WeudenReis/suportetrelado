@@ -420,7 +420,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     }
 
     // ── FOOTER ──
-    const totalPages = (doc as any).internal.getNumberOfPages()
+    const totalPages = (doc as unknown as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
     for (let p = 1; p <= totalPages; p++) {
       doc.setPage(p)
       setFill('#0e1520'); doc.rect(0, pageH - 10, W, 10, 'F')
@@ -687,7 +687,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 }
                 const inProgress = active.filter(t => matchAssignee(t) && t.status === 'in_progress').length
                 const done = active.filter(t => matchAssignee(t) && t.status === 'resolved').length
-                const isOnline = profile && profile.last_seen_at && (Date.now() - new Date(profile.last_seen_at).getTime()) < 300000
+                const isOnline = profile && profile.last_seen_at && (Date.now() - new Date(profile.last_seen_at).getTime()) < 300000 // eslint-disable-line react-hooks/purity -- cálculo de presença online
                 const avatarBg = name === 'Sem responsável' ? '#454F59' : (profile?.avatar_color || avatarColor(name))
                 const load = maxMember > 0 ? Math.round(count / maxMember * 100) : 0
                 return (

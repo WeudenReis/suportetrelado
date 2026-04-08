@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import React from 'react'
 
 // Mock variáveis de ambiente do Vite
 Object.defineProperty(import.meta, 'env', {
@@ -63,8 +64,7 @@ vi.mock('framer-motion', async () => {
                 filteredProps[key] = value
               }
             }
-            const { createElement } = require('react')
-            return createElement(prop, filteredProps)
+            return React.createElement(prop, filteredProps)
           }
           Component.displayName = `motion.${prop}`
           return Component

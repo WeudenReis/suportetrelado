@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Calendar, Clock, Disc, Edit3 } from 'lucide-react'
 import type { PlannerEvent } from '../lib/supabase'
@@ -36,7 +36,7 @@ export default function PlannerEventModal({
   useEffect(() => {
     if (isOpen) {
       if (existingEvent) {
-        setTitle(existingEvent.title)
+        setTitle(existingEvent.title) // eslint-disable-line react-hooks/set-state-in-effect -- inicialização de form a partir de props
         setDescription(existingEvent.description || '')
         setDate(existingEvent.date || selectedDate)
         setStartTime(existingEvent.start_time || '')
@@ -56,6 +56,7 @@ export default function PlannerEventModal({
   const handleSave = () => {
     if (!title.trim()) return
     onSave({
+      organization_id: '',
       user_email: userEmail,
       title: title.trim(),
       description: description.trim(),

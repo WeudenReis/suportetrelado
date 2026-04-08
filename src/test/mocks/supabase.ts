@@ -126,4 +126,4 @@ export const fetchPlannerSettings = vi.fn().mockResolvedValue(null)
 export const upsertPlannerSettings = vi.fn().mockResolvedValue(undefined)
 
 // Re-exportar tipos (são passthrough)
-export type { Ticket, TicketStatus, TicketPriority, TicketInsert, Comment, Attachment, ActivityLog, BoardLabel, UserProfile, Notification, Announcement, AnnouncementSeverity, UsefulLink, PlannerEvent, PlannerNotificationSettings, PaginationOptions } from '../lib/supabase'
+export type { Ticket, TicketStatus, TicketPriority, TicketInsert, Comment, Attachment, ActivityLog, BoardLabel, UserProfile, Notification, Announcement, AnnouncementSeverity, UsefulLink, PlannerEvent, PlannerNotificationSettings, PaginationOptions } from '../../lib/supabase'

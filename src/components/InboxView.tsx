@@ -1,11 +1,11 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CheckCheck, Clock, ChevronLeft, X } from 'lucide-react'
+import { Inbox, CheckCheck, Clock, X } from 'lucide-react'
 import { useNotificationContext } from './NotificationContext'
 import type { Notification } from '../lib/supabase'
 import InboxTabs from './inbox/InboxTabs'
 import type { TabFilter } from './inbox/InboxTabs'
-import NotificationCard, { cardVariants } from './inbox/NotificationCard'
+import NotificationCard from './inbox/NotificationCard'
 import EmptyState from './inbox/EmptyState'
 
 interface InboxSidebarProps {
@@ -44,7 +44,7 @@ const listVariants = {
 }
 
 /* ── Component ── */
-export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSidebarProps) {
+export default function InboxSidebar({ user: _user, onClose, onOpenTicket }: InboxSidebarProps) {
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotificationContext()
   const [filter, setFilter] = useState<TabFilter>('all')
   const scrollRef = useRef<HTMLDivElement>(null)

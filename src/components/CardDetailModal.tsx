@@ -202,22 +202,22 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [comments.length, activities.length])
 
+  const handleClose = useCallback(() => {
+    setIsVisible(false)
+    setTimeout(onClose, 250)
+  }, [onClose])
+
   useEffect(() => {
     const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', fn)
     return () => window.removeEventListener('keydown', fn)
-  }, [onClose])
+  }, [handleClose])
 
   useEffect(() => {
     const closeMenu = () => setShowMoreMenu(false)
     window.addEventListener('click', closeMenu)
     return () => window.removeEventListener('click', closeMenu)
   }, [])
-
-  const handleClose = useCallback(() => {
-    setIsVisible(false)
-    setTimeout(onClose, 250)
-  }, [onClose])
 
   const saveQueue = useRef<Partial<Ticket>[]>([])
   const processQueue = useCallback(async () => {
@@ -236,7 +236,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     }
     setSaving(false)
     savingRef.current = false
-    if (saveQueue.current.length > 0) processQueue()
+    if (saveQueue.current.length > 0) processQueue() // eslint-disable-line react-hooks/immutability -- recursão intencional na fila
   }, [ticket.id, onUpdate])
 
   const save = useCallback(async (updates: Partial<Ticket>) => {
@@ -343,6 +343,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         for (const email of emails) {
           if (email.toLowerCase() !== user.toLowerCase()) {
             await insertNotification({
+              department_id: ticket.department_id || '',
               recipient_email: email,
               sender_name: senderDisplayName,
               type: 'mention',
@@ -823,6 +824,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                                 const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
                                 const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
                                 insertNotification({
+                                  department_id: ticket.department_id || '',
                                   recipient_email: u.email,
                                   sender_name: senderDisplayName,
                                   type: 'assignment',
