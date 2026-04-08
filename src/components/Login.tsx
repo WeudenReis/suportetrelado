@@ -8,7 +8,7 @@ interface LoginProps {
   unauthorizedEmail: string | null
 }
 
-type AuthMode = 'login' | 'register'
+type AuthMode = 'login' | 'register' | 'forgot'
 type ToastType = 'error' | 'success' | 'warning'
 interface Toast { id: string; type: ToastType; title: string; message: string }
 
@@ -63,9 +63,9 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 
 export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
   const [mode, setMode] = useState<AuthMode>('login')
-  const [loadingGoogle, setLoadingGoogle] = useState(false)
   const [loadingEmail, setLoadingEmail] = useState(false)
   const [loadingRegister, setLoadingRegister] = useState(false)
+  const [loadingReset, setLoadingReset] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -146,30 +146,26 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
   }, [])
   function dismissToast(id: string) { setToasts(prev => prev.filter(t => t.id !== id)) }
 
-  async function handleGoogleLogin() {
-    if (!isSupabaseConfigured) {
-      pushToast('error', 'Erro de configuração', 'As variáveis de ambiente do Supabase não estão configuradas na Vercel. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY com escopo Preview.')
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim()) {
+      pushToast('warning', 'Informe o e-mail', 'Digite seu e-mail para receber o link de redefinição.')
       return
     }
-    if (recaptchaSiteKey && !captchaToken) {
-      pushToast('warning', 'Verificação necessária', 'Complete o reCAPTCHA antes de continuar.')
-      return
-    }
-    setLoadingGoogle(true)
+    setLoadingReset(true)
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin }
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin,
       })
       if (error) {
-        pushToast('error', 'Erro ao entrar com Google', error.message)
-        setLoadingGoogle(false)
-        resetCaptcha()
+        pushToast('error', 'Erro ao enviar', error.message)
+      } else {
+        pushToast('success', 'E-mail enviado!', 'Verifique sua caixa de entrada para redefinir sua senha.')
       }
     } catch {
       pushToast('error', 'Erro de rede', 'Verifique sua conexão e tente novamente.')
-      setLoadingGoogle(false)
-      resetCaptcha()
+    } finally {
+      setLoadingReset(false)
     }
   }
 
@@ -376,13 +372,13 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
               fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700,
               color: '#E5E7EB', margin: 0,
             }}>
-              {mode === 'login' ? 'Acessar sua conta' : 'Criar sua conta'}
+              {mode === 'login' ? 'Acessar sua conta' : mode === 'register' ? 'Criar sua conta' : 'Redefinir senha'}
             </h2>
             <p style={{
               fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: '#6B7685',
               margin: '6px 0 0',
             }}>
-              {mode === 'login' ? 'Entre com seu e-mail e senha ou use o Google' : 'Preencha os dados abaixo para se cadastrar'}
+              {mode === 'login' ? 'Entre com seu e-mail e senha' : mode === 'register' ? 'Preencha os dados abaixo para se cadastrar' : 'Informe seu e-mail para receber o link de redefinição'}
             </p>
           </div>
 
@@ -406,7 +402,7 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
           )}
 
           <AnimatePresence mode="wait">
-            {mode === 'login' ? (
+            {mode === 'login' && (
               <motion.div key="login" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.25 }}>
                 {/* Formulário de e-mail e senha */}
                 <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -480,34 +476,22 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
                   </button>
                 </form>
 
-                {/* Divisor */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-                  <span style={{ fontSize: 11, fontWeight: 500, color: '#596773', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.06em' }}>ou</span>
-                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                {/* Esqueci minha senha */}
+                <div style={{ textAlign: 'right', marginTop: 2 }}>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('forgot')}
+                    style={{
+                      background: 'none', border: 'none', color: '#596773', cursor: 'pointer',
+                      fontSize: 12, fontFamily: "'Space Grotesk', sans-serif",
+                      padding: 0, textDecoration: 'none',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#25D066'; e.currentTarget.style.textDecoration = 'underline' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#596773'; e.currentTarget.style.textDecoration = 'none' }}
+                  >
+                    Esqueci minha senha
+                  </button>
                 </div>
-
-                {/* Botão Google */}
-                <button
-                  onClick={handleGoogleLogin}
-                  disabled={loadingGoogle || (!!recaptchaSiteKey && !captchaToken)}
-                  onMouseEnter={e => { if (!loadingGoogle) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                    padding: '13px 0', borderRadius: 12, fontWeight: 600, fontSize: 14,
-                    fontFamily: "'Space Grotesk', sans-serif", cursor: loadingGoogle ? 'not-allowed' : 'pointer',
-                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-                    color: '#b6c2cf', opacity: loadingGoogle ? 0.4 : 1, transition: 'background 0.15s',
-                  }}
-                >
-                  {loadingGoogle ? (
-                    <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-                  )}
-                  {loadingGoogle ? 'Conectando...' : 'Continuar com Google'}
-                </button>
 
                 {/* Link para cadastro */}
                 <p style={{
@@ -529,7 +513,9 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
                   </button>
                 </p>
               </motion.div>
-            ) : (
+            )}
+
+            {mode === 'register' && (
               <motion.div key="register" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
                 {/* Formulário de cadastro */}
                 <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -682,6 +668,73 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
                     onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
                   >
                     Fazer login
+                  </button>
+                </p>
+              </motion.div>
+            )}
+
+            {mode === 'forgot' && (
+              <motion.div key="forgot" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
+                <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* E-mail */}
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      type="email"
+                      placeholder="Seu e-mail cadastrado"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={inputStyle}
+                      autoComplete="email"
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Botão Enviar link */}
+                  <button
+                    type="submit"
+                    disabled={loadingReset || !email.trim()}
+                    onMouseEnter={e => { if (!loadingReset) e.currentTarget.style.background = '#1BAD53' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
+                      fontFamily: "'Space Grotesk', sans-serif", cursor: loadingReset ? 'not-allowed' : 'pointer',
+                      background: '#25D066', border: 'none', color: '#fff',
+                      opacity: (loadingReset || !email.trim()) ? 0.5 : 1,
+                      transition: 'background 0.15s, opacity 0.15s',
+                      boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
+                      marginTop: 4,
+                    }}
+                  >
+                    {loadingReset ? (
+                      <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Mail size={17} />
+                    )}
+                    {loadingReset ? 'Enviando...' : 'Enviar link de redefinição'}
+                  </button>
+                </form>
+
+                {/* Voltar para login */}
+                <p style={{
+                  textAlign: 'center', marginTop: 20, marginBottom: 0, fontSize: 13, color: '#6B7685',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}>
+                  Lembrou a senha?{' '}
+                  <button
+                    onClick={() => switchMode('login')}
+                    style={{
+                      background: 'none', border: 'none', color: '#25D066', cursor: 'pointer',
+                      fontWeight: 600, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
+                      textDecoration: 'none', padding: 0,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
+                    onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
+                  >
+                    Voltar ao login
                   </button>
                 </p>
               </motion.div>
