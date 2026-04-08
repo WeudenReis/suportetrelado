@@ -51,6 +51,7 @@ function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
         setError(err.message)
       } else {
         setSuccess(true)
+        await supabase.auth.signOut()
         setTimeout(onDone, 2000)
       }
     } catch {
@@ -329,7 +330,7 @@ export default function App() {
       <MotionConfig reducedMotion="user">
         <ErrorBoundary onError={(error, info) => { console.error('[App ErrorBoundary]', error, info); captureException(error, { componentStack: info.componentStack }) }}>
           {recoveryMode ? (
-            <ResetPasswordScreen onDone={() => { setRecoveryMode(false); window.location.reload() }} />
+            <ResetPasswordScreen onDone={() => { setRecoveryMode(false); setUser(null) }} />
           ) : !user ? (
             <Login onLogin={handleLogin} unauthorizedEmail={unauthorizedEmail} />
           ) : (

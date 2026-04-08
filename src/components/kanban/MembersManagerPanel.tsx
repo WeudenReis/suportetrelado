@@ -37,6 +37,8 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
   const [updatingRole, setUpdatingRole] = useState(false)
   const [resetPasswordEmail, setResetPasswordEmail] = useState<string | null>(null)
   const [newPassword, setNewPassword] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [resettingPassword, setResettingPassword] = useState(false)
   const [resetSuccess, setResetSuccess] = useState<string | null>(null)
@@ -175,6 +177,10 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
 
   const handleResetPassword = useCallback(async (email: string) => {
     if (!newPassword.trim()) return
+    if (!currentPassword.trim()) {
+      logger.warn('MembersPanel', 'Senha atual não informada')
+      return
+    }
     // Validar senha: 8+ chars, 1 maiúscula, 1 especial
     if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(newPassword)) {
       logger.warn('MembersPanel', 'Senha não atende requisitos')
@@ -182,6 +188,23 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
     }
     setResettingPassword(true)
     try {
+      // Verificar identidade do admin re-autenticando com senha atual
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser?.email) {
+        logger.error('MembersPanel', 'Usuário admin não encontrado')
+        setResettingPassword(false)
+        return
+      }
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password: currentPassword.trim(),
+      })
+      if (authError) {
+        logger.error('MembersPanel', 'Senha atual incorreta', { error: authError.message })
+        setResettingPassword(false)
+        return
+      }
+
       // Usar Supabase Admin API via Edge Function ou enviar e-mail de reset
       // Como não temos acesso ao service_role no frontend, vamos usar o método nativo
       const { error } = await supabase.functions.invoke('admin-reset-password', {
@@ -217,10 +240,12 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
     } finally {
       setResettingPassword(false)
       setNewPassword('')
+      setCurrentPassword('')
       setResetPasswordEmail(null)
       setShowNewPassword(false)
+      setShowCurrentPassword(false)
     }
-  }, [newPassword])
+  }, [newPassword, currentPassword])
 
   function generateTempPassword(): string {
     const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -433,7 +458,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                         {/* Botão reset senha (admin only) */}
                         {canChangeRoles && (
                           <button
-                            onClick={() => { setResetPasswordEmail(member.email); setNewPassword(''); setShowNewPassword(false) }}
+                            onClick={() => { setResetPasswordEmail(member.email); setNewPassword(''); setCurrentPassword(''); setShowNewPassword(false); setShowCurrentPassword(false) }}
                             style={{
                               width: 26, height: 26, borderRadius: 6, border: 'none',
                               background: resetSuccess === member.email ? 'rgba(37,208,102,0.12)' : 'transparent',
@@ -553,7 +578,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
                 }}
-                onClick={e => { if (e.target === e.currentTarget) { setResetPasswordEmail(null); setNewPassword(''); setShowNewPassword(false) } }}
+                onClick={e => { if (e.target === e.currentTarget) { setResetPasswordEmail(null); setNewPassword(''); setCurrentPassword(''); setShowNewPassword(false); setShowCurrentPassword(false) } }}
               >
                 <motion.div
                   initial={{ scale: 0.95, opacity: 0 }}
@@ -580,6 +605,31 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* Campo senha atual do admin */}
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        placeholder="Sua senha atual"
+                        value={currentPassword}
+                        onChange={e => setCurrentPassword(e.target.value)}
+                        style={{
+                          width: '100%', padding: '11px 44px 11px 14px', borderRadius: 10, fontSize: 14,
+                          fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
+                          border: '1px solid rgba(255,255,255,0.08)', outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#fbbf24'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.12)' }}
+                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(p => !p)}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+                      >
+                        {showCurrentPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+
                     {/* Campo nova senha */}
                     <div style={{ position: 'relative' }}>
                       <input
@@ -661,7 +711,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                     {/* Botões */}
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <button
-                        onClick={() => { setResetPasswordEmail(null); setNewPassword(''); setShowNewPassword(false) }}
+                        onClick={() => { setResetPasswordEmail(null); setNewPassword(''); setCurrentPassword(''); setShowNewPassword(false); setShowCurrentPassword(false) }}
                         style={{
                           flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
                           fontFamily: "'Space Grotesk', sans-serif", cursor: 'pointer',
@@ -675,12 +725,12 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                       </button>
                       <button
                         onClick={() => handleResetPassword(resetPasswordEmail)}
-                        disabled={resettingPassword || newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(newPassword)}
+                        disabled={resettingPassword || !currentPassword.trim() || newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(newPassword)}
                         style={{
                           flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700,
                           fontFamily: "'Space Grotesk', sans-serif", cursor: resettingPassword ? 'not-allowed' : 'pointer',
                           background: '#fbbf24', border: 'none', color: '#1d2125',
-                          opacity: (resettingPassword || newPassword.length < 8) ? 0.5 : 1,
+                          opacity: (resettingPassword || !currentPassword.trim() || newPassword.length < 8) ? 0.5 : 1,
                           transition: 'background 0.15s, opacity 0.15s',
                         }}
                         onMouseEnter={e => { e.currentTarget.style.background = '#f59e0b' }}
