@@ -242,7 +242,7 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
     }
     setLoadingRegister(true)
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: registerEmail.trim(),
         password: registerPassword,
         options: {
@@ -250,17 +250,27 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
             full_name: registerName.trim(),
             name: registerName.trim(),
           },
+          emailRedirectTo: window.location.origin,
         },
       })
+      console.log('[Register] signUp response:', { data, error })
       if (error) {
-        if (error.message.includes('already registered')) {
+        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
           pushToast('error', 'E-mail já cadastrado', 'Este e-mail já possui uma conta. Faça login.')
         } else {
           pushToast('error', 'Erro ao criar conta', error.message)
         }
         resetCaptcha()
+      } else if (data?.user?.identities?.length === 0) {
+        // Supabase retorna user sem identities quando o e-mail já existe
+        pushToast('error', 'E-mail já cadastrado', 'Este e-mail já possui uma conta. Faça login.')
+        resetCaptcha()
+      } else if (data?.session) {
+        // Login automático (confirmação de e-mail desabilitada)
+        pushToast('success', 'Conta criada!', 'Você foi conectado automaticamente.')
       } else {
-        pushToast('success', 'Conta criada com sucesso!', 'Você já pode fazer login com seu e-mail e senha.')
+        // Confirmação de e-mail necessária
+        pushToast('success', 'Conta criada!', 'Verifique seu e-mail para confirmar o cadastro e depois faça login.')
         setMode('login')
         setEmail(registerEmail.trim())
         setRegisterName('')
@@ -445,13 +455,6 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
                     </button>
                   </div>
 
-                  {/* reCAPTCHA */}
-                  {recaptchaSiteKey && (
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
-                      <div ref={captchaRef} />
-                    </div>
-                  )}
-
                   {/* Botão Entrar */}
                   <button
                     type="submit"
@@ -535,7 +538,7 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
                     <User size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
                     <input
                       type="text"
-                      placeholder="Seu nome completo"
+                      placeholder="Nome de usuário"
                       value={registerName}
                       onChange={e => setRegisterName(e.target.value)}
                       onFocus={e => inputFocusStyle(e.currentTarget)}
@@ -636,13 +639,6 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
                     )}
                   </div>
 
-                  {/* reCAPTCHA */}
-                  {recaptchaSiteKey && (
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
-                      <div ref={captchaRef} />
-                    </div>
-                  )}
-
                   {/* Botão Criar conta */}
                   <button
                     type="submit"
@@ -691,6 +687,13 @@ export default function Login({ onLogin, unauthorizedEmail }: LoginProps) {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* reCAPTCHA — fora da alternância para manter o widget montado */}
+          {recaptchaSiteKey && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+              <div ref={captchaRef} />
+            </div>
+          )}
 
           <p style={{
             textAlign: 'center', marginTop: 18, marginBottom: 0, fontSize: 11, color: '#4B5563',
