@@ -175,8 +175,8 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
             {/* Header */}
             <div className="instance-modal__header">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.15)' }}>
-                  <Plug size={16} className="text-blue-400" />
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(37,208,102,0.15)' }}>
+                  <Plug size={16} style={{ color: '#25D066' }} />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white leading-tight">Configurar Instância</h2>

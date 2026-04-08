@@ -1389,8 +1389,8 @@ body {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .instance-modal__input:focus {
-  border-color: #579dff;
-  box-shadow: inset 0 0 0 1px #579dff;
+  border-color: #25D066;
+  box-shadow: inset 0 0 0 1px #25D066;
 }
 .instance-modal__input::placeholder {
   color: var(--text-muted);
@@ -1418,20 +1418,20 @@ body {
 }
 
 .instance-modal__btn--primary {
-  background: #579dff;
-  color: #1d2125;
+  background: #25D066;
+  color: #fff;
 }
 .instance-modal__btn--primary:hover:not(:disabled) {
-  background: #85b8ff;
+  background: #1BAD53;
 }
 
 .instance-modal__btn--secondary {
-  background: rgba(87, 157, 255, 0.10);
-  color: #579dff;
-  border: 1px solid rgba(87, 157, 255, 0.20);
+  background: rgba(37, 208, 102, 0.10);
+  color: #25D066;
+  border: 1px solid rgba(37, 208, 102, 0.20);
 }
 .instance-modal__btn--secondary:hover:not(:disabled) {
-  background: rgba(87, 157, 255, 0.18);
+  background: rgba(37, 208, 102, 0.18);
 }
 
 .instance-modal__btn--ghost {
