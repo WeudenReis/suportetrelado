@@ -57,7 +57,7 @@ export function useKanban(user: string) {
     loadTickets().finally(() => setLoading(false))
 
     const channel = supabase
-      .channel('tickets-realtime')
+      .channel('tickets-realtime-hook')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, payload => {
         setTickets(prev => {
           if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev

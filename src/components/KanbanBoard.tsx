@@ -1,8 +1,6 @@
-import { useState, useCallback, useEffect, useRef, useMemo, memo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { DndContext, DragOverlay, closestCenter, closestCorners, pointerWithin, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
-import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { useDroppable } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
+import { SortableContext, arrayMove, horizontalListSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Search, Share2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, LayoutGrid, List, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -11,7 +9,7 @@ import CardDetailModal, { parseTag } from './CardDetailModal'
 import ErrorBoundary from './ErrorBoundary'
 import InstanceModal from './InstanceModal'
 import { ArchivedPanel } from './ArchivedPanel'
-import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
+import { supabase, fetchTickets, fetchTicketsCount, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../hooks/useKanban'
 import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShortcuts'
@@ -24,6 +22,7 @@ import SettingsPanel from './kanban/SettingsPanel'
 import MembersManagerPanel from './kanban/MembersManagerPanel'
 import AddTicketModal from './kanban/AddTicketModal'
 import FilterPanel from './kanban/FilterPanel'
+import { DroppableColumn, SortableCard, SortableBoardColumn } from './kanban/DndComponents'
 import { searchTicketsRPC, searchTicketsLocal, debounce } from '../lib/search'
 import { useOrg } from '../lib/org'
 
@@ -55,82 +54,7 @@ function buildLocalColumn(title: string, position: number): BoardColumn {
   }
 }
 
-function DroppableColumn({ id, children, isOver }: { id: string; children: React.ReactNode; isOver: boolean }) {
-  const { setNodeRef } = useDroppable({ id })
-  return <div ref={setNodeRef} className={clsx('flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg transition-all duration-200', isOver && 'ring-1 ring-blue-500/30 bg-blue-500/[0.04]')}>{children}</div>
-}
-
-function SortableCardInner({ ticket, onClick, onUpdate, onArchive, onShowToast, isOverCard, activeTicket, compact, bulkMode, isSelected, onBulkToggle, isMutating }: {
-  ticket: Ticket
-  onClick: (ticket: Ticket) => void
-  onUpdate: (u: Ticket) => void
-  onArchive: (id: string) => void
-  onShowToast?: (msg: string, type: 'ok' | 'err') => void
-  isOverCard: boolean
-  activeTicket: Ticket | null
-  compact?: boolean
-  bulkMode?: boolean
-  isSelected?: boolean
-  onBulkToggle?: (id: string) => void
-  isMutating?: boolean
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: ticket.id,
-    data: { type: 'card', ticket },
-  })
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
-  const handleClick = useCallback(() => {
-    if (bulkMode && onBulkToggle) {
-      onBulkToggle(ticket.id)
-    } else {
-      onClick(ticket)
-    }
-  }, [onClick, ticket, bulkMode, onBulkToggle])
-
-  return (
-    <div ref={setNodeRef} {...attributes} {...listeners} style={{
-      ...style,
-      ...(bulkMode && isSelected ? { outline: '2px solid #25D066', outlineOffset: -2, borderRadius: 10 } : {}),
-    }}>
-      {activeTicket && isOverCard && activeTicket.id !== ticket.id && (
-        <div className="dnd-drop-indicator" />
-      )}
-      <Card
-        card={ticket}
-        onClick={handleClick}
-        onUpdate={onUpdate}
-        onArchive={onArchive}
-        onShowToast={onShowToast}
-        isDragging={isDragging}
-        compact={compact}
-        isMutating={isMutating}
-      />
-    </div>
-  )
-}
-
-const SortableCard = memo(SortableCardInner)
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function SortableBoardColumn({ id, accentColor, children }: { id: string; accentColor?: string; children: (drag: { attributes: any; listeners: any; isDragging: boolean }) => React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { type: 'column', columnId: id } })
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    ...(accentColor ? { '--col-accent': accentColor } as React.CSSProperties : {}),
-  }
-
-  return (
-    <div ref={setNodeRef} style={style} className={clsx('trello-col group', isDragging && 'trello-col--drag')}>
-      {children({ attributes, listeners, isDragging })}
-    </div>
-  )
-}
-
-// Templates, AutoRules e Labels foram extraídos para ./kanban/
+// DroppableColumn, SortableCard e SortableBoardColumn extraídos para ./kanban/DndComponents.tsx
 
 export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTicketId }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
@@ -190,6 +114,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [serverSearchResults, setServerSearchResults] = useState<Ticket[] | null>(null)
   const [searchLoading, setSearchLoading] = useState(false)
+  const PAGE_SIZE = 50
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalTickets, setTotalTickets] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const hasMoreTickets = tickets.length < totalTickets
 
   // Debounced server-side search
   const debouncedSearch = useCallback(
@@ -219,9 +148,14 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const wallpaperStorageKey = `chatpro-wallpaper:${user.toLowerCase()}`
 
   // --- Load tickets from Supabase ---
-  const loadTickets = useCallback(async () => {
+  const loadTickets = useCallback(async (page = 1) => {
     try {
-      const [data, attCounts] = await Promise.all([fetchTickets(), fetchAttachmentCounts()])
+      const [data, attCounts, count] = await Promise.all([
+        fetchTickets({ page, pageSize: PAGE_SIZE }),
+        fetchAttachmentCounts(),
+        fetchTicketsCount(),
+      ])
+      setTotalTickets(count)
       const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
 
       // Processar regras automáticas antes de setar os tickets
@@ -280,6 +214,30 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     }
   }, [])
 
+  // --- Load more tickets ---
+  const loadMoreTickets = useCallback(async () => {
+    const nextPage = currentPage + 1
+    setLoadingMore(true)
+    try {
+      const [data, attCounts] = await Promise.all([
+        fetchTickets({ page: nextPage, pageSize: PAGE_SIZE }),
+        fetchAttachmentCounts(),
+      ])
+      const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
+      setTickets(prev => {
+        const existingIds = new Set(prev.map(t => t.id))
+        const newTickets = loaded.filter(t => !existingIds.has(t.id))
+        return [...prev, ...newTickets]
+      })
+      setCurrentPage(nextPage)
+    } catch (err) {
+      console.error('Failed to load more tickets:', err)
+      showToast('Erro ao carregar mais tickets', 'err')
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [currentPage])
+
   // --- Realtime subscription ---
   // Helper: aplica regras automáticas a um ticket individual
   const applyAutoRulesToTicket = useCallback((ticket: Ticket): Ticket => {
@@ -316,22 +274,23 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     setLoading(true)
     loadTickets().finally(() => setLoading(false))
 
+    const realtimeFilter = departmentId ? { filter: `department_id=eq.${departmentId}` } : {}
     const channel = supabase
-      .channel('tickets-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, payload => {
+      .channel(`tickets-realtime-${departmentId || 'all'}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
         setTickets(prev => {
           if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
           const newTicket = applyAutoRulesToTicket({ ...(payload.new as Ticket), attachment_count: 0 } as Ticket)
           return [...prev, newTicket]
         })
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, payload => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
         setTickets(prev => prev.map(t => {
           if (t.id !== (payload.new as Ticket).id) return t
           return { ...(payload.new as Ticket), attachment_count: t.attachment_count || 0 }
         }))
       })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, payload => {
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
         setTickets(prev => prev.filter(t => t.id !== (payload.old as Record<string, string>).id))
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments' }, () => {
@@ -346,7 +305,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     channelRef.current = channel
 
     return () => { supabase.removeChannel(channel) }
-  }, [loadTickets])
+  }, [loadTickets, departmentId])
 
   // Open a specific ticket when openTicketId is set (e.g. from Inbox notification)
   useEffect(() => {
@@ -712,8 +671,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       })
   }
 
+  const [inlineCreating, setInlineCreating] = useState(false)
   const handleInlineAdd = async (col: TicketStatus) => {
     if (!inlineTitle.trim()) return
+    setInlineCreating(true)
     try {
       const created = await insertTicket({ department_id: departmentId ?? '', title: inlineTitle.trim(), description: '', status: col, priority: 'medium', assignee: user })
       setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
@@ -721,12 +682,15 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       setAddingTo(null)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Erro ao criar ticket', 'err')
+    } finally {
+      setInlineCreating(false)
     }
   }
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await loadTickets()
+    setCurrentPage(1)
+    await loadTickets(1)
     setRefreshing(false)
   }
 
@@ -1089,6 +1053,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
           <button onClick={handleRefresh} className="trello-icon-btn" type="button" title="Atualizar tickets">
             <RefreshCw size={16} className={clsx(refreshing && 'animate-spin')} />
           </button>
+          {totalTickets > 0 && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ color: 'var(--text-muted)', background: 'var(--bg-card)' }} title={`${tickets.length} de ${totalTickets} tickets carregados`}>
+              {tickets.length}/{totalTickets}
+            </span>
+          )}
 
           <button
             className="trello-icon-btn"
@@ -1580,6 +1549,19 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                     />
                                   ))}
                               </SortableContext>
+                              {/* Botão "Carregar mais" — paginação */}
+                              {hasMoreTickets && !searchQuery.trim() && (
+                                <button
+                                  onClick={loadMoreTickets}
+                                  disabled={loadingMore}
+                                  className="w-full py-2 mt-1 rounded-lg text-xs font-medium transition-colors"
+                                  style={{ color: 'var(--text-muted)', background: 'transparent', border: '1px dashed var(--border-subtle)', cursor: loadingMore ? 'wait' : 'pointer' }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
+                                >
+                                  {loadingMore ? <><Loader2 size={12} className="inline mr-1 animate-spin" />Carregando...</> : `Carregar mais tickets`}
+                                </button>
+                              )}
                             </div>
                           </DroppableColumn>
 
@@ -1601,7 +1583,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                 }}
                               />
                               <div className="flex items-center gap-1.5 mt-1.5">
-                                <button onClick={() => handleInlineAdd(col.id as TicketStatus)} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#25D066' }}>Adicionar</button>
+                                <button onClick={() => handleInlineAdd(col.id as TicketStatus)} disabled={inlineCreating} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white flex items-center gap-1" style={{ background: inlineCreating ? 'rgba(37,208,102,0.5)' : '#25D066', cursor: inlineCreating ? 'wait' : 'pointer' }}>
+                                  {inlineCreating && <Loader2 size={13} className="animate-spin" />}
+                                  {inlineCreating ? 'Criando...' : 'Adicionar'}
+                                </button>
                                 <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
                               </div>
                             </div>

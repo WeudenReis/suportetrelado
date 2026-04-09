@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare } from 'lucide-react';
+import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare, Loader2 } from 'lucide-react';
 import { animate, useReducedMotion } from 'framer-motion';
 import { updateTicket, type Ticket } from '../lib/supabase';
 import { parseTag } from './CardDetailModal';
@@ -204,11 +204,17 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick(e as unknown as React.MouseEvent) } }}
-      style={style}
+      style={{ ...style, position: 'relative' }}
       tabIndex={0}
       role="button"
       aria-label={`${card.title}${card.is_completed ? ' (concluído)' : ''}${card.priority ? ` — prioridade ${card.priority}` : ''}`}
     >
+      {/* Spinner de mutação */}
+      {isMutatingProp && (
+        <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
+          <Loader2 size={14} className="animate-spin" style={{ color: '#579dff' }} />
+        </div>
+      )}
       {/* ── MODO COMPACTO ────────────────── */}
       {compact ? (
         <div className={styles.compactBody}>

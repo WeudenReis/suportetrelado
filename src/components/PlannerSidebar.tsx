@@ -200,7 +200,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
       />
 
       {/* HEADER */}
-      <div data-gsap-child style={{ padding: '20px 20px 16px' }}>
+      <div data-stagger-child style={{ padding: '20px 20px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
@@ -256,7 +256,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
       </div>
 
       {/* MONTH NAVIGATION */}
-      <div data-gsap-child style={{
+      <div data-stagger-child style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 20px 12px',
       }}>
@@ -294,7 +294,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
       </div>
 
       {/* MINI CALENDAR */}
-      <div data-gsap-child style={{ padding: '0 20px 14px' }}>
+      <div data-stagger-child style={{ padding: '0 20px 14px' }}>
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2,
         }}>

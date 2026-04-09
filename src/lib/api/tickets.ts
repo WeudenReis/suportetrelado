@@ -48,6 +48,17 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
   return data as Ticket
 }
 
+export async function fetchTicketsCount(opts?: { departmentId?: string }): Promise<number> {
+  let query = supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('is_archived', false)
+  if (opts?.departmentId) query = query.eq('department_id', opts.departmentId)
+  const { count, error } = await query
+  if (error) {
+    logger.warn('Tickets', 'Falha ao contar tickets', { error: error.message })
+    return 0
+  }
+  return count ?? 0
+}
+
 export async function deleteTicket(id: string): Promise<void> {
   const { error } = await supabase
     .from('tickets')

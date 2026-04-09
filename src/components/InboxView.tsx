@@ -94,7 +94,7 @@ export default function InboxSidebar({ user: _user, onClose, onOpenTicket }: Inb
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
         {/* ══════ HEADER ══════ */}
-        <div data-gsap-child style={{ padding: '20px 20px 16px' }}>
+        <div data-stagger-child style={{ padding: '20px 20px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
@@ -134,7 +134,7 @@ export default function InboxSidebar({ user: _user, onClose, onOpenTicket }: Inb
         </div>
 
         {/* ══════ TABS ══════ */}
-        <div data-gsap-child>
+        <div data-stagger-child>
         <InboxTabs
           active={filter}
           onChange={setFilter}

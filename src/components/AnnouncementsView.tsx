@@ -109,7 +109,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
       {/* HEADER */}
-      <div data-gsap-child style={{ padding: '20px 20px 16px' }}>
+      <div data-stagger-child style={{ padding: '20px 20px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
@@ -151,7 +151,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
 
       {/* PAINEL ANALÍTICO */}
       {stats.total > 0 && (
-        <div data-gsap-child style={{ padding: '0 20px 14px' }}>
+        <div data-stagger-child style={{ padding: '0 20px 14px' }}>
           <div style={{
             borderRadius: 10, padding: '10px 14px', marginBottom: 10,
             background: healthLabel.bg,
@@ -207,7 +207,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       )}
 
       {/* BOTAO NOVO */}
-      <div data-gsap-child style={{ padding: '0 20px 14px' }}>
+      <div data-stagger-child style={{ padding: '0 20px 14px' }}>
         <button
           onClick={() => setShowForm(!showForm)}
           style={{
@@ -234,7 +234,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
 
       {/* FORMULARIO */}
       {showForm && (
-        <div data-gsap-child style={{ padding: '0 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div data-stagger-child style={{ padding: '0 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input
               value={title}
@@ -333,7 +333,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
             }} />
           </div>
         ) : sorted.length === 0 ? (
-          <div data-gsap-child style={{ textAlign: 'center', padding: '52px 24px' }}>
+          <div data-stagger-child style={{ textAlign: 'center', padding: '52px 24px' }}>
             <div style={{
               width: 56, height: 56, borderRadius: 16, margin: '0 auto 14px',
               background: 'rgba(37,208,102,0.08)',
@@ -356,7 +356,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
             return (
               <div
                 key={ann.id}
-                data-gsap-child
+                data-stagger-child
                 onMouseEnter={() => setHoveredId(ann.id)}
                 onMouseLeave={() => setHoveredId(null)}
                 onClick={() => setExpandedId(expanded ? null : ann.id)}

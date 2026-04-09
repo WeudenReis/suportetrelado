@@ -3,14 +3,22 @@
 @tailwind utilities;
 
 :root {
+  /* chatPro brand */
   --cp-green: #25D066;
-  --cp-green2: #1BAD53;
-  --cp-green3: #24FF72;
-  --cp-green4: #EEFCF3;
+  --cp-green-hover: #1BAD53;
+  --cp-green-neon: #24FF72;
+  --cp-green-light: #EEFCF3;
+  --cp-green-bg: rgba(37, 208, 102, 0.08);
+  --cp-green-border: rgba(37, 208, 102, 0.15);
   --cp-black: #000000;
   --cp-gray1: #D1D1D5;
   --cp-gray2: #E6E5E8;
   --cp-gray3: #F1F0F2;
+
+  /* Legacy aliases (deprecated — use --cp-green-hover etc.) */
+  --cp-green2: var(--cp-green-hover);
+  --cp-green3: var(--cp-green-neon);
+  --cp-green4: var(--cp-green-light);
 
   /* Trello Dark palette */
   --bg-app: #1d2125;
@@ -19,6 +27,7 @@
   --bg-primary: #1d2125;
   --bg-secondary: #0c1317;
   --bg-card: #22272b;
+  --bg-card-hover: #282e33;
   --bg-input: #22272b;
   --border-subtle: rgba(166, 197, 226, 0.16);
   --text-primary: #b6c2cf;
@@ -27,6 +36,11 @@
   --accent: #579dff;
   --accent-hover: #85b8ff;
 
+  /* Priority colors */
+  --priority-high: #ef5c48;
+  --priority-medium: #f5a623;
+  --priority-low: #4bce97;
+
   /* Layout system */
   --float-gap: 16px;
   --float-radius: 12px;
@@ -34,6 +48,20 @@
   --float-shadow-hover: 0 6px 16px rgba(0,0,0,0.35);
   --float-bg: #282e33;
   --float-border: 1px solid rgba(166,197,226,0.12);
+
+  /* Typography */
+  --font-display: 'Paytone One', sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+}
+
+/* Reduced motion — desabilita animações CSS para acessibilidade */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 *, *::before, *::after { box-sizing: border-box; }

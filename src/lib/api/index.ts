@@ -1,5 +1,5 @@
 // Barrel re-export de todos os modulos de API
-export { fetchTickets, insertTicket, updateTicket, deleteTicket } from './tickets'
+export { fetchTickets, fetchTicketsCount, insertTicket, updateTicket, deleteTicket } from './tickets'
 export { fetchComments, insertComment, deleteComment } from './comments'
 export { fetchAttachmentCounts, fetchAttachments, uploadAttachment, getSignedAttachmentUrl, deleteAttachment } from './attachments'
 export { fetchActivityLog, insertActivityLog } from './activity'

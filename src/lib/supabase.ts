@@ -187,7 +187,7 @@ export interface PlannerNotificationSettings {
 // ── Re-exports de todos os modulos de API ────────────────────
 // Manter compatibilidade com imports existentes de './lib/supabase'
 export {
-  fetchTickets, insertTicket, updateTicket, deleteTicket,
+  fetchTickets, fetchTicketsCount, insertTicket, updateTicket, deleteTicket,
   fetchComments, insertComment, deleteComment,
   fetchAttachmentCounts, fetchAttachments, uploadAttachment, getSignedAttachmentUrl, deleteAttachment,
   fetchActivityLog, insertActivityLog,

@@ -272,7 +272,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
   if (loading) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-        <div data-gsap-child style={{ padding: '20px 20px 16px' }}>
+        <div data-stagger-child style={{ padding: '20px 20px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
@@ -323,7 +323,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
       {/* ══════ HEADER ══════ */}
-      <div data-gsap-child style={{ padding: '20px 20px 16px' }}>
+      <div data-stagger-child style={{ padding: '20px 20px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
@@ -387,7 +387,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         }}
       >
         {/* ── Cartões de métricas ── */}
-        <div data-gsap-child style={{
+        <div data-stagger-child style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
         }}>
           <MetricCard
@@ -435,7 +435,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         </div>
 
         {/* ── Exportar relatório ── */}
-        <div data-gsap-child>
+        <div data-stagger-child>
           <button
             onClick={handleExportCSV}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
@@ -454,7 +454,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         </div>
 
         {/* ── Gráfico: Por Status ── */}
-        <div data-gsap-child>
+        <div data-stagger-child>
           <p style={{
             fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
             letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
@@ -470,7 +470,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         </div>
 
         {/* ── Gráfico: Por Prioridade ── */}
-        <div data-gsap-child>
+        <div data-stagger-child>
           <p style={{
             fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
             letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
@@ -486,7 +486,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         </div>
 
         {/* ── Gráfico: Tickets criados por dia (últimos 7 dias) ── */}
-        <div data-gsap-child>
+        <div data-stagger-child>
           <p style={{
             fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
             letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
@@ -533,7 +533,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
 
         {/* ── Cartões por Coluna ── */}
         {columnCounts.length > 0 && (
-          <div data-gsap-child>
+          <div data-stagger-child>
             <p style={{
               fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
               letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
@@ -569,7 +569,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         )}
 
         {/* ── Concluir Chamados ── */}
-        <div data-gsap-child>
+        <div data-stagger-child>
           <p style={{
             fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
             letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
@@ -658,7 +658,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         </div>
 
         {/* ── Gráfico: Por Membro ── */}
-        <div data-gsap-child>
+        <div data-stagger-child>
           <p style={{
             fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
             letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
@@ -683,7 +683,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
         </div>
 
         {/* ── Membros da equipe ── */}
-        <div data-gsap-child>
+        <div data-stagger-child>
           <p style={{
             fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
             letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',

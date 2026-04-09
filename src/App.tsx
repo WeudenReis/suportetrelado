@@ -416,7 +416,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
     animate(el, { x: 0, opacity: 1 }, { duration: 0.45, ease: 'easeOut' })
 
     // Stagger-in children
-    const children = el.querySelectorAll('[data-gsap-child]')
+    const children = el.querySelectorAll('[data-stagger-child]')
     if (children.length > 0) {
       children.forEach((child, i) => {
         const htmlChild = child as HTMLElement
