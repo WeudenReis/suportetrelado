@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Plus, Trash2, X, ExternalLink, Search, Link2, FolderOpen } from 'lucide-react'
 import { fetchUsefulLinks, insertUsefulLink, deleteUsefulLink, type UsefulLink } from '../lib/supabase'
+import { useOrg } from '../lib/org'
 
 interface LinksViewProps {
   user: string
@@ -25,6 +26,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
   const [customCategory, setCustomCategory] = useState('')
   const [search, setSearch] = useState('')
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const org = useOrg()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -57,17 +59,20 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
 
   const handleSubmit = async () => {
     if (!title.trim() || !url.trim()) return
-    const finalCategory = customCategory.trim() || category
+    const finalCategory = (category === '__custom' ? customCategory.trim() : category) || 'Geral'
     const link = await insertUsefulLink({
       title: title.trim(),
       url: url.trim(),
       description: description.trim(),
       category: finalCategory,
       added_by: user,
+      ...(org?.departmentId ? { department_id: org.departmentId } : {}),
     })
     if (link) {
       setLinks(prev => [...prev, link])
       setTitle(''); setUrl(''); setDescription(''); setCategory('Geral'); setCustomCategory(''); setShowForm(false)
+    } else {
+      console.error('[LinksView] Falha ao salvar link. departmentId:', org?.departmentId)
     }
   }
 

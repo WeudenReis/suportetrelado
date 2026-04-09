@@ -12,13 +12,23 @@ export async function fetchUsefulLinks(departmentId?: string): Promise<UsefulLin
   return (data ?? []) as UsefulLink[]
 }
 
-export async function insertUsefulLink(link: { title: string; url: string; description?: string; category: string; added_by: string }): Promise<UsefulLink | null> {
+export async function insertUsefulLink(link: { title: string; url: string; description?: string; category: string; added_by: string; department_id?: string }): Promise<UsefulLink | null> {
   const { data, error } = await supabase
     .from('useful_links')
     .insert(link)
     .select()
     .single()
-  if (error) { logger.error('Links', 'Falha ao inserir link', { error: error.message }); return null }
+  if (error) {
+    logger.error('Links', 'Falha ao inserir link', { error: error.message })
+    // Retry sem department_id caso a coluna não exista no banco
+    if (link.department_id && error.message.includes('department_id')) {
+      const { department_id: _, ...rest } = link
+      const { data: d2, error: e2 } = await supabase.from('useful_links').insert(rest).select().single()
+      if (e2) { logger.error('Links', 'Falha ao inserir link (retry)', { error: e2.message }); return null }
+      return d2 as UsefulLink
+    }
+    return null
+  }
   return data as UsefulLink
 }
 
