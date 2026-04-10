@@ -16,7 +16,7 @@ import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShor
 import type { Ticket, TicketStatus, UserProfile, BoardLabel } from '../lib/supabase'
 import ShortcutsHelpModal from './kanban/ShortcutsHelpModal'
 import BulkActionsBar from './kanban/BulkActionsBar'
-import AutoRulesModal, { loadAutoRules } from './kanban/AutoRulesModal'
+import AutoRulesModal from './kanban/AutoRulesModal'
 import LabelsManagerModal from './kanban/LabelsManagerModal'
 import SettingsPanel from './kanban/SettingsPanel'
 import MembersManagerPanel from './kanban/MembersManagerPanel'
@@ -26,6 +26,7 @@ import { DroppableColumn, SortableCard, SortableBoardColumn } from './kanban/Dnd
 import { searchTicketsRPC, searchTicketsLocal, debounce } from '../lib/search'
 import { useOrg } from '../lib/org'
 import { logger } from '../lib/logger'
+import { useAutoRules } from '../hooks/useAutoRules'
 
 interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
 
@@ -108,6 +109,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showAutoRules, setShowAutoRules] = useState(false)
   const [showMembersManager, setShowMembersManager] = useState(false)
   const { departmentId } = useOrg()
+  const { applyRulesToTicket, applyRulesToBatch } = useAutoRules()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const dragOriginalStatusRef = useRef<string | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
@@ -161,46 +163,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
 
       // Processar regras automáticas antes de setar os tickets
-      const rules = loadAutoRules().filter(r => r.enabled)
-      const updates: { id: string; newStatus: string; ruleName: string }[] = []
-      if (rules.length > 0) {
-        for (const ticket of loaded) {
-          if (ticket.is_archived) continue
-          for (const rule of rules) {
-            if (ticket.status === rule.targetColumn) continue
-            let match = false
-            switch (rule.condition) {
-              case 'priority_high': match = ticket.priority === 'high'; break
-              case 'priority_medium': match = ticket.priority === 'medium'; break
-              case 'priority_low': match = ticket.priority === 'low'; break
-              case 'no_assignee': match = !ticket.assignee; break
-              case 'overdue_12h': {
-                const hoursIdle = (Date.now() - new Date(ticket.updated_at).getTime()) / 3_600_000
-                match = hoursIdle >= 12 && ticket.status !== 'resolved'
-                break
-              }
-              case 'overdue_24h': {
-                const hoursIdle = (Date.now() - new Date(ticket.updated_at).getTime()) / 3_600_000
-                match = hoursIdle >= 24 && ticket.status !== 'resolved'
-                break
-              }
-            }
-            if (match) {
-              updates.push({ id: ticket.id, newStatus: rule.targetColumn, ruleName: rule.name })
-              break
-            }
-          }
-        }
-      }
-
-      // Aplicar as mudanças diretamente no array antes de setar
-      const finalTickets = updates.length > 0
-        ? loaded.map(t => {
-            const upd = updates.find(u => u.id === t.id)
-            return upd ? { ...t, status: upd.newStatus as TicketStatus } : t
-          })
-        : loaded
-
+      const { processed: finalTickets, updates } = applyRulesToBatch(loaded)
       setTickets(finalTickets)
 
       // Persistir no banco
@@ -214,7 +177,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       logger.error('KanbanBoard', 'Falha ao carregar tickets', { error: String(err) })
       showToast('Erro ao carregar tickets', 'err')
     }
-  }, [])
+  }, [applyRulesToBatch])
 
   // --- Load more tickets ---
   const loadMoreTickets = useCallback(async () => {
@@ -240,37 +203,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     }
   }, [currentPage])
 
-  // --- Realtime subscription ---
-  // Helper: aplica regras automáticas a um ticket individual
-  const applyAutoRulesToTicket = useCallback((ticket: Ticket): Ticket => {
-    if (ticket.is_archived) return ticket
-    const rules = loadAutoRules().filter(r => r.enabled)
-    for (const rule of rules) {
-      if (ticket.status === rule.targetColumn) continue
-      let match = false
-      switch (rule.condition) {
-        case 'priority_high': match = ticket.priority === 'high'; break
-        case 'priority_medium': match = ticket.priority === 'medium'; break
-        case 'priority_low': match = ticket.priority === 'low'; break
-        case 'no_assignee': match = !ticket.assignee; break
-        case 'overdue_12h': {
-          const hoursIdle = (Date.now() - new Date(ticket.updated_at).getTime()) / 3_600_000
-          match = hoursIdle >= 12 && ticket.status !== 'resolved'
-          break
-        }
-        case 'overdue_24h': {
-          const hoursIdle = (Date.now() - new Date(ticket.updated_at).getTime()) / 3_600_000
-          match = hoursIdle >= 24 && ticket.status !== 'resolved'
-          break
-        }
-      }
-      if (match) {
-        updateTicket(ticket.id, { status: rule.targetColumn as TicketStatus }).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
-        return { ...ticket, status: rule.targetColumn as TicketStatus }
-      }
-    }
-    return ticket
-  }, [])
+  // Helper: aplica regras automáticas a um ticket individual (via hook)
+  // Funções 'applyRulesToTicket' e 'applyRulesToBatch' agora vêm de useAutoRules()
 
   useEffect(() => {
     setLoading(true)
@@ -282,7 +216,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
         setTickets(prev => {
           if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
-          const newTicket = applyAutoRulesToTicket({ ...(payload.new as Ticket), attachment_count: 0 } as Ticket)
+          const newTicket = applyRulesToTicket({ ...(payload.new as Ticket), attachment_count: 0 } as Ticket)
           return [...prev, newTicket]
         })
       })
@@ -307,7 +241,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     channelRef.current = channel
 
     return () => { supabase.removeChannel(channel) }
-  }, [loadTickets, departmentId, applyAutoRulesToTicket])
+  }, [loadTickets, departmentId, applyRulesToTicket])
 
   // Open a specific ticket when openTicketId is set (e.g. from Inbox notification)
   useEffect(() => {
