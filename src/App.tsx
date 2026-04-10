@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
-import { Inbox, X, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'
+import { Inbox, X, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone, Loader2 } from 'lucide-react'
 import { animate } from 'framer-motion'
 import { supabase, isSupabaseConfigured } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
@@ -22,6 +22,14 @@ const AnnouncementsView = lazy(() => import('./components/AnnouncementsView'))
 const LinksView = lazy(() => import('./components/LinksView'))
 const DashboardView = lazy(() => import('./components/DashboardView'))
 const Onboarding = lazy(() => import('./components/Onboarding'))
+
+function SidebarSpinner() {
+  return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#596773', padding: 40 }}>
+      <Loader2 size={24} className="animate-spin" />
+    </div>
+  )
+}
 
 // Inicializar Sentry no carregamento do módulo
 initSentry()
@@ -349,8 +357,8 @@ export default function App() {
                     onLogout={handleLogout}
                   />
                 </AnnouncementProvider>
-              </NotificationProvider>
-            </OrgProvider>
+                </NotificationProvider>
+              </OrgProvider>
             </ErrorBoundary>
           )}
         </ErrorBoundary>
@@ -444,7 +452,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
 
           {/* ▸ Sidebar content */}
           <div className="sidebar-panel__content">
-            <Suspense fallback={<div style={{ padding: 20, color: '#596773', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif" }}>Carregando...</div>}>
+            <Suspense fallback={<SidebarSpinner />}>
               <ErrorBoundary>
                 {activeTab === 'inbox' && (
                   <InboxSidebar
