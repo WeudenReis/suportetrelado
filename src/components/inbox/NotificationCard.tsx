@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { Check, ExternalLink, Ticket, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone, Clock, Calendar } from 'lucide-react'
 import type { Notification } from '../../lib/supabase'
@@ -65,7 +66,7 @@ interface NotificationCardProps {
   onClick: (notif: Notification) => void
 }
 
-export default function NotificationCard({ notif, onMarkRead, onOpen, onClick }: NotificationCardProps) {
+function NotificationCard({ notif, onMarkRead, onOpen, onClick }: NotificationCardProps) {
   const config = TYPE_CONFIG[notif.type] || TYPE_CONFIG.comment
   const isUnread = !notif.is_read
   const avatarBg = nameToColor(notif.sender_name)
@@ -210,3 +211,5 @@ export default function NotificationCard({ notif, onMarkRead, onOpen, onClick }:
     </motion.div>
   )
 }
+
+export default memo(NotificationCard)

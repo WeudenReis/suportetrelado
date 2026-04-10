@@ -1,3 +1,0 @@
-﻿71ca055 fix: resolve kanban conflicts and merge remote changes
-c0bf102 feat: implement Demand Management Interface
-1b7a976 style: list view com identidade chatPro, tabela full-width e stats bar

@@ -3,6 +3,7 @@ import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Ch
 import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../lib/supabase'
 import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
 import DashboardExpanded from './DashboardExpanded'
+import { logger } from '../lib/logger'
 
 interface DashboardViewProps {
   user: string
@@ -113,7 +114,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
       setProfiles(p)
       setColumns(c)
     } catch (err) {
-      console.error(err)
+      logger.error('Dashboard', 'Falha ao carregar dados', { error: String(err) })
     } finally {
       setLoading(false)
     }
@@ -128,7 +129,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     const channel = supabase
       .channel('dashboard-tickets')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-        fetchTickets().then(setTickets).catch(console.error)
+        fetchTickets().then(setTickets).catch(err => logger.error('Dashboard', 'Falha ao atualizar tickets', { error: String(err) }))
       })
       .subscribe()
 

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare, Loader2 } from 'lucide-react';
 import { animate, useReducedMotion } from 'framer-motion';
 import { updateTicket, type Ticket } from '../lib/supabase';
+import { logger } from '../lib/logger';
 import { parseTag } from './CardDetailModal';
 import styles from './Card.module.css';
 
@@ -114,10 +115,10 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
     try {
       await updateTicket(card.id, { is_completed: newValue });
     } catch (error) {
-      console.error('Erro ao atualizar status:', error);
+      logger.error('Card', 'Erro ao atualizar status', { error: String(error) });
       onUpdate({ ...card, is_completed: card.is_completed });
     }
-  }, [card, onUpdate]);
+  }, [card, onUpdate, prefersReducedMotion]);
 
   // ── Abrir edição inline ─────────────────────────────────
   const handleEditClick = useCallback((e: React.MouseEvent) => {
@@ -141,7 +142,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
     try {
       await updateTicket(card.id, { title: trimmed });
     } catch (error) {
-      console.error('Erro ao salvar título:', error);
+      logger.error('Card', 'Erro ao salvar título', { error: String(error) });
       onUpdate({ ...card, title: card.title }); // reverter
     }
   }, [editTitle, card, onUpdate]);
@@ -174,10 +175,10 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
     try {
       await updateTicket(card.id, { is_archived: true });
     } catch (error) {
-      console.error('Erro ao arquivar:', error);
+      logger.error('Card', 'Erro ao arquivar', { error: String(error) });
       onShowToast?.('Erro ao arquivar cartão', 'err');
     }
-  }, [card.id, onArchive, onShowToast]);
+  }, [card.id, onArchive, onShowToast, prefersReducedMotion]);
 
   // ── Clique no card (abre modal apenas se não estiver editando/toggling) ──
   const handleCardClick = (_e: React.MouseEvent) => {

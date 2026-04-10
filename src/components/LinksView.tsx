@@ -2,6 +2,7 @@
 import { Plus, Trash2, X, ExternalLink, Search, Link2, FolderOpen } from 'lucide-react'
 import { fetchUsefulLinks, insertUsefulLink, deleteUsefulLink, type UsefulLink } from '../lib/supabase'
 import { useOrg } from '../lib/org'
+import { logger } from '../lib/logger'
 
 interface LinksViewProps {
   user: string
@@ -72,7 +73,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
       setLinks(prev => [...prev, link])
       setTitle(''); setUrl(''); setDescription(''); setCategory('Geral'); setCustomCategory(''); setShowForm(false)
     } else {
-      console.error('[LinksView] Falha ao salvar link. departmentId:', org?.departmentId)
+      logger.error('LinksView', 'Falha ao salvar link', { departmentId: org?.departmentId })
     }
   }
 

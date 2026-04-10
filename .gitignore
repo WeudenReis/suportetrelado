@@ -9,3 +9,8 @@ dist/
 .vercel
 
 desktop.ini
+
+# Dev artifacts
+*.diff
+*.txt
+!README.txt

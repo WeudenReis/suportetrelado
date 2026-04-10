@@ -17,6 +17,7 @@ import {
   fetchBoardLabels, updateBoardLabel, deleteBoardLabel
 } from '../lib/supabase'
 import { compressCover, compressThumbnail, compressAttachment } from '../lib/imageUtils'
+import { logger } from '../lib/logger'
 import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
 
 interface CardDetailModalProps {
@@ -177,7 +178,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   // Load board labels when label picker opens
   useEffect(() => {
     if (showLabelPicker) {
-      fetchBoardLabels().then(setBoardLabels).catch(console.error)
+      fetchBoardLabels().then(setBoardLabels).catch(err => logger.error('CardDetail', 'Falha ao carregar labels', { error: String(err) }))
     }
   }, [showLabelPicker])
 
@@ -232,7 +233,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
-      console.error(err)
+      logger.error('CardDetail', 'Falha ao salvar alterações', { error: String(err) })
     }
     setSaving(false)
     savingRef.current = false
@@ -355,7 +356,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         }
       }
     } catch (err) {
-      console.error('handleSendComment error:', err)
+      logger.error('CardDetail', 'Falha ao enviar comentário', { error: String(err) })
       setSendingComment(false)
     }
   }
@@ -388,7 +389,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       ])
 
       if (coverResult.error) {
-        console.error('[Cover] Storage upload FAILED:', coverResult.error)
+        logger.error('CardDetail', 'Cover upload falhou', { error: String(coverResult.error) })
         URL.revokeObjectURL(localPreview)
         setCoverImage('')
         setUploadingCover(false)
@@ -415,10 +416,10 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         URL.revokeObjectURL(localPreview)
         onUpdate(updated)
       } catch (dbErr) {
-        console.error('[Cover] DB save FAILED:', dbErr)
+        logger.error('CardDetail', 'Cover DB save falhou', { error: String(dbErr) })
       }
     } catch (err) {
-      console.error('[Cover] Unexpected error:', err)
+      logger.error('CardDetail', 'Cover erro inesperado', { error: String(err) })
       setCoverImage('')
     }
     setUploadingCover(false)
@@ -431,7 +432,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       const updated = await updateTicket(ticket.id, { cover_image_url: null, cover_thumb_url: null })
       onUpdate(updated)
     } catch (err) {
-      console.error('[Cover] Falha ao remover capa:', err)
+      logger.error('CardDetail', 'Falha ao remover capa', { error: String(err) })
     }
   }
 
@@ -501,7 +502,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               className="w-full h-full object-cover"
               onError={(ev) => {
                 const src = ev.currentTarget.src
-                console.warn('[Cover] Image load failed:', src)
+                logger.warn('CardDetail', 'Cover image load failed', { src })
                 // Nunca limpar blob preview (sempre carrega) nem durante upload
                 if (!src.startsWith('blob:') && !uploadingCover) setCoverImage('')
               }}

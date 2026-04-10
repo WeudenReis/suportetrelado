@@ -9,6 +9,7 @@ import { NotificationProvider, useNotificationContext } from './components/Notif
 import { AnnouncementProvider } from './components/AnnouncementContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import { initSentry, setSentryUser, captureException } from './lib/sentry'
+import { logger } from './lib/logger'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
 import BottomNav from './components/BottomNav'
@@ -247,11 +248,11 @@ export default function App() {
 
     async function checkSession(email: string | null) {
       if (!email) { setUser(null); setLoading(false); return }
-      console.log('[Auth] checkSession chamado com email:', email)
+      logger.debug('Auth', 'checkSession chamado', { email })
 
       // Bypass absoluto para super admins — antes de qualquer query
       if (isSuperAdmin(email)) {
-        console.log('[Auth] Super admin bypass aplicado para:', email)
+        logger.debug('Auth', 'Super admin bypass aplicado', { email })
         setUnauthorizedEmail(null)
         setUser(email)
         setLoading(false)
@@ -259,7 +260,7 @@ export default function App() {
       }
 
       const authorized = await checkAuthorizedUser(email)
-      console.log('[Auth] checkAuthorizedUser resultado:', authorized, 'para:', email)
+      logger.debug('Auth', 'checkAuthorizedUser resultado', { authorized, email })
       if (!authorized) {
         setUnauthorizedEmail(email)
         await supabase.auth.signOut()
@@ -273,13 +274,13 @@ export default function App() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
-      console.log('[Auth] getSession email:', email)
+      logger.debug('Auth', 'getSession', { email })
       checkSession(email)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
-      console.log('[Auth] onAuthStateChange event:', _event, 'email:', email)
+      logger.debug('Auth', 'onAuthStateChange', { event: _event, email })
       if (_event === 'PASSWORD_RECOVERY') {
         setRecoveryMode(true)
         return
@@ -301,7 +302,7 @@ export default function App() {
   // Load tickets for planner view
   useEffect(() => {
     if (activeTab === 'planner') {
-      fetchTickets().then(setPlannerTickets).catch(console.error)
+      fetchTickets().then(setPlannerTickets).catch(err => logger.error('App', 'Falha ao carregar tickets do planner', { error: String(err) }))
     }
   }, [activeTab])
 
@@ -328,7 +329,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <MotionConfig reducedMotion="user">
-        <ErrorBoundary onError={(error, info) => { console.error('[App ErrorBoundary]', error, info); captureException(error, { componentStack: info.componentStack }) }}>
+        <ErrorBoundary onError={(error, info) => { logger.error('App', 'ErrorBoundary capturou erro', { error: String(error) }); captureException(error, { componentStack: info.componentStack }) }}>
           {recoveryMode ? (
             <ResetPasswordScreen onDone={() => { setRecoveryMode(false); setUser(null) }} />
           ) : !user ? (

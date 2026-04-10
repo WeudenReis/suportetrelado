@@ -4,6 +4,7 @@ import {
   fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
   type Announcement, type AnnouncementSeverity,
 } from '../lib/supabase'
+import { logger } from '../lib/logger'
 
 interface AnnouncementContextProps {
   announcements: Announcement[]
@@ -30,7 +31,7 @@ export const AnnouncementProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const data = await fetchAnnouncements()
       setAnnouncements(data)
     } catch (err) {
-      console.warn('[Announcements] Falha ao carregar:', err)
+      logger.warn('Announcements', 'Falha ao carregar', { error: String(err) })
     } finally {
       setLoading(false)
     }

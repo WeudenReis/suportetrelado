@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX, Mail, Lock, Eye, EyeOff, ArrowRight, User, CheckCircle, XCircle } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { logger } from '../lib/logger'
 
 interface LoginProps {
   onLogin: (email: string) => void
@@ -249,7 +250,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
           emailRedirectTo: window.location.origin,
         },
       })
-      console.log('[Register] signUp response:', { data, error })
+      logger.debug('Login', 'signUp response', { hasData: !!data, error: error?.message })
       if (error) {
         if (error.message.includes('already registered') || error.message.includes('already been registered')) {
           pushToast('error', 'E-mail já cadastrado', 'Este e-mail já possui uma conta. Faça login.')

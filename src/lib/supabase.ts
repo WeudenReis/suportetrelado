@@ -14,6 +14,7 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 
 function createSafeClient(): SupabaseClient {
   if (!isSupabaseConfigured) {
+    // logger não disponível aqui (módulo de bootstrap) — console intencional
     console.error('[Supabase] VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não definidas. Verifique as env vars da Vercel.')
     // Client dummy para evitar crash em imports — auth/queries não funcionarão
     return createClient('https://localhost', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder')

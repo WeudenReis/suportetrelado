@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchTickets, fetchPlannerSettings, fetchPlannerEvents, insertNotification } from '../lib/supabase';
 import type { Notification } from '../lib/supabase';
 import { useOrg } from '../lib/org';
+import { logger } from '../lib/logger';
 
 interface NotificationContextProps {
   notifications: Notification[];
@@ -64,7 +65,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
       const data = await fetchNotifications(user);
       setNotifications(data);
     } catch (err) {
-      console.warn('[Notifications] Falha ao carregar notificações:', err);
+      logger.warn('Notifications', 'Falha ao carregar notificações', { error: String(err) });
     } finally {
       setLoading(false);
     }
@@ -204,7 +205,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
           localStorage.setItem(cacheKey, JSON.stringify(newCache));
         }
       } catch (e) {
-        console.error('[NotificationContext] Falha ao verificar datas e eventos:', e);
+        logger.error('Notifications', 'Falha ao verificar datas e eventos', { error: String(e) });
       }
     };
 

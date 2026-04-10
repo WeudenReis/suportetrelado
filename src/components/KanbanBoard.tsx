@@ -25,6 +25,7 @@ import FilterPanel from './kanban/FilterPanel'
 import { DroppableColumn, SortableCard, SortableBoardColumn } from './kanban/DndComponents'
 import { searchTicketsRPC, searchTicketsLocal, debounce } from '../lib/search'
 import { useOrg } from '../lib/org'
+import { logger } from '../lib/logger'
 
 interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
 
@@ -121,6 +122,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const hasMoreTickets = tickets.length < totalTickets
 
   // Debounced server-side search
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce retorna função estável
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
       if (!query.trim()) {
@@ -204,12 +206,12 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       // Persistir no banco
       if (updates.length > 0) {
         for (const upd of updates) {
-          updateTicket(upd.id, { status: upd.newStatus as TicketStatus }).catch(console.error)
+          updateTicket(upd.id, { status: upd.newStatus as TicketStatus }).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
         }
         showToast(`Regra automática: ${updates.length} ticket(s) movido(s)`, 'ok')
       }
     } catch (err) {
-      console.error('Failed to load tickets:', err)
+      logger.error('KanbanBoard', 'Falha ao carregar tickets', { error: String(err) })
       showToast('Erro ao carregar tickets', 'err')
     }
   }, [])
@@ -231,7 +233,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       })
       setCurrentPage(nextPage)
     } catch (err) {
-      console.error('Failed to load more tickets:', err)
+      logger.error('KanbanBoard', 'Falha ao carregar mais tickets', { error: String(err) })
       showToast('Erro ao carregar mais tickets', 'err')
     } finally {
       setLoadingMore(false)
@@ -263,7 +265,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
         }
       }
       if (match) {
-        updateTicket(ticket.id, { status: rule.targetColumn as TicketStatus }).catch(console.error)
+        updateTicket(ticket.id, { status: rule.targetColumn as TicketStatus }).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
         return { ...ticket, status: rule.targetColumn as TicketStatus }
       }
     }
@@ -305,7 +307,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     channelRef.current = channel
 
     return () => { supabase.removeChannel(channel) }
-  }, [loadTickets, departmentId])
+  }, [loadTickets, departmentId, applyAutoRulesToTicket])
 
   // Open a specific ticket when openTicketId is set (e.g. from Inbox notification)
   useEffect(() => {
@@ -417,6 +419,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       filtered = filtered.filter(t => t.tags && t.tags.some(tag => tag.includes(filterLabel)))
     }
     return filtered
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- allMembers omitido intencionalmente: member lookup é estável
   }, [tickets, searchQuery, serverSearchResults, filterPriority, filterAssignee, filterLabel])
 
   // Carregar colunas do Supabase (com fallback para COLUMNS legadas)
@@ -514,7 +517,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     setBulkMode(false)
     showToast(`${ids.length} card(s) movido(s)`, 'ok')
     for (const id of ids) {
-      await updateTicket(id, { status: targetColumn as TicketStatus }).catch(console.error)
+      await updateTicket(id, { status: targetColumn as TicketStatus }).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
     }
   }, [selectedCardIds])
 
@@ -526,7 +529,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     setBulkMode(false)
     showToast(`${ids.length} card(s) arquivado(s)`, 'ok')
     for (const id of ids) {
-      await Promise.resolve(supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', id)).catch(console.error)
+      await Promise.resolve(supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', id)).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
     }
   }, [selectedCardIds])
 
@@ -719,7 +722,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       if (showSettings) { setShowSettings(false); return }
       if (showArchivedPanel) { setShowArchivedPanel(false); return }
     }},
-  ], [noModalOpen, allColumns, showAddModal, selectedTicket, showSettings, showFilters, showArchivedPanel, showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp])
+  ], [noModalOpen, allColumns, showAddModal, selectedTicket, showSettings, showFilters, showArchivedPanel, showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp, handleRefresh])
 
   useKeyboardShortcuts(shortcutActions)
 
@@ -2154,7 +2157,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                 return updated
               })
             }}
-            onOpenLabelsManager={() => { setShowLabelsManager(true); fetchBoardLabels().then(setBoardLabels).catch(console.error) }}
+            onOpenLabelsManager={() => { setShowLabelsManager(true); fetchBoardLabels().then(setBoardLabels).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) })) }}
             onOpenAutoRules={() => setShowAutoRules(true)}
             onOpenMembersPanel={() => { setShowSettings(false); setShowMembersManager(true) }}
             onClose={() => setShowSettings(false)}
