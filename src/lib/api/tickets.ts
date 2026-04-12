@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
 import { logger } from '../logger'
 import type { Ticket, TicketInsert, PaginationOptions } from '../supabase'
+import { TicketInsertSchema, TicketUpdateSchema, parseOrThrow } from '../schemas'
 
 export async function fetchTickets(opts?: { departmentId?: string } & PaginationOptions): Promise<Ticket[]> {
   let query = supabase.from('tickets').select('*').eq('is_archived', false)
@@ -16,9 +17,10 @@ export async function fetchTickets(opts?: { departmentId?: string } & Pagination
 }
 
 export async function insertTicket(ticket: TicketInsert): Promise<Ticket> {
+  const validated = parseOrThrow(TicketInsertSchema, ticket, 'insertTicket')
   const { data, error } = await supabase
     .from('tickets')
-    .insert(ticket)
+    .insert(validated)
     .select()
     .single()
   if (error) {
@@ -32,9 +34,10 @@ export async function insertTicket(ticket: TicketInsert): Promise<Ticket> {
 }
 
 export async function updateTicket(id: string, updates: Partial<Ticket>): Promise<Ticket> {
+  const validated = parseOrThrow(TicketUpdateSchema, updates, 'updateTicket')
   const { data, error } = await supabase
     .from('tickets')
-    .update(updates)
+    .update(validated)
     .eq('id', id)
     .select()
     .single()

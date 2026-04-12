@@ -377,8 +377,9 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       setCoverImage(localPreview)
 
       const ts = Date.now()
-      const coverPath = `${ticket.id}/cover_${ts}.webp`
-      const thumbPath = `${ticket.id}/thumb_${ts}.webp`
+      const deptPrefix = ticket.department_id ? `${ticket.department_id}/` : 'shared/'
+      const coverPath = `${deptPrefix}${ticket.id}/cover_${ts}.webp`
+      const thumbPath = `${deptPrefix}${ticket.id}/thumb_${ts}.webp`
 
       const [coverResult, thumbResult] = await Promise.all([
         supabase.storage.from('attachments').upload(coverPath, coverFile),

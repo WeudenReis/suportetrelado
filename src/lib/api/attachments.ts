@@ -26,7 +26,9 @@ export async function fetchAttachments(ticketId: string): Promise<Attachment[]> 
 
 export async function uploadAttachment(ticketId: string, file: File, userName: string, departmentId?: string): Promise<Attachment | null> {
   const fileExt = file.name.split('.').pop()
-  const filePath = `${ticketId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`
+  // Path prefixado por dept garante isolamento no bucket. 'shared/' preserva compatibilidade com uploads legados sem dept.
+  const deptPrefix = departmentId ? `${departmentId}/` : 'shared/'
+  const filePath = `${deptPrefix}${ticketId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`
 
   const { error: uploadError } = await supabase.storage
     .from('attachments')

@@ -4,6 +4,7 @@ import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfil
 import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
 import DashboardExpanded from './DashboardExpanded'
 import { logger } from '../lib/logger'
+import { useOrg } from '../lib/org'
 
 interface DashboardViewProps {
   user: string
@@ -101,6 +102,7 @@ const PRIORITY_LABELS: Record<string, { label: string; color: string }> = {
 }
 
 export default function DashboardView({ user, onClose }: DashboardViewProps) {
+  const { departmentId } = useOrg()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [profiles, setProfiles] = useState<UserProfile[]>([])
   const [columns, setColumns] = useState<BoardColumn[]>([])
@@ -109,7 +111,11 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
 
   const loadData = useCallback(async () => {
     try {
-      const [t, p, c] = await Promise.all([fetchTickets(), fetchUserProfiles(), fetchBoardColumns()])
+      const [t, p, c] = await Promise.all([
+        fetchTickets({ departmentId: departmentId ?? undefined }),
+        fetchUserProfiles(),
+        fetchBoardColumns(),
+      ])
       setTickets(t)
       setProfiles(p)
       setColumns(c)
@@ -118,23 +124,26 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [departmentId])
 
   useEffect(() => {
     loadData()
   }, [loadData])
 
-  // ── Realtime: atualizar tickets automaticamente ──
+  // ── Realtime: atualizar tickets automaticamente (escopado por dept) ──
   useEffect(() => {
+    const filter = departmentId ? { filter: `department_id=eq.${departmentId}` } : {}
     const channel = supabase
-      .channel('dashboard-tickets')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-        fetchTickets().then(setTickets).catch(err => logger.error('Dashboard', 'Falha ao atualizar tickets', { error: String(err) }))
+      .channel(`dashboard-tickets-${departmentId ?? 'all'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', ...filter }, () => {
+        fetchTickets({ departmentId: departmentId ?? undefined })
+          .then(setTickets)
+          .catch(err => logger.error('Dashboard', 'Falha ao atualizar tickets', { error: String(err) }))
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [departmentId])
 
   const active = useMemo(() => tickets.filter(t => !t.is_archived), [tickets])
 

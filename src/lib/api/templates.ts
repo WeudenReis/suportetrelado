@@ -1,5 +1,6 @@
 import { supabase } from '../supabase'
 import { logger } from '../logger'
+import { TemplateInsertSchema, AutoRuleInsertSchema } from '../schemas'
 
 export interface TicketTemplate {
   id: string
@@ -28,26 +29,29 @@ function rulesCacheKey(departmentId?: string | null): string {
   return departmentId ? `${RULES_STORAGE_KEY}:${departmentId}` : RULES_STORAGE_KEY
 }
 
-function loadLocalTemplates(): TicketTemplate[] {
+function templatesCacheKey(departmentId?: string | null): string {
+  return departmentId ? `${TEMPLATES_STORAGE_KEY}:${departmentId}` : TEMPLATES_STORAGE_KEY
+}
+
+function loadLocalTemplates(departmentId?: string | null): TicketTemplate[] {
   try {
-    const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY)
+    const raw = localStorage.getItem(templatesCacheKey(departmentId))
     return raw ? JSON.parse(raw) : []
   } catch { return [] }
 }
 
-function saveLocalTemplates(templates: TicketTemplate[]): void {
-  localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates))
+function saveLocalTemplates(templates: TicketTemplate[], departmentId?: string | null): void {
+  localStorage.setItem(templatesCacheKey(departmentId), JSON.stringify(templates))
 }
 
-export async function fetchTemplates(user: string): Promise<TicketTemplate[]> {
+export async function fetchTemplates(user: string, departmentId?: string | null): Promise<TicketTemplate[]> {
   try {
-    const { data, error } = await supabase
-      .from('ticket_templates')
-      .select('*')
-      .order('name', { ascending: true })
+    let query = supabase.from('ticket_templates').select('*').order('name', { ascending: true })
+    if (departmentId) query = query.eq('department_id', departmentId)
+    const { data, error } = await query
     if (error) throw error
     if (data && data.length > 0) {
-      return data.map(t => ({
+      const mapped = data.map(t => ({
         id: t.id,
         name: t.name,
         title: t.title,
@@ -55,20 +59,22 @@ export async function fetchTemplates(user: string): Promise<TicketTemplate[]> {
         priority: t.priority,
         status: t.status,
       }))
+      saveLocalTemplates(mapped, departmentId)
+      return mapped
     }
-    // Se banco vazio, tentar migrar do localStorage
-    const local = loadLocalTemplates()
-    if (local.length > 0) {
-      await migrateTemplatesToDB(local, user)
+    // Se banco vazio, tentar migrar do localStorage (apenas quando tem dept)
+    const local = loadLocalTemplates(departmentId)
+    if (local.length > 0 && departmentId) {
+      await migrateTemplatesToDB(local, user, departmentId)
     }
     return local
   } catch {
     logger.warn('Templates', 'Tabela ticket_templates não disponível, usando localStorage')
-    return loadLocalTemplates()
+    return loadLocalTemplates(departmentId)
   }
 }
 
-async function migrateTemplatesToDB(templates: TicketTemplate[], user: string): Promise<void> {
+async function migrateTemplatesToDB(templates: TicketTemplate[], user: string, departmentId: string): Promise<void> {
   try {
     const rows = templates.map(t => ({
       name: t.name,
@@ -77,6 +83,7 @@ async function migrateTemplatesToDB(templates: TicketTemplate[], user: string): 
       priority: t.priority,
       status: t.status,
       created_by: user,
+      department_id: departmentId,
     }))
     await supabase.from('ticket_templates').insert(rows)
     logger.info('Templates', `Migrados ${templates.length} templates do localStorage para o banco`)
@@ -85,11 +92,18 @@ async function migrateTemplatesToDB(templates: TicketTemplate[], user: string): 
   }
 }
 
-export async function insertTemplate(template: Omit<TicketTemplate, 'id'>, user: string): Promise<TicketTemplate | null> {
+export async function insertTemplate(template: Omit<TicketTemplate, 'id'>, user: string, departmentId?: string | null): Promise<TicketTemplate | null> {
+  const parsed = TemplateInsertSchema.safeParse(template)
+  if (!parsed.success) {
+    logger.warn('Templates', 'Payload inválido', { issues: parsed.error.issues })
+    return null
+  }
   try {
+    const payload: Record<string, unknown> = { ...parsed.data, created_by: user }
+    if (departmentId) payload.department_id = departmentId
     const { data, error } = await supabase
       .from('ticket_templates')
-      .insert({ ...template, created_by: user })
+      .insert(payload)
       .select()
       .single()
     if (error) throw error
@@ -99,21 +113,21 @@ export async function insertTemplate(template: Omit<TicketTemplate, 'id'>, user:
     // Fallback localStorage
     const id = `tmpl-${Date.now()}`
     const newTemplate = { ...template, id }
-    const all = loadLocalTemplates()
+    const all = loadLocalTemplates(departmentId)
     all.push(newTemplate)
-    saveLocalTemplates(all)
+    saveLocalTemplates(all, departmentId)
     return newTemplate
   }
 }
 
-export async function deleteTemplate(id: string): Promise<void> {
+export async function deleteTemplate(id: string, departmentId?: string | null): Promise<void> {
   try {
     const { error } = await supabase.from('ticket_templates').delete().eq('id', id)
     if (error) throw error
   } catch {
     // Fallback localStorage
-    const all = loadLocalTemplates()
-    saveLocalTemplates(all.filter(t => t.id !== id))
+    const all = loadLocalTemplates(departmentId)
+    saveLocalTemplates(all.filter(t => t.id !== id), departmentId)
   }
 }
 
@@ -188,15 +202,20 @@ async function migrateRulesToDB(rules: AutoRuleLocal[], user: string, department
 }
 
 export async function insertAutoRule(rule: Omit<AutoRuleLocal, 'id'>, user: string, departmentId?: string | null): Promise<AutoRuleLocal | null> {
+  const parsed = AutoRuleInsertSchema.safeParse(rule)
+  if (!parsed.success) {
+    logger.warn('AutoRules', 'Payload inválido', { issues: parsed.error.issues })
+    return null
+  }
   try {
     const { data, error } = await supabase
       .from('auto_rules')
       .insert({
-        name: rule.name,
-        condition: rule.condition,
-        action: rule.action,
-        target_column: rule.targetColumn,
-        enabled: rule.enabled,
+        name: parsed.data.name,
+        condition: parsed.data.condition,
+        action: parsed.data.action,
+        target_column: parsed.data.targetColumn,
+        enabled: parsed.data.enabled,
         created_by: user,
         department_id: departmentId ?? null,
       })

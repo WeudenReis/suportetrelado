@@ -29,7 +29,9 @@ const ROLE_CONFIG: Record<OrgRole, { label: string; color: string; bg: string; i
 const ROLE_ORDER: OrgRole[] = ['admin', 'supervisor', 'agent']
 
 export default function MembersManagerPanel({ onClose }: MembersManagerPanelProps) {
-  const { organizationId, hasPermission, departments, role: myRole } = useOrg()
+  const { organizationId, departmentId, hasPermission, departments, role: myRole } = useOrg()
+  // Admins veem toda a org; supervisor/agent limitam ao dept ativo.
+  const filterByDept: string | null = (myRole === 'admin') ? null : (departmentId ?? null)
   const [members, setMembers] = useState<MemberDisplay[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,10 +66,12 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
       const orgMembersMap = new Map<string, { role: OrgRole; departmentId: string | null }>()
       if (organizationId) {
         try {
-          const { data: orgMembers, error: omErr } = await supabase
+          let omQuery = supabase
             .from('org_members')
             .select('user_email, role, department_id')
             .eq('organization_id', organizationId)
+          if (filterByDept) omQuery = omQuery.eq('department_id', filterByDept)
+          const { data: orgMembers, error: omErr } = await omQuery
 
           if (!omErr && orgMembers) {
             for (const om of orgMembers) {
@@ -91,7 +95,12 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
         return
       }
 
-      const mapped: MemberDisplay[] = profileList.map(p => {
+      // Quando filtramos por dept, descartamos perfis sem org_member correspondente
+      const filteredProfiles = filterByDept
+        ? profileList.filter(p => orgMembersMap.has(p.email.toLowerCase()))
+        : profileList
+
+      const mapped: MemberDisplay[] = filteredProfiles.map(p => {
         const orgMember = orgMembersMap.get(p.email.toLowerCase())
         const resolvedRole = orgMember?.role ?? (p.role === 'admin' || p.role === 'supervisor' ? p.role as OrgRole : 'agent')
         const deptName = orgMember?.departmentId ? (deptMap.get(orgMember.departmentId) ?? null) : null
@@ -122,7 +131,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
     } finally {
       setLoading(false)
     }
-  }, [organizationId, departments])
+  }, [organizationId, departments, filterByDept])
 
   useEffect(() => {
     fetchMembers()

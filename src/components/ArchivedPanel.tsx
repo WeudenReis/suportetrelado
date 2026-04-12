@@ -1,7 +1,8 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { ArchiveRestore, Trash2, X, Search } from 'lucide-react';
 import styles from './ArchivedPanel.module.css';
+import { useOrg } from '../lib/org';
 
 interface ArchivedCard {
   id: string
@@ -38,26 +39,30 @@ const PRIORITY_COLOR: Record<string, { bg: string; text: string }> = {
 }
 
 export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
+  const { departmentId } = useOrg();
   const [archivedCards, setArchivedCards] = useState<ArchivedCard[]>([]);
   const [archivedLists, setArchivedLists] = useState<ArchivedList[]>([]);
   const [tab, setTab] = useState<'cards' | 'lists'>('cards');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  const fetchArchived = async () => {
+  const fetchArchived = useCallback(async () => {
     setLoading(true);
-    const [{ data: cards }, { data: lists }] = await Promise.all([
-      supabase.from('tickets').select('id, title, priority, created_at, updated_at')
-        .eq('is_archived', true).order('updated_at', { ascending: false }),
-      supabase.from('board_columns').select('id, title, created_at, updated_at')
-        .eq('is_archived', true).order('updated_at', { ascending: false }),
-    ]);
+    let cardsQuery = supabase.from('tickets').select('id, title, priority, created_at, updated_at')
+      .eq('is_archived', true).order('updated_at', { ascending: false });
+    let listsQuery = supabase.from('board_columns').select('id, title, created_at, updated_at')
+      .eq('is_archived', true).order('updated_at', { ascending: false });
+    if (departmentId) {
+      cardsQuery = cardsQuery.eq('department_id', departmentId);
+      listsQuery = listsQuery.eq('department_id', departmentId);
+    }
+    const [{ data: cards }, { data: lists }] = await Promise.all([cardsQuery, listsQuery]);
     setArchivedCards(cards ?? []);
     setArchivedLists(lists ?? []);
     setLoading(false);
-  };
+  }, [departmentId]);
 
-  useEffect(() => { fetchArchived(); }, []); // eslint-disable-line react-hooks/set-state-in-effect -- carregamento inicial
+  useEffect(() => { fetchArchived(); }, [fetchArchived]); // eslint-disable-line react-hooks/set-state-in-effect -- carregamento inicial + reatividade a dept
 
   const restoreCard = async (cardId: string) => {
     await supabase.from('tickets')

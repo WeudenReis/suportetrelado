@@ -4,6 +4,7 @@ import { Plus, X, FileText, ChevronDown, Copy, Trash2, Loader2 } from 'lucide-re
 import type { Ticket, TicketStatus } from '../../lib/supabase'
 import type { BoardColumn } from '../../lib/boardColumns'
 import { fetchTemplates, insertTemplate, deleteTemplate, type TicketTemplate } from '../../lib/api/templates'
+import { useOrg } from '../../lib/org'
 
 // Re-export para compatibilidade
 export type { TicketTemplate }
@@ -19,13 +20,14 @@ interface AddTicketModalProps {
 }
 
 export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, initialStatus, isCreating, user }: AddTicketModalProps) {
+  const { departmentId } = useOrg()
   const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: initialStatus, cliente: '', instancia: '' })
   const [showTemplates, setShowTemplates] = useState(false)
   const [templates, setTemplates] = useState<TicketTemplate[]>([])
 
   useEffect(() => {
-    fetchTemplates(user).then(setTemplates)
-  }, [user])
+    fetchTemplates(user, departmentId).then(setTemplates)
+  }, [user, departmentId])
 
   const handleAdd = () => {
     if (!newTicket.title.trim()) return
@@ -86,7 +88,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
                     <span style={{ fontWeight: 700, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tmpl.name}</span>
                     <span style={{ fontSize: 10, color: '#596773' }}>{tmpl.title}</span>
                   </div>
-                  <button onClick={async e => { e.stopPropagation(); await deleteTemplate(tmpl.id); setTemplates(prev => prev.filter(t => t.id !== tmpl.id)) }}
+                  <button onClick={async e => { e.stopPropagation(); await deleteTemplate(tmpl.id, departmentId); setTemplates(prev => prev.filter(t => t.id !== tmpl.id)) }}
                     style={{ background: 'transparent', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex', transition: 'color 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
                     onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
@@ -142,7 +144,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
             if (!newTicket.title.trim()) { onShowToast('Preencha o título para salvar como template', 'err'); return }
             const templateName = prompt('Nome do template:')
             if (!templateName?.trim()) return
-            const saved = await insertTemplate({ name: templateName.trim(), title: newTicket.title, description: newTicket.description, priority: newTicket.priority, status: newTicket.status }, user)
+            const saved = await insertTemplate({ name: templateName.trim(), title: newTicket.title, description: newTicket.description, priority: newTicket.priority, status: newTicket.status }, user, departmentId)
             if (saved) setTemplates(prev => [...prev, saved])
             onShowToast('Template salvo!', 'ok')
           }}

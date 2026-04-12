@@ -10,6 +10,8 @@ import { AnnouncementProvider } from './components/AnnouncementContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import { initSentry, setSentryUser, captureException } from './lib/sentry'
 import { logger } from './lib/logger'
+import { installOfflineListener, registerOfflineExecutor } from './lib/offlineQueue'
+import { insertComment } from './lib/api/comments'
 import { isSuperAdmin } from './lib/superAdmins'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
@@ -34,6 +36,15 @@ function SidebarSpinner() {
 
 // Inicializar Sentry no carregamento do módulo
 initSentry()
+
+// Fila offline: reprocessa comentários que falharam por falta de rede
+registerOfflineExecutor('insertComment', async (args) => {
+  const { ticketId, userName, content, departmentId } = args as {
+    ticketId: string; userName: string; content: string; departmentId?: string
+  }
+  await insertComment(ticketId, userName, content, departmentId)
+})
+installOfflineListener()
 
 function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
   const [newPassword, setNewPassword] = useState('')
