@@ -352,7 +352,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
             fontFamily: "'Paytone One', sans-serif", fontSize: 30, color: '#fff',
             margin: 0, lineHeight: 1, letterSpacing: '-0.01em',
           }}>
-            Trelado
+            chatPro
           </h1>
         </motion.div>
 
@@ -767,7 +767,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
             fontFamily: "'Space Grotesk', sans-serif",
           }}
         >
-          © {new Date().getFullYear()} Trelado
+          © {new Date().getFullYear()} chatPro
         </motion.p>
       </div>
     </div>

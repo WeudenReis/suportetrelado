@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { AnimatePresence } from 'framer-motion'
 import {
-  X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
+  X, MessageSquare, Trash2, Send, Loader2,
   ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
   AlignLeft, CreditCard, Paperclip, Check, User, Calendar,
   CheckSquare, Square, Plus, Link2, Pencil, Lock
@@ -10,17 +10,15 @@ import {
 import {
   supabase, updateTicket, deleteTicket,
   fetchComments, insertComment, deleteComment,
-  fetchAttachments, uploadAttachment, deleteAttachment,
   fetchActivityLog, insertActivityLog,
   extractMentionNames, resolveMentionsToEmails, insertNotification,
   fetchUserProfiles,
   fetchBoardLabels, updateBoardLabel, deleteBoardLabel
 } from '../lib/supabase'
-import { compressCover, compressThumbnail, compressAttachment } from '../lib/imageUtils'
-import CardComments from './card/CardComments'
+import { compressCover, compressThumbnail } from '../lib/imageUtils'
 import CardAttachments from './card/CardAttachments'
 import { logger } from '../lib/logger'
-import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
+import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
 
 interface CardDetailModalProps {
   ticket: Ticket
@@ -100,8 +98,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [commentFocused, setCommentFocused] = useState(false)
   const [isInternalNote, setIsInternalNote] = useState(false)
 
-  const [attachments, setAttachments] = useState<Attachment[]>([])
-  const [uploading, setUploading] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
@@ -168,7 +164,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   useEffect(() => {
     fetchComments(ticket.id).then(setComments)
-    fetchAttachments(ticket.id).then(setAttachments)
     fetchActivityLog(ticket.id).then(setActivities)
   }, [ticket.id])
 
@@ -266,7 +261,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       if (updates.status) {
         const oldLabel = STATUS_MAP[ticket.status]
         const newLabel = STATUS_MAP[updates.status]
-        await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`)
+        await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`, ticket.department_id)
       }
     }
   }
@@ -327,7 +322,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     const commentText = isInternalNote ? `[INTERNO] ${newComment.trim()}` : newComment.trim()
     setMentionQuery(null)
     try {
-      const c = await insertComment(ticket.id, user, commentText)
+      const c = await insertComment(ticket.id, user, commentText, ticket.department_id)
       if (c) setComments(prev => [...prev, c])
       setNewComment('')
       setIsInternalNote(false)
@@ -438,24 +433,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     }
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files?.length) return
-    setUploading(true)
-    for (const file of Array.from(files)) {
-      const compressed = await compressAttachment(file)
-      const att = await uploadAttachment(ticket.id, compressed, user)
-      if (att) setAttachments(prev => [...prev, att])
-    }
-    setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const handleDeleteAttachment = async (att: Attachment) => {
-    setAttachments(prev => prev.filter(a => a.id !== att.id))
-    await deleteAttachment(att.id, att.file_url)
-  }
-
   const handleShare = async () => {
     const url = `${window.location.origin}?ticket=${ticket.id}`
     try {
@@ -542,7 +519,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 const newLabel = STATUS_MAP[next]
                 setStatus(next)
                 await save({ status: next })
-                await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`)
+                await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`, ticket.department_id)
               }}
               className="dark-select"
             >
@@ -738,7 +715,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             </div>
 
             {/* Attachments */}
-            <CardAttachments ticketId={ticket.id} user={user} />
+            <CardAttachments ticketId={ticket.id} ticketDepartmentId={ticket.department_id} user={user} />
           </div>
 
           {/* ═══ CENTER: Actions & Status ═══ */}

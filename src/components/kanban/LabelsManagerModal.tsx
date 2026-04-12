@@ -7,11 +7,12 @@ const LABEL_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a
 
 interface LabelsManagerModalProps {
   boardLabels: BoardLabel[]
+  departmentId: string | null
   onLabelsChange: (labels: BoardLabel[]) => void
   onClose: () => void
 }
 
-export default function LabelsManagerModal({ boardLabels, onLabelsChange, onClose }: LabelsManagerModalProps) {
+export default function LabelsManagerModal({ boardLabels, departmentId, onLabelsChange, onClose }: LabelsManagerModalProps) {
   const [editingLabel, setEditingLabel] = useState<BoardLabel | null>(null)
   const [editLabelName, setEditLabelName] = useState('')
   const [editLabelColor, setEditLabelColor] = useState('')
@@ -19,7 +20,7 @@ export default function LabelsManagerModal({ boardLabels, onLabelsChange, onClos
   const [newLabelColor, setNewLabelColor] = useState('#579dff')
 
   const refreshLabels = async () => {
-    const labels = await fetchBoardLabels()
+    const labels = await fetchBoardLabels(departmentId ?? undefined)
     onLabelsChange(labels)
   }
 
@@ -94,7 +95,7 @@ export default function LabelsManagerModal({ boardLabels, onLabelsChange, onClos
             placeholder="Nome da etiqueta..."
             className="w-full px-3 py-2 rounded-lg text-xs font-medium outline-none mb-3"
             style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.15)', color: '#b6c2cf' }}
-            onKeyDown={async e => { if (e.key === 'Enter' && newLabelName.trim()) { await insertBoardLabel(newLabelName.trim(), newLabelColor); await refreshLabels(); setNewLabelName('') } }}
+            onKeyDown={async e => { if (e.key === 'Enter' && newLabelName.trim()) { await insertBoardLabel(newLabelName.trim(), newLabelColor, departmentId ?? undefined); await refreshLabels(); setNewLabelName('') } }}
           />
           <div className="flex flex-wrap gap-2 mb-3">
             {LABEL_COLORS.map(c => (
@@ -105,7 +106,7 @@ export default function LabelsManagerModal({ boardLabels, onLabelsChange, onClos
             ))}
           </div>
           <button
-            onClick={async () => { if (!newLabelName.trim()) return; await insertBoardLabel(newLabelName.trim(), newLabelColor); await refreshLabels(); setNewLabelName('') }}
+            onClick={async () => { if (!newLabelName.trim()) return; await insertBoardLabel(newLabelName.trim(), newLabelColor, departmentId ?? undefined); await refreshLabels(); setNewLabelName('') }}
             className="w-full py-2 rounded-lg text-xs font-bold transition-colors"
             style={{ background: newLabelName.trim() ? '#579dff' : 'rgba(87,157,255,0.15)', color: newLabelName.trim() ? '#1d2125' : '#579dff' }}
           >Criar etiqueta</button>

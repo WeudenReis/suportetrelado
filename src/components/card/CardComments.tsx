@@ -133,7 +133,7 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
     const commentText = isInternalNote ? `[INTERNO] ${newComment.trim()}` : newComment.trim()
     setMentionQuery(null)
     try {
-      const c = await insertComment(ticketId, user, commentText)
+      const c = await insertComment(ticketId, user, commentText, ticketDepartmentId ?? undefined)
       if (c) setComments(prev => [...prev, c])
       setNewComment('')
       setIsInternalNote(false)

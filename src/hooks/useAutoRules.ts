@@ -2,28 +2,27 @@
  * useAutoRules
  * Centraliza a lógica de "regras automáticas" que movia tickets entre colunas
  * com base em condições (prioridade, responsável, tempo ocioso, etc.)
- * Extraído de KanbanBoard.tsx para reduzir o tamanho do componente.
+ *
+ * Fonte de verdade: tabela `auto_rules` no Supabase (filtrada por department_id).
+ * Cache síncrono: localStorage por departamento, populado pelo AutoRulesModal
+ * ao abrir e após mutações, para permitir aplicação em batch sem await.
  */
 import { useCallback } from 'react'
 import { updateTicket } from '../lib/supabase'
+import { loadAutoRulesCache } from '../lib/api/templates'
 import { logger } from '../lib/logger'
 import type { Ticket, TicketStatus } from '../lib/supabase'
 
 export interface AutoRule {
+  id?: string
   name: string
   enabled: boolean
   condition: 'priority_high' | 'priority_medium' | 'priority_low' | 'no_assignee' | 'overdue_12h' | 'overdue_24h'
   targetColumn: string
 }
 
-const STORAGE_KEY = 'chatpro-auto-rules'
-
-export function loadAutoRules(): AutoRule[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as AutoRule[]
-  } catch {
-    return []
-  }
+export function loadAutoRules(departmentId?: string | null): AutoRule[] {
+  return loadAutoRulesCache(departmentId) as AutoRule[]
 }
 
 function matchesRule(ticket: Ticket, rule: AutoRule): boolean {
@@ -44,14 +43,14 @@ function matchesRule(ticket: Ticket, rule: AutoRule): boolean {
   }
 }
 
-export function useAutoRules() {
+export function useAutoRules(departmentId?: string | null) {
   /**
    * Aplica todas as regras ativas a um ticket individual.
    * Retorna o ticket com o status possivelmente alterado.
    */
   const applyRulesToTicket = useCallback((ticket: Ticket): Ticket => {
     if (ticket.is_archived) return ticket
-    const rules = loadAutoRules().filter(r => r.enabled)
+    const rules = loadAutoRules(departmentId).filter(r => r.enabled)
     for (const rule of rules) {
       if (ticket.status === rule.targetColumn) continue
       if (matchesRule(ticket, rule)) {
@@ -61,7 +60,7 @@ export function useAutoRules() {
       }
     }
     return ticket
-  }, [])
+  }, [departmentId])
 
   /**
    * Aplica as regras a um array de tickets e retorna as atualizações
@@ -71,7 +70,7 @@ export function useAutoRules() {
     processed: Ticket[]
     updates: { id: string; newStatus: string; ruleName: string }[]
   } => {
-    const rules = loadAutoRules().filter(r => r.enabled)
+    const rules = loadAutoRules(departmentId).filter(r => r.enabled)
     const updates: { id: string; newStatus: string; ruleName: string }[] = []
 
     if (rules.length === 0) return { processed: tickets, updates }
@@ -89,7 +88,7 @@ export function useAutoRules() {
     })
 
     return { processed, updates }
-  }, [])
+  }, [departmentId])
 
-  return { applyRulesToTicket, applyRulesToBatch, loadAutoRules }
+  return { applyRulesToTicket, applyRulesToBatch, loadAutoRules: () => loadAutoRules(departmentId) }
 }

@@ -10,6 +10,7 @@ import { AnnouncementProvider } from './components/AnnouncementContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import { initSentry, setSentryUser, captureException } from './lib/sentry'
 import { logger } from './lib/logger'
+import { isSuperAdmin } from './lib/superAdmins'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
 import BottomNav from './components/BottomNav'
@@ -103,7 +104,7 @@ function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
               <circle cx="70" cy="40" r="6" fill="#25D066" />
             </svg>
           </div>
-          <h1 style={{ fontFamily: "'Paytone One', sans-serif", fontSize: 30, color: '#fff', margin: 0 }}>Trelado</h1>
+          <h1 style={{ fontFamily: "'Paytone One', sans-serif", fontSize: 30, color: '#fff', margin: 0 }}>chatPro</h1>
         </div>
 
         {/* Card */}
@@ -224,7 +225,7 @@ function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 28, fontSize: 11, color: '#3B4754', fontFamily: "'Space Grotesk', sans-serif" }}>
-          © {new Date().getFullYear()} Trelado
+          © {new Date().getFullYear()} chatPro
         </p>
       </div>
     </div>
@@ -246,12 +247,6 @@ export default function App() {
     if (!isSupabaseConfigured) {
       setLoading(false) // eslint-disable-line react-hooks/set-state-in-effect -- early return antes de qualquer async
       return
-    }
-
-    // Lista de emails com acesso garantido (bypass absoluto no App)
-    const SUPER_ADMINS = ['weudenfilho@gmail.com', 'wandersonthegod@gmail.com']
-    function isSuperAdmin(email: string): boolean {
-      return SUPER_ADMINS.includes(email.toLowerCase().trim())
     }
 
     async function checkSession(email: string | null) {

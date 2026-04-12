@@ -24,6 +24,10 @@ export interface AutoRule {
 const TEMPLATES_STORAGE_KEY = 'chatpro-templates'
 const RULES_STORAGE_KEY = 'chatpro-auto-rules'
 
+function rulesCacheKey(departmentId?: string | null): string {
+  return departmentId ? `${RULES_STORAGE_KEY}:${departmentId}` : RULES_STORAGE_KEY
+}
+
 function loadLocalTemplates(): TicketTemplate[] {
   try {
     const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY)
@@ -124,26 +128,25 @@ interface AutoRuleLocal {
   enabled: boolean
 }
 
-function loadLocalRules(): AutoRuleLocal[] {
+function loadLocalRules(departmentId?: string | null): AutoRuleLocal[] {
   try {
-    const raw = localStorage.getItem(RULES_STORAGE_KEY)
+    const raw = localStorage.getItem(rulesCacheKey(departmentId))
     return raw ? JSON.parse(raw) : []
   } catch { return [] }
 }
 
-function saveLocalRules(rules: AutoRuleLocal[]): void {
-  localStorage.setItem(RULES_STORAGE_KEY, JSON.stringify(rules))
+export function saveLocalRules(rules: AutoRuleLocal[], departmentId?: string | null): void {
+  localStorage.setItem(rulesCacheKey(departmentId), JSON.stringify(rules))
 }
 
-export async function fetchAutoRules(user: string): Promise<AutoRuleLocal[]> {
+export async function fetchAutoRules(user: string, departmentId?: string | null): Promise<AutoRuleLocal[]> {
   try {
-    const { data, error } = await supabase
-      .from('auto_rules')
-      .select('*')
-      .order('name', { ascending: true })
+    let query = supabase.from('auto_rules').select('*').order('name', { ascending: true })
+    if (departmentId) query = query.eq('department_id', departmentId)
+    const { data, error } = await query
     if (error) throw error
     if (data && data.length > 0) {
-      return data.map(r => ({
+      const mapped = data.map(r => ({
         id: r.id,
         name: r.name,
         condition: r.condition,
@@ -151,20 +154,22 @@ export async function fetchAutoRules(user: string): Promise<AutoRuleLocal[]> {
         targetColumn: r.target_column,
         enabled: r.enabled,
       }))
+      saveLocalRules(mapped, departmentId)
+      return mapped
     }
     // Migrar do localStorage se banco vazio
-    const local = loadLocalRules()
+    const local = loadLocalRules(departmentId)
     if (local.length > 0) {
-      await migrateRulesToDB(local, user)
+      await migrateRulesToDB(local, user, departmentId)
     }
     return local
   } catch {
     logger.warn('AutoRules', 'Tabela auto_rules não disponível, usando localStorage')
-    return loadLocalRules()
+    return loadLocalRules(departmentId)
   }
 }
 
-async function migrateRulesToDB(rules: AutoRuleLocal[], user: string): Promise<void> {
+async function migrateRulesToDB(rules: AutoRuleLocal[], user: string, departmentId?: string | null): Promise<void> {
   try {
     const rows = rules.map(r => ({
       name: r.name,
@@ -173,6 +178,7 @@ async function migrateRulesToDB(rules: AutoRuleLocal[], user: string): Promise<v
       target_column: r.targetColumn,
       enabled: r.enabled,
       created_by: user,
+      department_id: departmentId ?? null,
     }))
     await supabase.from('auto_rules').insert(rows)
     logger.info('AutoRules', `Migradas ${rules.length} regras do localStorage para o banco`)
@@ -181,7 +187,7 @@ async function migrateRulesToDB(rules: AutoRuleLocal[], user: string): Promise<v
   }
 }
 
-export async function insertAutoRule(rule: Omit<AutoRuleLocal, 'id'>, user: string): Promise<AutoRuleLocal | null> {
+export async function insertAutoRule(rule: Omit<AutoRuleLocal, 'id'>, user: string, departmentId?: string | null): Promise<AutoRuleLocal | null> {
   try {
     const { data, error } = await supabase
       .from('auto_rules')
@@ -192,6 +198,7 @@ export async function insertAutoRule(rule: Omit<AutoRuleLocal, 'id'>, user: stri
         target_column: rule.targetColumn,
         enabled: rule.enabled,
         created_by: user,
+        department_id: departmentId ?? null,
       })
       .select()
       .single()
@@ -200,14 +207,14 @@ export async function insertAutoRule(rule: Omit<AutoRuleLocal, 'id'>, user: stri
   } catch {
     const id = `rule-${Date.now()}`
     const newRule = { ...rule, id }
-    const all = loadLocalRules()
+    const all = loadLocalRules(departmentId)
     all.push(newRule)
-    saveLocalRules(all)
+    saveLocalRules(all, departmentId)
     return newRule
   }
 }
 
-export async function updateAutoRule(id: string, updates: Partial<AutoRuleLocal>): Promise<void> {
+export async function updateAutoRule(id: string, updates: Partial<AutoRuleLocal>, departmentId?: string | null): Promise<void> {
   try {
     const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (updates.enabled !== undefined) dbUpdates.enabled = updates.enabled
@@ -217,17 +224,22 @@ export async function updateAutoRule(id: string, updates: Partial<AutoRuleLocal>
     const { error } = await supabase.from('auto_rules').update(dbUpdates).eq('id', id)
     if (error) throw error
   } catch {
-    const all = loadLocalRules()
-    saveLocalRules(all.map(r => r.id === id ? { ...r, ...updates } : r))
+    const all = loadLocalRules(departmentId)
+    saveLocalRules(all.map(r => r.id === id ? { ...r, ...updates } : r), departmentId)
   }
 }
 
-export async function deleteAutoRule(id: string): Promise<void> {
+export async function deleteAutoRule(id: string, departmentId?: string | null): Promise<void> {
   try {
     const { error } = await supabase.from('auto_rules').delete().eq('id', id)
     if (error) throw error
   } catch {
-    const all = loadLocalRules()
-    saveLocalRules(all.filter(r => r.id !== id))
+    const all = loadLocalRules(departmentId)
+    saveLocalRules(all.filter(r => r.id !== id), departmentId)
   }
+}
+
+// Leitor síncrono do cache local por departamento (usado pelo hook useAutoRules)
+export function loadAutoRulesCache(departmentId?: string | null): AutoRuleLocal[] {
+  return loadLocalRules(departmentId)
 }

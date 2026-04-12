@@ -6,11 +6,12 @@ import type { Attachment, Ticket } from '../../lib/supabase'
 
 interface CardAttachmentsProps {
   ticketId: string
+  ticketDepartmentId: string | null
   user: string
   onUpdate?: (ticket: Ticket) => void
 }
 
-export default function CardAttachments({ ticketId, user }: CardAttachmentsProps) {
+export default function CardAttachments({ ticketId, ticketDepartmentId, user }: CardAttachmentsProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -25,7 +26,7 @@ export default function CardAttachments({ ticketId, user }: CardAttachmentsProps
     setUploading(true)
     for (const file of Array.from(files)) {
       const compressed = await compressAttachment(file)
-      const att = await uploadAttachment(ticketId, compressed, user)
+      const att = await uploadAttachment(ticketId, compressed, user, ticketDepartmentId ?? undefined)
       if (att) setAttachments(prev => [...prev, att])
     }
     setUploading(false)

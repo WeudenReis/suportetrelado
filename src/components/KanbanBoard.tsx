@@ -22,11 +22,13 @@ import SettingsPanel from './kanban/SettingsPanel'
 import MembersManagerPanel from './kanban/MembersManagerPanel'
 import AddTicketModal from './kanban/AddTicketModal'
 import FilterPanel from './kanban/FilterPanel'
+import DepartmentSwitcher from './kanban/DepartmentSwitcher'
 import { DroppableColumn, SortableCard, SortableBoardColumn } from './kanban/DndComponents'
-import { searchTicketsRPC, searchTicketsLocal, debounce } from '../lib/search'
 import { useOrg } from '../lib/org'
 import { logger } from '../lib/logger'
 import { useAutoRules } from '../hooks/useAutoRules'
+import { useKanbanFilters } from '../hooks/useKanbanFilters'
+import { useKanbanWallpaper } from '../hooks/useKanbanWallpaper'
 
 interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
 
@@ -70,18 +72,18 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [refreshing, setRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  const showToast = useCallback((msg: string, type: 'ok' | 'err') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }, [])
   const [mutatingIds, setMutatingIds] = useState<Set<string>>(new Set())
   const [creatingTicket, setCreatingTicket] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [showMembersPanel, setShowMembersPanel] = useState(false)
   const [allMembers, setAllMembers] = useState<UserProfile[]>([])
-  const [wallpaper, setWallpaper] = useState<string>('')
-  const [wallpaperInput, setWallpaperInput] = useState('')
-  const [recentWallpapers, setRecentWallpapers] = useState<string[]>([])
   const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
   const [inlineTitle, setInlineTitle] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
   const [showInstanceModal, setShowInstanceModal] = useState(false)
   const [showArchivedPanel, setShowArchivedPanel] = useState(false)
   const [addingList, setAddingList] = useState(false)
@@ -99,65 +101,59 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>(() => (localStorage.getItem('chatpro-view-mode') as 'kanban' | 'list') || 'kanban')
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set())
   const [compactMode, setCompactMode] = useState<boolean>(() => localStorage.getItem('chatpro-compact-mode') === 'true')
-  const [showFilters, setShowFilters] = useState(false)
-  const [filterPriority, setFilterPriority] = useState<string>('all')
-  const [filterAssignee, setFilterAssignee] = useState<string>('all')
-  const [filterLabel, setFilterLabel] = useState<string>('all')
   const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
   const [bulkMode, setBulkMode] = useState(false)
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set())
   const [showAutoRules, setShowAutoRules] = useState(false)
   const [showMembersManager, setShowMembersManager] = useState(false)
   const { departmentId } = useOrg()
-  const { applyRulesToTicket, applyRulesToBatch } = useAutoRules()
+  const { applyRulesToTicket, applyRulesToBatch } = useAutoRules(departmentId)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const dragOriginalStatusRef = useRef<string | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const boardDragRef = useRef({ isDragging: false, startX: 0, scrollLeft: 0 })
   const searchInputRef = useRef<HTMLInputElement | null>(null)
-  const [serverSearchResults, setServerSearchResults] = useState<Ticket[] | null>(null)
-  const [searchLoading, setSearchLoading] = useState(false)
   const PAGE_SIZE = 50
   const [currentPage, setCurrentPage] = useState(1)
   const [totalTickets, setTotalTickets] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const hasMoreTickets = tickets.length < totalTickets
 
-  // Debounced server-side search
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce retorna função estável
-  const debouncedSearch = useCallback(
-    debounce(async (query: string) => {
-      if (!query.trim()) {
-        setServerSearchResults(null)
-        setSearchLoading(false)
-        return
-      }
-      setSearchLoading(true)
-      const results = await searchTicketsRPC(query)
-      if (results.length > 0) {
-        setServerSearchResults(results)
-      } else {
-        // RPC retornou vazio ou falhou — fallback client-side
-        setServerSearchResults(null)
-      }
-      setSearchLoading(false)
-    }, 350),
-    []
-  )
+  // Filtros + busca (full-text server-side com fallback local) extraídos para hook
+  const {
+    searchQuery, setSearchQuery,
+    showFilters, setShowFilters,
+    filterPriority, setFilterPriority,
+    filterAssignee, setFilterAssignee,
+    filterLabel, setFilterLabel,
+    serverSearchResults,
+    searchLoading,
+    getColumnTickets: getFilteredTicketsByStatus,
+    activeFilterCount,
+    uniqueAssignees,
+    uniqueLabels,
+    clearAllFilters,
+  } = useKanbanFilters({ tickets, allMembers })
 
-  useEffect(() => {
-    debouncedSearch(searchQuery)
-  }, [searchQuery, debouncedSearch])
-
-  const wallpaperStorageKey = `chatpro-wallpaper:${user.toLowerCase()}`
+  // Wallpaper + uploads/gallery extraídos para hook
+  const {
+    wallpaper,
+    wallpaperInput, setWallpaperInput,
+    recentWallpapers,
+    applyWallpaper,
+    handleWallpaperFileSelect,
+    removeRecentWallpaper,
+    clearRecentWallpapers,
+    deleteCurrentWallpaper,
+  } = useKanbanWallpaper({ user, onToast: showToast })
 
   // --- Load tickets from Supabase ---
   const loadTickets = useCallback(async (page = 1) => {
     try {
       const [data, attCounts, count] = await Promise.all([
-        fetchTickets({ page, pageSize: PAGE_SIZE }),
-        fetchAttachmentCounts(),
-        fetchTicketsCount(),
+        fetchTickets({ page, pageSize: PAGE_SIZE, departmentId: departmentId ?? undefined }),
+        fetchAttachmentCounts(departmentId ?? undefined),
+        fetchTicketsCount({ departmentId: departmentId ?? undefined }),
       ])
       setTotalTickets(count)
       const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
@@ -177,7 +173,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       logger.error('KanbanBoard', 'Falha ao carregar tickets', { error: String(err) })
       showToast('Erro ao carregar tickets', 'err')
     }
-  }, [applyRulesToBatch])
+  }, [applyRulesToBatch, departmentId])
 
   // --- Load more tickets ---
   const loadMoreTickets = useCallback(async () => {
@@ -185,8 +181,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     setLoadingMore(true)
     try {
       const [data, attCounts] = await Promise.all([
-        fetchTickets({ page: nextPage, pageSize: PAGE_SIZE }),
-        fetchAttachmentCounts(),
+        fetchTickets({ page: nextPage, pageSize: PAGE_SIZE, departmentId: departmentId ?? undefined }),
+        fetchAttachmentCounts(departmentId ?? undefined),
       ])
       const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
       setTickets(prev => {
@@ -201,7 +197,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     } finally {
       setLoadingMore(false)
     }
-  }, [currentPage])
+  }, [currentPage, departmentId])
 
   // Helper: aplica regras automáticas a um ticket individual (via hook)
   // Funções 'applyRulesToTicket' e 'applyRulesToBatch' agora vêm de useAutoRules()
@@ -229,8 +225,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
         setTickets(prev => prev.filter(t => t.id !== (payload.old as Record<string, string>).id))
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments' }, () => {
-        fetchAttachmentCounts().then(counts => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments', ...realtimeFilter }, () => {
+        fetchAttachmentCounts(departmentId ?? undefined).then(counts => {
           setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
         })
       })
@@ -292,75 +288,18 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     }
   }, [])
 
-  // --- Toast helper ---
-  function showToast(msg: string, type: 'ok' | 'err') {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 3000)
-  }
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
-  const getColumnTickets = useCallback((status: string) => {
-    // Se temos resultados server-side, filtrar por coluna
-    if (serverSearchResults && searchQuery.trim()) {
-      let filtered = serverSearchResults.filter(t => t.status === status)
-      if (filterPriority !== 'all') {
-        filtered = filtered.filter(t => t.priority === filterPriority)
-      }
-      if (filterAssignee !== 'all') {
-        if (filterAssignee === '__none__') {
-          filtered = filtered.filter(t => !t.assignee)
-        } else {
-          const member = allMembers.find(m => m.email === filterAssignee)
-          filtered = filtered.filter(t => {
-            if (!t.assignee) return false
-            const parts = t.assignee.split(',').map(s => s.trim().toLowerCase())
-            const fa = filterAssignee.toLowerCase()
-            return parts.some(p => p === fa || (member && (p === member.name.toLowerCase() || p === member.email.toLowerCase())))
-          })
-        }
-      }
-      if (filterLabel !== 'all') {
-        filtered = filtered.filter(t => t.tags && t.tags.some(tag => tag.includes(filterLabel)))
-      }
-      return filtered
-    }
-
-    // Fallback client-side
-    let filtered = tickets.filter(t => t.status === status)
-    if (searchQuery.trim()) {
-      filtered = searchTicketsLocal(filtered, searchQuery)
-    }
-    if (filterPriority !== 'all') {
-      filtered = filtered.filter(t => t.priority === filterPriority)
-    }
-    if (filterAssignee !== 'all') {
-      if (filterAssignee === '__none__') {
-        filtered = filtered.filter(t => !t.assignee)
-      } else {
-        const member = allMembers.find(m => m.email === filterAssignee)
-        filtered = filtered.filter(t => {
-          if (!t.assignee) return false
-          const parts = t.assignee.split(',').map(s => s.trim().toLowerCase())
-          const fa = filterAssignee.toLowerCase()
-          return parts.some(p => p === fa || (member && (p === member.name.toLowerCase() || p === member.email.toLowerCase())))
-        })
-      }
-    }
-    if (filterLabel !== 'all') {
-      filtered = filtered.filter(t => t.tags && t.tags.some(tag => tag.includes(filterLabel)))
-    }
-    return filtered
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- allMembers omitido intencionalmente: member lookup é estável
-  }, [tickets, searchQuery, serverSearchResults, filterPriority, filterAssignee, filterLabel])
+  // Alias mantendo o nome original usado no JSX
+  const getColumnTickets = getFilteredTicketsByStatus
 
   // Carregar colunas do Supabase (com fallback para COLUMNS legadas)
   useEffect(() => {
     const fetchCols = async () => {
       try {
-        const cols = await fetchBoardColumns()
+        const cols = await fetchBoardColumns(departmentId ?? undefined)
         if (cols.length > 0) {
           setColumns(cols)
           setColumnOrder(cols.map(c => c.id))
@@ -378,61 +317,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       }
     }
     fetchCols()
-  }, [])
-
-  const recentWallpapersKey = `chatpro-recent-wallpapers:${user.toLowerCase()}`
-
-  useEffect(() => {
-    const saved = localStorage.getItem(wallpaperStorageKey) || ''
-    setWallpaper(saved)
-    try {
-      const recent = JSON.parse(localStorage.getItem(recentWallpapersKey) || '[]') as string[]
-      setRecentWallpapers(recent)
-    } catch { /* ignore */ }
-  }, [wallpaperStorageKey, recentWallpapersKey])
+  }, [departmentId])
 
   const allColumnsById = useMemo(() => new Map(columns.map(col => [col.id, col])), [columns])
   const allColumns = useMemo(() => columnOrder.map(id => allColumnsById.get(id)).filter((col): col is NonNullable<typeof col> => Boolean(col)), [columnOrder, allColumnsById])
   const columnIds = useMemo(() => allColumns.map(col => col.id), [allColumns])
-
-  const activeFilterCount = useMemo(() => {
-    let count = 0
-    if (filterPriority !== 'all') count++
-    if (filterAssignee !== 'all') count++
-    if (filterLabel !== 'all') count++
-    return count
-  }, [filterPriority, filterAssignee, filterLabel])
-
-  const uniqueAssignees = useMemo(() => {
-    const seen = new Map<string, string>() // canonical email/name → display name
-    for (const t of tickets) {
-      if (t.assignee) {
-        t.assignee.split(',').map(s => s.trim()).filter(Boolean).forEach(raw => {
-          // Resolve against allMembers to deduplicate
-          const member = allMembers.find(m => m.email === raw || m.name === raw || m.email.split('@')[0].toLowerCase() === raw.toLowerCase())
-          const key = member?.email || raw.toLowerCase()
-          if (!seen.has(key)) {
-            seen.set(key, member?.name || (raw.includes('@') ? raw.split('@')[0] : raw))
-          }
-        })
-      }
-    }
-    return Array.from(seen.entries()).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label))
-  }, [tickets, allMembers])
-
-  const uniqueLabels = useMemo(() => {
-    const set = new Set<string>()
-    for (const t of tickets) {
-      if (t.tags) t.tags.forEach(tag => set.add(tag))
-    }
-    return Array.from(set).sort()
-  }, [tickets])
-
-  const clearAllFilters = useCallback(() => {
-    setFilterPriority('all')
-    setFilterAssignee('all')
-    setFilterLabel('all')
-  }, [])
 
   const toggleBulkSelect = useCallback((id: string) => {
     setSelectedCardIds(prev => {
@@ -596,7 +485,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     updateTicket(activeId, { status: newStatus as TicketStatus })
       .then(() => {
         if (originalStatus && originalStatus !== newStatus) {
-          insertActivityLog(activeId, user, `moveu este cartão de ${fromLabel} para ${toLabel}`)
+          insertActivityLog(activeId, user, `moveu este cartão de ${fromLabel} para ${toLabel}`, departmentId ?? undefined)
         }
       })
       .catch(() => {
@@ -674,119 +563,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const handleTicketArchive = useCallback((id: string) => {
     setTickets(prev => prev.filter(t => t.id !== id))
   }, [])
-
-  const applyWallpaper = (url: string) => {
-    setWallpaper(url)
-    try {
-      localStorage.setItem(wallpaperStorageKey, url)
-    } catch {
-      showToast('Sem espaço local para salvar este fundo', 'err')
-    }
-    // Salvar nos recentes se for imagem importada (data: ou http)
-    if (url && (url.startsWith('data:') || url.startsWith('http'))) {
-      setRecentWallpapers(prev => {
-        const updated = [url, ...prev.filter(w => w !== url)].slice(0, 4)
-        try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
-        return updated
-      })
-    }
-  }
-
-  const readFileAsDataURL = (file: File) => new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === 'string' ? reader.result : ''
-      if (!dataUrl) return reject(new Error('empty_data_url'))
-      resolve(dataUrl)
-    }
-    reader.onerror = () => reject(new Error('read_error'))
-    reader.readAsDataURL(file)
-  })
-
-  const loadImageFromFile = (file: File) => new Promise<HTMLImageElement>((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file)
-    const img = new window.Image()
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl)
-      resolve(img)
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl)
-      reject(new Error('load_image_error'))
-    }
-    img.src = objectUrl
-  })
-
-  const estimateDataUrlBytes = (dataUrl: string) => {
-    const base64 = dataUrl.split(',')[1] || ''
-    return Math.floor(base64.length * 0.75)
-  }
-
-  const compressWallpaperImage = async (file: File): Promise<string> => {
-    const image = await loadImageFromFile(file)
-
-    const MAX_DIMENSION = 1920
-    const TARGET_BYTES = 900 * 1024
-
-    const largestSide = Math.max(image.width, image.height)
-    const scale = largestSide > MAX_DIMENSION ? MAX_DIMENSION / largestSide : 1
-
-    let width = Math.max(1, Math.round(image.width * scale))
-    let height = Math.max(1, Math.round(image.height * scale))
-
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('canvas_context_error')
-
-    let quality = 0.86
-    let output = ''
-
-    for (let step = 0; step < 6; step += 1) {
-      canvas.width = width
-      canvas.height = height
-      ctx.clearRect(0, 0, width, height)
-      ctx.drawImage(image, 0, 0, width, height)
-
-      output = canvas.toDataURL('image/jpeg', quality)
-
-      if (estimateDataUrlBytes(output) <= TARGET_BYTES) return output
-
-      if (quality > 0.52) {
-        quality = Math.max(0.52, quality - 0.08)
-      } else {
-        width = Math.max(800, Math.round(width * 0.88))
-        height = Math.max(500, Math.round(height * 0.88))
-      }
-    }
-
-    return output || canvas.toDataURL('image/jpeg', 0.52)
-  }
-
-  const handleWallpaperFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      showToast('Selecione um arquivo de imagem válido', 'err')
-      event.target.value = ''
-      return
-    }
-
-    try {
-      const SOURCE_COMPRESSION_THRESHOLD = 900 * 1024
-      const needsCompression = file.size > SOURCE_COMPRESSION_THRESHOLD
-      const dataUrl = needsCompression
-        ? await compressWallpaperImage(file)
-        : await readFileAsDataURL(file)
-
-      applyWallpaper(dataUrl)
-      showToast(needsCompression ? 'Fundo importado e comprimido com sucesso' : 'Fundo atualizado com imagem local', 'ok')
-    } catch {
-      showToast('Erro ao importar imagem', 'err')
-    }
-
-    event.target.value = ''
-  }
 
   // ── Scroll lateral segurando o fundo do board ──
   const handleBoardMouseDown = useCallback((e: React.MouseEvent) => {
@@ -971,7 +747,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             )}
             {searchQuery.trim() && (
               <button
-                onClick={() => { setSearchQuery(''); setServerSearchResults(null) }}
+                onClick={() => { setSearchQuery('') }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center', padding: 2, flexShrink: 0 }}
                 type="button"
                 aria-label="Limpar busca"
@@ -1247,6 +1023,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               )}
             </AnimatePresence>
           </div>
+
+          <DepartmentSwitcher />
 
           <button onClick={() => setShowArchivedPanel(true)} className="trello-icon-btn" type="button" title="Itens arquivados">
             <Archive size={16} />
@@ -1553,7 +1331,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                     if (e.key === 'Enter' && newListName.trim()) {
                       let col: BoardColumn
                       try {
-                        col = await insertBoardColumn(newListName.trim(), columns.length)
+                        col = await insertBoardColumn(newListName.trim(), columns.length, '#579dff', departmentId ?? undefined)
                       } catch {
                         col = buildLocalColumn(newListName, columns.length)
                       }
@@ -1572,7 +1350,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                       if (!newListName.trim()) return
                       let col: BoardColumn
                       try {
-                        col = await insertBoardColumn(newListName.trim(), columns.length)
+                        col = await insertBoardColumn(newListName.trim(), columns.length, '#579dff', departmentId ?? undefined)
                       } catch {
                         col = buildLocalColumn(newListName, columns.length)
                       }
@@ -2072,26 +1850,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             onWallpaperInputChange={setWallpaperInput}
             onApplyWallpaper={applyWallpaper}
             onWallpaperFileSelect={handleWallpaperFileSelect}
-            onRemoveRecentWallpaper={(i) => {
-              const updated = recentWallpapers.filter((_, idx) => idx !== i)
-              setRecentWallpapers(updated)
-              try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
-            }}
-            onClearRecentWallpapers={() => {
-              setRecentWallpapers([])
-              try { localStorage.removeItem(recentWallpapersKey) } catch { /* ignore */ }
-            }}
-            onDeleteCurrentWallpaper={() => {
-              const wpToRemove = wallpaper
-              setWallpaper('')
-              try { localStorage.setItem(wallpaperStorageKey, '') } catch { /* ignore */ }
-              setRecentWallpapers(prev => {
-                const updated = prev.filter(w => w !== wpToRemove)
-                try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
-                return updated
-              })
-            }}
-            onOpenLabelsManager={() => { setShowLabelsManager(true); fetchBoardLabels().then(setBoardLabels).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) })) }}
+            onRemoveRecentWallpaper={removeRecentWallpaper}
+            onClearRecentWallpapers={clearRecentWallpapers}
+            onDeleteCurrentWallpaper={deleteCurrentWallpaper}
+            onOpenLabelsManager={() => { setShowLabelsManager(true); fetchBoardLabels(departmentId ?? undefined).then(setBoardLabels).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) })) }}
             onOpenAutoRules={() => setShowAutoRules(true)}
             onOpenMembersPanel={() => { setShowSettings(false); setShowMembersManager(true) }}
             onClose={() => setShowSettings(false)}
@@ -2108,6 +1870,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             onRunRules={() => { setShowAutoRules(true) }}
             onShowToast={showToast}
             user={user}
+            departmentId={departmentId}
           />
         )}
       </AnimatePresence>
@@ -2123,6 +1886,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       {showLabelsManager && (
         <LabelsManagerModal
           boardLabels={boardLabels}
+          departmentId={departmentId}
           onLabelsChange={setBoardLabels}
           onClose={() => setShowLabelsManager(false)}
         />
@@ -2138,7 +1902,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               onClose={() => {
                 setSelectedTicket(null)
                 // Recarregar contagem de anexos ao fechar o modal
-                fetchAttachmentCounts().then(counts => {
+                fetchAttachmentCounts(departmentId ?? undefined).then(counts => {
                   setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
                 })
               }}

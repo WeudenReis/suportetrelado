@@ -1,9 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { supabase } from './supabase'
 import { logger } from './logger'
-
-/** Emails com bypass de permissão — espelha ALWAYS_AUTHORIZED_ADMINS de users.ts */
-const SUPER_ADMIN_EMAILS = ['weudenfilho@gmail.com', 'wandersonthegod@gmail.com']
+import { SUPER_ADMIN_EMAILS } from './superAdmins'
 
 // ── Types ──
 

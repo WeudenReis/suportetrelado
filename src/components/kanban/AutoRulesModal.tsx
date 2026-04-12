@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Settings, X, RefreshCw, Trash2, Check } from 'lucide-react'
 import type { BoardColumn } from '../../lib/boardColumns'
-import { fetchAutoRules, insertAutoRule, updateAutoRule, deleteAutoRule } from '../../lib/api/templates'
+import { fetchAutoRules, insertAutoRule, updateAutoRule, deleteAutoRule, loadAutoRulesCache, saveLocalRules } from '../../lib/api/templates'
 
 export interface AutoRule {
   id: string
@@ -22,17 +22,9 @@ export const AUTO_RULE_CONDITIONS: Record<string, string> = {
   overdue_24h: 'Parado há +24h',
 }
 
-// Manter loadAutoRules sincrono para compatibilidade com KanbanBoard
-// (usa localStorage como cache, DB como fonte de verdade)
-export function loadAutoRules(): AutoRule[] {
-  try {
-    const raw = localStorage.getItem('chatpro-auto-rules')
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-function saveAutoRulesLocal(rules: AutoRule[]): void {
-  localStorage.setItem('chatpro-auto-rules', JSON.stringify(rules))
+// Leitor síncrono do cache local (mantido para compatibilidade com consumidores antigos)
+export function loadAutoRules(departmentId?: string | null): AutoRule[] {
+  return loadAutoRulesCache(departmentId) as AutoRule[]
 }
 
 interface AutoRulesModalProps {
@@ -41,29 +33,26 @@ interface AutoRulesModalProps {
   onRunRules: () => void
   onShowToast: (msg: string, type: 'ok' | 'err') => void
   user: string
+  departmentId?: string | null
 }
 
-export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToast, user }: AutoRulesModalProps) {
-  const [rules, setRules] = useState<AutoRule[]>(loadAutoRules())
+export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToast, user, departmentId }: AutoRulesModalProps) {
+  const [rules, setRules] = useState<AutoRule[]>(() => loadAutoRules(departmentId))
 
-  // Carregar do banco na montagem e sincronizar cache local
+  // Carregar do banco na montagem (fetchAutoRules já atualiza o cache local)
   useEffect(() => {
-    fetchAutoRules(user).then(dbRules => {
-      const mapped = dbRules as AutoRule[]
-      if (mapped.length > 0 || loadAutoRules().length === 0) {
-        setRules(mapped)
-        saveAutoRulesLocal(mapped)
-      }
+    fetchAutoRules(user, departmentId).then(dbRules => {
+      setRules(dbRules as AutoRule[])
     })
-  }, [user])
+  }, [user, departmentId])
 
   const handleToggle = async (ruleId: string) => {
     const rule = rules.find(r => r.id === ruleId)
     if (!rule) return
     const updated = rules.map(r => r.id === ruleId ? { ...r, enabled: !r.enabled } : r)
     setRules(updated)
-    saveAutoRulesLocal(updated)
-    await updateAutoRule(ruleId, { enabled: !rule.enabled })
+    saveLocalRules(updated, departmentId)
+    await updateAutoRule(ruleId, { enabled: !rule.enabled }, departmentId)
     onClose()
     setTimeout(() => onRunRules(), 10)
   }
@@ -71,8 +60,8 @@ export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToa
   const handleDelete = async (ruleId: string) => {
     const updated = rules.filter(r => r.id !== ruleId)
     setRules(updated)
-    saveAutoRulesLocal(updated)
-    await deleteAutoRule(ruleId)
+    saveLocalRules(updated, departmentId)
+    await deleteAutoRule(ruleId, departmentId)
     onClose()
     setTimeout(() => onRunRules(), 10)
   }
@@ -89,11 +78,11 @@ export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToa
       action: 'move_to',
       targetColumn: targetEl.value,
       enabled: true,
-    }, user)
+    }, user, departmentId)
     if (newRule) {
       const updated = [...rules, newRule as AutoRule]
       setRules(updated)
-      saveAutoRulesLocal(updated)
+      saveLocalRules(updated, departmentId)
     }
     onClose()
     setTimeout(() => onRunRules(), 10)

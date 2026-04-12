@@ -1,5 +1,6 @@
 import { supabase, isDevEnvironment } from '../supabase'
 import { logger } from '../logger'
+import { SUPER_ADMIN_EMAILS, isSuperAdmin } from '../superAdmins'
 import type { UserProfile } from '../supabase'
 
 const AVATAR_COLORS = ['#579dff', '#4bce97', '#f5a623', '#ef5c48', '#a259ff', '#20c997', '#6366f1', '#ec4899']
@@ -9,16 +10,9 @@ const DEV_ADMIN_EMAILS = (import.meta.env.VITE_DEV_ADMIN_EMAILS || '')
   .map(email => email.trim().toLowerCase())
   .filter(Boolean)
 
-/** Emails com acesso garantido de admin (bypass de autorização) */
-const ALWAYS_AUTHORIZED_ADMINS: readonly string[] = ['weudenfilho@gmail.com', 'wandersonthegod@gmail.com']
-
-function isAlwaysAuthorizedAdmin(email: string): boolean {
-  return ALWAYS_AUTHORIZED_ADMINS.includes(email.toLowerCase().trim())
-}
-
 function hasDevAdminOverride(email: string): boolean {
   const normalized = email.toLowerCase()
-  return DEV_ADMIN_EMAILS.includes(normalized) || isAlwaysAuthorizedAdmin(normalized)
+  return DEV_ADMIN_EMAILS.includes(normalized) || isSuperAdmin(normalized)
 }
 
 function isDevAuthorizedEmail(email: string): boolean {
@@ -31,7 +25,7 @@ export async function checkAuthorizedUser(email: string): Promise<boolean> {
   const normalizedEmail = email.toLowerCase().trim()
 
   // Bypass ABSOLUTO para super admins — sem nenhuma query ao banco
-  if (ALWAYS_AUTHORIZED_ADMINS.includes(normalizedEmail)) {
+  if (SUPER_ADMIN_EMAILS.includes(normalizedEmail)) {
     return true
   }
 
@@ -62,7 +56,7 @@ export async function upsertUserProfile(email: string): Promise<void> {
   const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
   const name = fullName.trim() || (email.includes('@') ? email.split('@')[0] : email)
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
-  const devRole = isAlwaysAuthorizedAdmin(email) || isDevAuthorizedEmail(email) ? 'admin' : undefined
+  const devRole = isSuperAdmin(email) || isDevAuthorizedEmail(email) ? 'admin' : undefined
   const payload = {
     email,
     name,

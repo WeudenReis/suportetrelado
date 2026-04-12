@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 interface UseKanbanWallpaperProps {
   user: string
@@ -9,18 +9,13 @@ export function useKanbanWallpaper({ user, onToast }: UseKanbanWallpaperProps) {
   const wallpaperStorageKey = `chatpro-wallpaper:${user.toLowerCase()}`
   const recentWallpapersKey = `chatpro-recent-wallpapers:${user.toLowerCase()}`
 
-  const [wallpaper, setWallpaper] = useState('')
+  const [wallpaper, setWallpaper] = useState<string>(() => {
+    try { return localStorage.getItem(wallpaperStorageKey) || '' } catch { return '' }
+  })
   const [wallpaperInput, setWallpaperInput] = useState('')
-  const [recentWallpapers, setRecentWallpapers] = useState<string[]>([])
-
-  useEffect(() => {
-    const saved = localStorage.getItem(wallpaperStorageKey) || ''
-    setWallpaper(saved)
-    try {
-      const recent = JSON.parse(localStorage.getItem(recentWallpapersKey) || '[]') as string[]
-      setRecentWallpapers(recent)
-    } catch { /* ignore */ }
-  }, [wallpaperStorageKey, recentWallpapersKey])
+  const [recentWallpapers, setRecentWallpapers] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(recentWallpapersKey) || '[]') as string[] } catch { return [] }
+  })
 
   const applyWallpaper = (url: string) => {
     setWallpaper(url)
@@ -118,11 +113,36 @@ export function useKanbanWallpaper({ user, onToast }: UseKanbanWallpaperProps) {
     event.target.value = ''
   }
 
+  const removeRecentWallpaper = (index: number) => {
+    const updated = recentWallpapers.filter((_, i) => i !== index)
+    setRecentWallpapers(updated)
+    try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+  }
+
+  const clearRecentWallpapers = () => {
+    setRecentWallpapers([])
+    try { localStorage.removeItem(recentWallpapersKey) } catch { /* ignore */ }
+  }
+
+  const deleteCurrentWallpaper = () => {
+    const wpToRemove = wallpaper
+    setWallpaper('')
+    try { localStorage.setItem(wallpaperStorageKey, '') } catch { /* ignore */ }
+    setRecentWallpapers(prev => {
+      const updated = prev.filter(w => w !== wpToRemove)
+      try { localStorage.setItem(recentWallpapersKey, JSON.stringify(updated)) } catch { /* ignore */ }
+      return updated
+    })
+  }
+
   return {
     wallpaper,
     wallpaperInput, setWallpaperInput,
     recentWallpapers,
     applyWallpaper,
     handleWallpaperFileSelect,
+    removeRecentWallpaper,
+    clearRecentWallpapers,
+    deleteCurrentWallpaper,
   }
 }
