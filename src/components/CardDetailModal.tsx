@@ -19,6 +19,7 @@ import { compressCover, compressThumbnail } from '../lib/imageUtils'
 import CardAttachments from './card/CardAttachments'
 import { logger } from '../lib/logger'
 import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
+import type { BoardColumn } from '../lib/boardColumns'
 import { parseTag } from '../lib/tagUtils'
 export { parseTag }
 
@@ -28,9 +29,12 @@ interface CardDetailModalProps {
   onClose: () => void
   onUpdate: (ticket: Ticket) => void
   onDelete: (id: string) => void
+  boardColumns?: BoardColumn[]
 }
 
-const STATUS_MAP: Record<TicketStatus, string> = {
+// Fallback caso o board ainda nao tenha colunas carregadas (estado raro,
+// preserva os rotulos legados para nao quebrar logs antigos).
+const LEGACY_STATUS_MAP: Record<string, string> = {
   backlog: 'Backlog',
   in_progress: 'Em andamento',
   waiting_devs: 'Aguardando Devs',
@@ -69,7 +73,11 @@ function renderCommentText(text: string): React.ReactNode {
 
 const TAG_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
 
-export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete }: CardDetailModalProps) {
+export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete, boardColumns = [] }: CardDetailModalProps) {
+  const statusLabel = useCallback((id: string) => {
+    const col = boardColumns.find(c => c.id === id)
+    return col?.title || LEGACY_STATUS_MAP[id] || id
+  }, [boardColumns])
   const [title, setTitle] = useState(ticket.title)
   const [description, setDescription] = useState(ticket.description || '')
   const [status, setStatus] = useState<TicketStatus>(ticket.status)
@@ -251,8 +259,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     if (Object.keys(updates).length > 0) {
       await save(updates)
       if (updates.status) {
-        const oldLabel = STATUS_MAP[ticket.status]
-        const newLabel = STATUS_MAP[updates.status]
+        const oldLabel = statusLabel(ticket.status)
+        const newLabel = statusLabel(updates.status)
         await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`, ticket.department_id)
       }
     }
@@ -500,7 +508,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               style={{ color: '#b6c2cf' }}
             />
             <span className="text-xs whitespace-nowrap" style={{ color: '#596773' }}>
-              {STATUS_MAP[status]}
+              {statusLabel(status)}
             </span>
           </div>
           <div className="flex items-center gap-1 relative flex-shrink-0">
@@ -508,17 +516,22 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               value={status}
               onChange={async e => {
                 const next = e.target.value as TicketStatus
-                const oldLabel = STATUS_MAP[status]
-                const newLabel = STATUS_MAP[next]
+                const oldLabel = statusLabel(status)
+                const newLabel = statusLabel(next)
                 setStatus(next)
                 await save({ status: next })
                 await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`, ticket.department_id)
               }}
               className="dark-select"
             >
-              {(Object.entries(STATUS_MAP) as [TicketStatus, string][]).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
+              {boardColumns.length > 0
+                ? boardColumns.map(col => (
+                    <option key={col.id} value={col.id}>{col.title}</option>
+                  ))
+                : (Object.entries(LEGACY_STATUS_MAP) as [string, string][]).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))
+              }
             </select>
             <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Adicionar imagem ou video"><ImageIcon size={15} /></button>
             <button onClick={(e) => { e.stopPropagation(); setShowMoreMenu(prev => !prev) }} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Mais opcoes"><MoreHorizontal size={16} /></button>

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchTickets, fetchPlannerSettings, fetchPlannerEvents, insertNotification } from '../lib/supabase';
-import type { Notification } from '../lib/supabase';
+import { supabase, fetchNotifications, deleteNotification, deleteAllNotifications, deleteNotificationsByTicket, fetchTickets, fetchPlannerSettings, fetchPlannerEvents, insertNotification } from '../lib/supabase';
+import type { Notification, Ticket } from '../lib/supabase';
 import { useOrg } from '../lib/org';
 import { logger } from '../lib/logger';
 
@@ -71,14 +71,16 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
     }
   }, [user]);
 
+  // Marcar como lida ao mesmo tempo remove da caixa de entrada — comportamento
+  // alinhado com a expectativa do usuario: ao reconhecer a notificacao, ela some.
   const markRead = useCallback(async (id: string) => {
-    await markNotificationRead(id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    await deleteNotification(id);
   }, []);
 
   const markAllRead = useCallback(async () => {
-    await markAllNotificationsRead(user);
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setNotifications([]);
+    await deleteAllNotifications(user);
   }, [user]);
 
   // Polling for due date alerts and planner events
@@ -229,9 +231,43 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, payload => {
         setNotifications(prev => prev.map(n => n.id === (payload.new as Notification).id ? payload.new as Notification : n));
       })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notifications' }, payload => {
+        const removed = payload.old as { id?: string };
+        if (!removed?.id) return;
+        setNotifications(prev => prev.filter(n => n.id !== removed.id));
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [refreshNotifications, user, showBrowserNotification, showToast]);
+
+  // Quando o ticket vinculado a uma notificacao for concluido, arquivado ou
+  // excluido, removemos as notificacoes correspondentes deste usuario.
+  useEffect(() => {
+    const channel = supabase
+      .channel('notifications-ticket-cleanup')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, payload => {
+        const next = payload.new as Ticket;
+        const prev = payload.old as Partial<Ticket>;
+        const becameResolved = prev.status !== 'resolved' && next.status === 'resolved';
+        const becameArchived = !prev.is_archived && next.is_archived;
+        if (!becameResolved && !becameArchived) return;
+        // Otimismo local + persistencia
+        setNotifications(curr => curr.filter(n => n.ticket_id !== next.id));
+        deleteNotificationsByTicket(next.id, user).catch(err =>
+          logger.warn('Notifications', 'cleanup ticket update falhou', { error: String(err) })
+        );
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, payload => {
+        const removed = payload.old as { id?: string };
+        if (!removed?.id) return;
+        setNotifications(curr => curr.filter(n => n.ticket_id !== removed.id));
+        deleteNotificationsByTicket(removed.id, user).catch(err =>
+          logger.warn('Notifications', 'cleanup ticket delete falhou', { error: String(err) })
+        );
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 

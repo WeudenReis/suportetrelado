@@ -193,7 +193,7 @@ export {
   fetchAttachmentCounts, fetchAttachments, uploadAttachment, getSignedAttachmentUrl, deleteAttachment,
   fetchActivityLog, insertActivityLog,
   checkAuthorizedUser, upsertUserProfile, updateLastSeen, fetchUserProfiles,
-  fetchNotifications, insertNotification, markNotificationRead, markAllNotificationsRead, extractMentionNames, resolveMentionsToEmails,
+  fetchNotifications, insertNotification, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications, deleteNotificationsByTicket, extractMentionNames, resolveMentionsToEmails,
   fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
   fetchUsefulLinks, insertUsefulLink, updateUsefulLink, deleteUsefulLink,
   fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel,

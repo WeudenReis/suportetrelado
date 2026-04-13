@@ -1703,6 +1703,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               <CardDetailModal
                 ticket={selectedTicket}
                 user={user}
+                boardColumns={allColumns}
                 onClose={() => {
                   setSelectedTicket(null)
                   // Recarregar contagem de anexos ao fechar o modal

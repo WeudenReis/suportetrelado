@@ -33,6 +33,25 @@ export async function markAllNotificationsRead(email: string): Promise<void> {
   await supabase.from('notifications').update({ is_read: true }).eq('recipient_email', email).eq('is_read', false)
 }
 
+export async function deleteNotification(id: string): Promise<void> {
+  const { error } = await supabase.from('notifications').delete().eq('id', id)
+  if (error) logger.warn('Notifications', 'deleteNotification falhou', { error: error.message })
+}
+
+export async function deleteAllNotifications(email: string): Promise<void> {
+  const { error } = await supabase.from('notifications').delete().eq('recipient_email', email)
+  if (error) logger.warn('Notifications', 'deleteAllNotifications falhou', { error: error.message })
+}
+
+export async function deleteNotificationsByTicket(ticketId: string, email: string): Promise<void> {
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('ticket_id', ticketId)
+    .eq('recipient_email', email)
+  if (error) logger.warn('Notifications', 'deleteNotificationsByTicket falhou', { error: error.message })
+}
+
 export function extractMentionNames(text: string): string[] {
   const regex = /@([\w\u00C0-\u024F]+)/g
   const names: string[] = []
