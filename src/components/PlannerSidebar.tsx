@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CalendarDays, X, Settings, Plus, AlignLeft } from 'lucide-react'
 import type { Ticket, PlannerEvent } from '../lib/supabase'
-import { fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent } from '../lib/supabase'
+import { fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent, insertNotification } from '../lib/supabase'
+import { useOrg } from '../lib/org'
 import PlannerEventModal from './PlannerEventModal'
 import PlannerSettingsPanel from './PlannerSettingsPanel'
 
@@ -22,6 +23,7 @@ const PRIO_LABELS: Record<string, string> = { high: 'ALTA', medium: 'MÉDIA', lo
 const font = "'Space Grotesk', sans-serif"
 
 export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }: PlannerSidebarProps) {
+  const { departmentId } = useOrg()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState<PlannerEvent[]>([])
   
@@ -167,6 +169,18 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
           return next
         })
       }
+
+      // Gerar notificação imediata do evento criado
+      const timeLabel = eventData.start_time ? ` às ${eventData.start_time}` : ''
+      insertNotification({
+        department_id: departmentId || '',
+        recipient_email: user,
+        sender_name: 'Sistema',
+        type: 'planner_event',
+        ticket_id: null,
+        ticket_title: eventData.title,
+        message: `Evento "${eventData.title}" agendado para ${eventData.date}${timeLabel}.`,
+      }).catch(() => { /* notificação é best-effort */ })
     }
   }
 
