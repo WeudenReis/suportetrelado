@@ -10,11 +10,10 @@ import { parseTag } from '../lib/tagUtils'
 const CardDetailModal = lazy(() => import('./CardDetailModal'))
 const InstanceModal = lazy(() => import('./InstanceModal'))
 const ArchivedPanel = lazy(() => import('./ArchivedPanel').then(m => ({ default: m.ArchivedPanel })))
-import { supabase, fetchTickets, fetchTicketsCount, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
-import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
-import { COLUMNS } from '../lib/kanbanColumns'
+import { supabase, fetchTickets, fetchTicketsCount, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
+import { insertBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShortcuts'
-import type { Ticket, TicketStatus, UserProfile, BoardLabel } from '../lib/supabase'
+import type { Ticket, TicketStatus, BoardLabel } from '../lib/supabase'
 import ShortcutsHelpModal from './kanban/ShortcutsHelpModal'
 import BulkActionsBar from './kanban/BulkActionsBar'
 const AutoRulesModal = lazy(() => import('./kanban/AutoRulesModal'))
@@ -30,21 +29,14 @@ import { logger } from '../lib/logger'
 import { useAutoRules } from '../hooks/useAutoRules'
 import { useKanbanFilters } from '../hooks/useKanbanFilters'
 import { useKanbanWallpaper } from '../hooks/useKanbanWallpaper'
+import { useKanbanPresence } from '../hooks/useKanbanPresence'
+import { useKanbanMembers } from '../hooks/useKanbanMembers'
+import { useBoardScrollDrag } from '../hooks/useBoardScrollDrag'
+import { useKanbanColumnsCRUD } from '../hooks/useKanbanColumnsCRUD'
+import { useKanbanBulkActions } from '../hooks/useKanbanBulkActions'
+import { useKanbanRealtime } from '../hooks/useKanbanRealtime'
 
 interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
-
-function buildFallbackColumns(): BoardColumn[] {
-  return COLUMNS.map((c, i) => ({
-    id: c.id,
-    department_id: '',
-    title: c.label,
-    position: i,
-    dot_color: c.accent,
-    is_archived: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }))
-}
 
 function buildLocalColumn(title: string, position: number): BoardColumn {
   return {
@@ -69,7 +61,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [overColumn, setOverColumn] = useState<string | null>(null)
   const [overCardId, setOverCardId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [isConnected, setIsConnected] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
@@ -80,22 +71,13 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [mutatingIds, setMutatingIds] = useState<Set<string>>(new Set())
   const [creatingTicket, setCreatingTicket] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [showMembersPanel, setShowMembersPanel] = useState(false)
-  const [allMembers, setAllMembers] = useState<UserProfile[]>([])
   const [addingTo, setAddingTo] = useState<TicketStatus | null>(null)
   const [inlineTitle, setInlineTitle] = useState('')
   const [showInstanceModal, setShowInstanceModal] = useState(false)
   const [showArchivedPanel, setShowArchivedPanel] = useState(false)
   const [addingList, setAddingList] = useState(false)
   const [newListName, setNewListName] = useState('')
-  const [columns, setColumns] = useState<BoardColumn[]>([])
-  const [columnOrder, setColumnOrder] = useState<string[]>([])
-  const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
-  const [editingColumnTitle, setEditingColumnTitle] = useState('')
-  const [colorPickerColumnId, setColorPickerColumnId] = useState<string | null>(null)
-  const [colorPickerPos, setColorPickerPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
-  const [colMenuView, setColMenuView] = useState<'main' | 'color' | 'sort'>('main')
   const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
   const [showLabelsManager, setShowLabelsManager] = useState(false)
   // Label editing state moved to LabelsManagerModal
@@ -103,17 +85,34 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set())
   const [compactMode, setCompactMode] = useState<boolean>(() => localStorage.getItem('chatpro-compact-mode') === 'true')
   const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
-  const [bulkMode, setBulkMode] = useState(false)
-  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set())
   const [showAutoRules, setShowAutoRules] = useState(false)
   const [showMembersManager, setShowMembersManager] = useState(false)
   const { departmentId } = useOrg()
   const { applyRulesToTicket, applyRulesToBatch } = useAutoRules(departmentId)
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const dragOriginalStatusRef = useRef<string | null>(null)
-  const scrollerRef = useRef<HTMLDivElement | null>(null)
-  const boardDragRef = useRef({ isDragging: false, startX: 0, scrollLeft: 0 })
   const searchInputRef = useRef<HTMLInputElement | null>(null)
+
+  // Hooks extraídos
+  const { onlineUsers } = useKanbanPresence(user)
+  const { allMembers } = useKanbanMembers()
+  const { scrollerRef, handleBoardMouseDown, handleBoardMouseMove, stopBoardDrag } = useBoardScrollDrag()
+  const {
+    columns, setColumns,
+    columnOrder, setColumnOrder,
+    allColumns, allColumnsById, columnIds,
+    editingColumnId, setEditingColumnId,
+    editingColumnTitle, setEditingColumnTitle,
+    colorPickerColumnId, setColorPickerColumnId,
+    colorPickerPos, setColorPickerPos,
+    colMenuView, setColMenuView,
+    handleSaveColumnTitle, handleSaveColumnColor, handleSortColumn,
+    COL_COLORS,
+  } = useKanbanColumnsCRUD({ departmentId, showToast, setTickets })
+  const {
+    bulkMode, setBulkMode,
+    selectedCardIds, setSelectedCardIds,
+    toggleBulkSelect, handleBulkMove, handleBulkArchive,
+  } = useKanbanBulkActions({ showToast, setTickets })
   const PAGE_SIZE = 50
   const [currentPage, setCurrentPage] = useState(1)
   const [totalTickets, setTotalTickets] = useState(0)
@@ -203,53 +202,13 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   // Helper: aplica regras automáticas a um ticket individual (via hook)
   // Funções 'applyRulesToTicket' e 'applyRulesToBatch' agora vêm de useAutoRules()
 
-  useEffect(() => {
-    // Debounce: evita reconexão-storm quando o usuário alterna departamentos rapidamente
-    let channel: ReturnType<typeof supabase.channel> | null = null
-    let cancelled = false
-
-    const timer = setTimeout(() => {
-      if (cancelled) return
-      setLoading(true)
-      loadTickets().finally(() => setLoading(false))
-
-      const realtimeFilter = departmentId ? { filter: `department_id=eq.${departmentId}` } : {}
-      channel = supabase
-        .channel(`tickets-realtime-${departmentId || 'all'}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
-          setTickets(prev => {
-            if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
-            const newTicket = applyRulesToTicket({ ...(payload.new as Ticket), attachment_count: 0 } as Ticket)
-            return [...prev, newTicket]
-          })
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
-          setTickets(prev => prev.map(t => {
-            if (t.id !== (payload.new as Ticket).id) return t
-            return { ...(payload.new as Ticket), attachment_count: t.attachment_count || 0 }
-          }))
-        })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
-          setTickets(prev => prev.filter(t => t.id !== (payload.old as Record<string, string>).id))
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments', ...realtimeFilter }, () => {
-          fetchAttachmentCounts(departmentId ?? undefined).then(counts => {
-            setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
-          })
-        })
-        .subscribe((status) => {
-          setIsConnected(status === 'SUBSCRIBED')
-        })
-
-      channelRef.current = channel
-    }, 300)
-
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-      if (channel) supabase.removeChannel(channel)
-    }
-  }, [loadTickets, departmentId, applyRulesToTicket])
+  const { isConnected } = useKanbanRealtime({
+    departmentId,
+    applyRulesToTicket,
+    setTickets,
+    loadTickets,
+    setLoading,
+  })
 
   // Open a specific ticket when openTicketId is set (e.g. from Inbox notification)
   useEffect(() => {
@@ -261,112 +220,12 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     }
   }, [openTicketId, tickets, clearOpenTicketId])
 
-  // --- Presence tracking ---
-  useEffect(() => {
-    const presenceChannel = supabase.channel('online-users', {
-      config: { presence: { key: user } }
-    })
-
-    presenceChannel.on('presence', { event: 'sync' }, () => {
-      const state = presenceChannel.presenceState()
-      setOnlineUsers(Object.keys(state))
-    })
-
-    presenceChannel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await presenceChannel.track({ user, online_at: new Date().toISOString() })
-      }
-    })
-
-    return () => { supabase.removeChannel(presenceChannel) }
-  }, [user])
-
-  // --- Fetch all members ---
-  useEffect(() => {
-    fetchUserProfiles().then(setAllMembers)
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null
-    const ch = supabase
-      .channel('user_profiles_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
-        if (debounceTimer) clearTimeout(debounceTimer)
-        debounceTimer = setTimeout(() => {
-          fetchUserProfiles().then(setAllMembers)
-        }, 30000)
-      })
-      .subscribe()
-    return () => {
-      if (debounceTimer) clearTimeout(debounceTimer)
-      supabase.removeChannel(ch)
-    }
-  }, [])
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
   // Alias mantendo o nome original usado no JSX
   const getColumnTickets = getFilteredTicketsByStatus
-
-  // Carregar colunas do Supabase (com fallback para COLUMNS legadas)
-  useEffect(() => {
-    const fetchCols = async () => {
-      try {
-        const cols = await fetchBoardColumns(departmentId ?? undefined)
-        if (cols.length > 0) {
-          setColumns(cols)
-          setColumnOrder(cols.map(c => c.id))
-        } else {
-          // Fallback: usar colunas legadas
-          const fallback = buildFallbackColumns()
-          setColumns(fallback)
-          setColumnOrder(fallback.map(c => c.id))
-        }
-      } catch {
-        // Fallback em caso de erro (tabela não existe)
-        const fallback = buildFallbackColumns()
-        setColumns(fallback)
-        setColumnOrder(fallback.map(c => c.id))
-      }
-    }
-    fetchCols()
-  }, [departmentId])
-
-  const allColumnsById = useMemo(() => new Map(columns.map(col => [col.id, col])), [columns])
-  const allColumns = useMemo(() => columnOrder.map(id => allColumnsById.get(id)).filter((col): col is NonNullable<typeof col> => Boolean(col)), [columnOrder, allColumnsById])
-  const columnIds = useMemo(() => allColumns.map(col => col.id), [allColumns])
-
-  const toggleBulkSelect = useCallback((id: string) => {
-    setSelectedCardIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
-
-  const handleBulkMove = useCallback(async (targetColumn: string) => {
-    if (selectedCardIds.size === 0) return
-    const ids = Array.from(selectedCardIds)
-    setTickets(prev => prev.map(t => ids.includes(t.id) ? { ...t, status: targetColumn as TicketStatus } : t))
-    setSelectedCardIds(new Set())
-    setBulkMode(false)
-    showToast(`${ids.length} card(s) movido(s)`, 'ok')
-    for (const id of ids) {
-      await updateTicket(id, { status: targetColumn as TicketStatus }).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
-    }
-  }, [selectedCardIds, showToast])
-
-  const handleBulkArchive = useCallback(async () => {
-    if (selectedCardIds.size === 0) return
-    const ids = Array.from(selectedCardIds)
-    setTickets(prev => prev.filter(t => !ids.includes(t.id)))
-    setSelectedCardIds(new Set())
-    setBulkMode(false)
-    showToast(`${ids.length} card(s) arquivado(s)`, 'ok')
-    for (const id of ids) {
-      await Promise.resolve(supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', id)).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
-    }
-  }, [selectedCardIds, showToast])
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
     const dragType = args.active.data.current?.type
@@ -575,84 +434,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const handleTicketArchive = useCallback((id: string) => {
     setTickets(prev => prev.filter(t => t.id !== id))
   }, [])
-
-  // ── Scroll lateral segurando o fundo do board ──
-  const handleBoardMouseDown = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement
-    // Só ativa se clicar no fundo do scroller/board (não em cards, colunas ou botões)
-    if (target.closest('.trello-col')) return
-    const isBoard = target === scrollerRef.current
-      || target.classList.contains('board-columns')
-      || target.classList.contains('board-main__scroller')
-      || target.classList.contains('board-main')
-      || (target.closest('.board-main__scroller') === scrollerRef.current)
-    if (!isBoard) return
-    boardDragRef.current.isDragging = true
-    boardDragRef.current.startX = e.clientX
-    boardDragRef.current.scrollLeft = scrollerRef.current?.scrollLeft ?? 0
-    if (scrollerRef.current) scrollerRef.current.style.cursor = 'grabbing'
-  }, [])
-
-  const handleBoardMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!boardDragRef.current.isDragging || !scrollerRef.current) return
-    e.preventDefault()
-    const walk = (e.clientX - boardDragRef.current.startX) * 1.5
-    scrollerRef.current.scrollLeft = boardDragRef.current.scrollLeft - walk
-  }, [])
-
-  const stopBoardDrag = useCallback(() => {
-    boardDragRef.current.isDragging = false
-    if (scrollerRef.current) scrollerRef.current.style.cursor = ''
-  }, [])
-
-  // ── Cores disponíveis para dot das colunas ──
-  const COL_COLORS = ['#101204', '#579dff', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4', '#22c55e', '#ec4899', '#a855f7', '#f97316', '#64748b']
-
-  const handleSaveColumnTitle = useCallback(async (colId: string, newTitle: string) => {
-    const trimmed = newTitle.trim()
-    if (!trimmed) { setEditingColumnId(null); return }
-    setColumns(prev => prev.map(c => c.id === colId ? { ...c, title: trimmed } : c))
-    setEditingColumnId(null)
-    try {
-      await updateBoardColumn(colId, { title: trimmed })
-    } catch {
-      showToast('Erro ao renomear lista', 'err')
-    }
-  }, [showToast])
-
-  const handleSaveColumnColor = useCallback(async (colId: string, color: string) => {
-    setColumns(prev => prev.map(c => c.id === colId ? { ...c, dot_color: color } : c))
-    setColorPickerColumnId(null)
-    try {
-      await updateBoardColumn(colId, { dot_color: color })
-    } catch {
-      showToast('Erro ao mudar cor da lista', 'err')
-    }
-  }, [showToast])
-
-  const handleSortColumn = useCallback((colId: string, sortType: 'newest' | 'oldest' | 'alpha' | 'due') => {
-    setTickets(prev => {
-      const colTickets = prev.filter(t => t.status === colId)
-      const rest = prev.filter(t => t.status !== colId)
-      const sorted = [...colTickets].sort((a, b) => {
-        switch (sortType) {
-          case 'newest': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          case 'oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          case 'alpha': return a.title.localeCompare(b.title, 'pt-BR')
-          case 'due': {
-            const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity
-            const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity
-            return aDate - bDate
-          }
-          default: return 0
-        }
-      })
-      sorted.forEach((t, i) => { (t as Ticket & { position?: number }).position = i })
-      return [...rest, ...sorted]
-    })
-    setColorPickerColumnId(null)
-    showToast('Lista ordenada', 'ok')
-  }, [showToast])
 
   const boardWrapperStyle: React.CSSProperties = {
     display: 'flex',
