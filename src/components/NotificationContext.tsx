@@ -38,6 +38,8 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   }, []);
 
   const showBrowserNotification = useCallback((notif: Notification) => {
+    // Only show browser notification when user is not currently on the page
+    if (document.hasFocus()) return;
     if ('Notification' in window && window.Notification.permission === 'granted') {
       const body = notif.message || `Nova notificação em "${notif.ticket_title || 'ticket'}"`;
       const n = new window.Notification('chatPro — Suporte', {
@@ -218,25 +220,45 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
 
   useEffect(() => {
     refreshNotifications();
+    // Use server-side filter so Supabase only sends events for this user's notifications.
+    // This is required when RLS is active — without the filter, realtime events for
+    // other recipients are blocked by RLS before reaching the client.
     const channel = supabase
-      .channel('notifications-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
-        const notif = payload.new as Notification;
-        if (notif.recipient_email === user) {
-          setNotifications(prev => [notif, ...prev]);
+      .channel(`notifications-realtime-${user}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_email=eq.${user}` },
+        payload => {
+          const notif = payload.new as Notification;
+          setNotifications(prev => prev.some(n => n.id === notif.id) ? prev : [notif, ...prev]);
           showToast(notif);
           showBrowserNotification(notif);
         }
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, payload => {
-        setNotifications(prev => prev.map(n => n.id === (payload.new as Notification).id ? payload.new as Notification : n));
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notifications' }, payload => {
-        const removed = payload.old as { id?: string };
-        if (!removed?.id) return;
-        setNotifications(prev => prev.filter(n => n.id !== removed.id));
-      })
-      .subscribe();
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `recipient_email=eq.${user}` },
+        payload => {
+          setNotifications(prev => prev.map(n => n.id === (payload.new as Notification).id ? payload.new as Notification : n));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'notifications' },
+        payload => {
+          const removed = payload.old as { id?: string };
+          if (!removed?.id) return;
+          setNotifications(prev => prev.filter(n => n.id !== removed.id));
+        }
+      )
+      .subscribe((status) => {
+        // If the channel fails to subscribe, fall back to a fresh fetch so the
+        // inbox is at least populated after the page loads.
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          logger.warn('Notifications', 'Canal realtime com problema, sincronizando via fetch', { status });
+          refreshNotifications();
+        }
+      });
     return () => { supabase.removeChannel(channel); };
   }, [refreshNotifications, user, showBrowserNotification, showToast]);
 
