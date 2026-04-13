@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Calendar, Clock, Disc, Edit3 } from 'lucide-react'
 import type { PlannerEvent } from '../lib/supabase'
+import { useOrg } from '../lib/org'
 
 interface PlannerEventModalProps {
   isOpen: boolean
@@ -26,6 +27,7 @@ export default function PlannerEventModal({
   onSave,
   onDelete
 }: PlannerEventModalProps) {
+  const { organizationId } = useOrg()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(selectedDate)
@@ -56,7 +58,7 @@ export default function PlannerEventModal({
   const handleSave = () => {
     if (!title.trim()) return
     onSave({
-      organization_id: '',
+      organization_id: organizationId || '00000000-0000-0000-0000-000000000001',
       user_email: userEmail,
       title: title.trim(),
       description: description.trim(),

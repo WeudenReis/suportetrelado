@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Settings, Bell, Loader2 } from 'lucide-react'
 import { fetchPlannerSettings, upsertPlannerSettings } from '../lib/supabase'
+import { useOrg } from '../lib/org'
 
 interface PlannerSettingsPanelProps {
   isOpen: boolean
@@ -12,6 +13,7 @@ interface PlannerSettingsPanelProps {
 const font = "'Space Grotesk', sans-serif"
 
 export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: PlannerSettingsPanelProps) {
+  const { organizationId } = useOrg()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [notifyDaysBefore, setNotifyDaysBefore] = useState<number[]>([1]) // Default 1 day before
@@ -30,7 +32,11 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
 
   const handleSave = async () => {
     setSaving(true)
-    await upsertPlannerSettings({ user_email: userEmail, notify_days_before: notifyDaysBefore })
+    await upsertPlannerSettings({
+      user_email: userEmail,
+      organization_id: organizationId || '00000000-0000-0000-0000-000000000001',
+      notify_days_before: notifyDaysBefore,
+    })
     setSaving(false)
     onClose()
   }

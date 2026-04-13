@@ -179,6 +179,7 @@ export interface PlannerEvent {
 
 export interface PlannerNotificationSettings {
   id: string
+  organization_id: string
   user_email: string
   notify_days_before: number[]
   created_at: string
