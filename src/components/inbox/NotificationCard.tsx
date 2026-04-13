@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { motion } from 'framer-motion'
-import { Check, ExternalLink, Ticket, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone, Clock, Calendar } from 'lucide-react'
+import { Check, ExternalLink, Ticket, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone, Clock, Calendar, X } from 'lucide-react'
 import type { Notification } from '../../lib/supabase'
 
 /* ── Helpers ── */
@@ -175,6 +175,21 @@ function NotificationCard({ notif, onMarkRead, onOpen, onClick }: NotificationCa
         transform: 'translateY(2px)',
         transition: 'opacity 150ms ease, transform 150ms ease',
       }}>
+        {/* Always show dismiss button */}
+        <button
+          title="Dispensar"
+          onClick={(e) => onMarkRead(e, notif.id)}
+          style={{
+            width: 26, height: 26, borderRadius: 7, border: 'none',
+            background: 'rgba(255,255,255,0.06)', color: '#8C96A3',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.12s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; e.currentTarget.style.color = '#f87171' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
+        >
+          <X size={12} />
+        </button>
         {isUnread && (
           <button
             title="Marcar como lida"

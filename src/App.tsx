@@ -474,7 +474,11 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
                   <InboxSidebar
                     user={user}
                     onClose={() => handleTabChange('board')}
-                    onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
+                    onOpenTicket={(ticketId) => {
+                      setOpenTicketId(ticketId)
+                      // Navigate to board so the modal is not hidden behind the sidebar
+                      handleTabChange('board')
+                    }}
                   />
                 )}
                 {activeTab === 'planner' && (
