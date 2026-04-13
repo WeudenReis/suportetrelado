@@ -903,7 +903,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                 className="col-title-input flex-1"
                                 value={editingColumnTitle}
                                 maxLength={30}
-                                onChange={e => setEditingColumnTitle(e.target.value)}
+                                onChange={e => setEditingColumnTitle(e.target.value.slice(0, 30))}
                                 onBlur={() => handleSaveColumnTitle(col.id, editingColumnTitle)}
                                 onKeyDown={e => {
                                   if (e.key === 'Enter') handleSaveColumnTitle(col.id, editingColumnTitle)
@@ -1120,7 +1120,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                 <input
                   autoFocus
                   value={newListName}
-                  onChange={e => setNewListName(e.target.value)}
+                  onChange={e => setNewListName(e.target.value.slice(0, 30))}
                   placeholder="Nome da lista..."
                   maxLength={30}
                   className="instance-modal__input text-sm"

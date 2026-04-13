@@ -67,7 +67,7 @@ export function useKanbanColumnsCRUD({ departmentId, showToast, setTickets }: Us
   const columnIds = useMemo(() => allColumns.map(col => col.id), [allColumns])
 
   const handleSaveColumnTitle = useCallback(async (colId: string, newTitle: string) => {
-    const trimmed = newTitle.trim()
+    const trimmed = newTitle.trim().slice(0, 30)
     if (!trimmed) { setEditingColumnId(null); return }
     setColumns(prev => prev.map(c => c.id === colId ? { ...c, title: trimmed } : c))
     setEditingColumnId(null)
