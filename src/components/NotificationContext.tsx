@@ -143,7 +143,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
             const notifId = `planner_${ev.id}_days_${diffDays}`;
             if (!newCache[notifId]) {
               await insertNotification({
-                department_id: departmentId ?? '',
+                department_id: departmentId || '00000000-0000-0000-0000-000000000010',
                 recipient_email: user,
                 sender_name: 'Sistema',
                 type: 'planner_event',
@@ -174,7 +174,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
                   ? 'agora'
                   : `há ${diff} min`;
                 await insertNotification({
-                  department_id: departmentId ?? '',
+                  department_id: departmentId || '00000000-0000-0000-0000-000000000010',
                   recipient_email: user,
                   sender_name: 'Sistema',
                   type: 'planner_event',
@@ -190,7 +190,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
               const notifId = `planner_${ev.id}_today_allday`;
               if (!newCache[notifId]) {
                 await insertNotification({
-                  department_id: departmentId ?? '',
+                  department_id: departmentId || '00000000-0000-0000-0000-000000000010',
                   recipient_email: user,
                   sender_name: 'Sistema',
                   type: 'planner_event',

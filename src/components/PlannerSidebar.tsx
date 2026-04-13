@@ -171,9 +171,10 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
       }
 
       // Gerar notificação imediata do evento criado
+      const deptId = departmentId || '00000000-0000-0000-0000-000000000010'
       const timeLabel = eventData.start_time ? ` às ${eventData.start_time}` : ''
       insertNotification({
-        department_id: departmentId || '',
+        department_id: deptId,
         recipient_email: user,
         sender_name: 'Sistema',
         type: 'planner_event',
