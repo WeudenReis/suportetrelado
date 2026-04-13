@@ -62,19 +62,55 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   )
 }
 
+/** Shows a match/no-match icon next to the confirm-password field.
+ * Reads values directly from refs to avoid any state holding the password. */
+function ConfirmPasswordMatch({
+  pwRef, confirmRef,
+}: {
+  pwRef: React.RefObject<HTMLInputElement | null>
+  confirmRef: React.RefObject<HTMLInputElement | null>
+}) {
+  const [match, setMatch] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    const el = confirmRef.current
+    if (!el) return
+    const handler = () => {
+      const confirmVal = el.value
+      const pwVal = pwRef.current?.value ?? ''
+      setMatch(confirmVal.length > 0 ? confirmVal === pwVal : null)
+    }
+    el.addEventListener('input', handler)
+    return () => el.removeEventListener('input', handler)
+  }, [pwRef, confirmRef])
+
+  if (match === null) return null
+  return (
+    <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
+      {match ? (
+        <CheckCircle size={16} style={{ color: '#25D066' }} />
+      ) : (
+        <XCircle size={16} style={{ color: '#f87171' }} />
+      )}
+    </div>
+  )
+}
+
 export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginProps) {
   const [mode, setMode] = useState<AuthMode>('login')
   const [loadingEmail, setLoadingEmail] = useState(false)
   const [loadingRegister, setLoadingRegister] = useState(false)
   const [loadingReset, setLoadingReset] = useState(false)
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [registerName, setRegisterName] = useState('')
   const [registerEmail, setRegisterEmail] = useState('')
-  const [registerPassword, setRegisterPassword] = useState('')
-  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('')
+  // Password fields are uncontrolled (refs) so the value never appears in the DOM HTML attribute
+  const [registerPassword, setRegisterPassword] = useState('') // only for strength indicator display
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const registerPasswordRef = useRef<HTMLInputElement>(null)
+  const registerConfirmPasswordRef = useRef<HTMLInputElement>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const captchaRef = useRef<HTMLDivElement>(null)
@@ -174,7 +210,8 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault()
-    if (!email.trim() || !password.trim()) {
+    const pw = passwordRef.current?.value ?? ''
+    if (!email.trim() || !pw.trim()) {
       pushToast('error', 'Campos obrigatórios', 'Preencha o e-mail e a senha para continuar.')
       return
     }
@@ -190,7 +227,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
-        password: password.trim(),
+        password: pw.trim(),
       })
       if (error) {
         pushToast('error', 'Erro ao entrar', error.message === 'Invalid login credentials'
@@ -215,6 +252,8 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
+    const pw = registerPasswordRef.current?.value ?? ''
+    const pwConfirm = registerConfirmPasswordRef.current?.value ?? ''
     if (!registerName.trim()) {
       pushToast('error', 'Nome obrigatório', 'Informe seu nome de usuário.')
       return
@@ -223,11 +262,11 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
       pushToast('error', 'E-mail obrigatório', 'Informe seu e-mail.')
       return
     }
-    if (!isPasswordValid(registerPassword)) {
+    if (!isPasswordValid(pw)) {
       pushToast('error', 'Senha fraca', 'A senha deve ter 8+ caracteres, 1 maiúscula e 1 caractere especial.')
       return
     }
-    if (registerPassword !== registerConfirmPassword) {
+    if (pw !== pwConfirm) {
       pushToast('error', 'Senhas diferentes', 'A confirmação de senha não confere.')
       return
     }
@@ -243,7 +282,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
     try {
       const { data, error } = await supabase.auth.signUp({
         email: registerEmail.trim(),
-        password: registerPassword,
+        password: pw,
         options: {
           data: {
             full_name: registerName.trim(),
@@ -275,7 +314,8 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
         setRegisterName('')
         setRegisterEmail('')
         setRegisterPassword('')
-        setRegisterConfirmPassword('')
+        if (registerPasswordRef.current) registerPasswordRef.current.value = ''
+        if (registerConfirmPasswordRef.current) registerConfirmPasswordRef.current.value = ''
         resetCaptcha()
       }
     } catch {
@@ -428,10 +468,9 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                   <div style={{ position: 'relative' }}>
                     <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
                     <input
+                      ref={passwordRef}
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Sua senha"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
                       onFocus={e => inputFocusStyle(e.currentTarget)}
                       onBlur={e => inputBlurStyle(e.currentTarget)}
                       style={{ ...inputStyle, paddingRight: 42 }}
@@ -556,9 +595,9 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                   <div style={{ position: 'relative' }}>
                     <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
                     <input
+                      ref={registerPasswordRef}
                       type={showRegisterPassword ? 'text' : 'password'}
                       placeholder="Criar senha"
-                      value={registerPassword}
                       onChange={e => setRegisterPassword(e.target.value)}
                       onFocus={e => inputFocusStyle(e.currentTarget)}
                       onBlur={e => inputBlurStyle(e.currentTarget)}
@@ -608,24 +647,21 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                   <div style={{ position: 'relative' }}>
                     <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
                     <input
+                      ref={registerConfirmPasswordRef}
                       type={showRegisterPassword ? 'text' : 'password'}
                       placeholder="Confirmar senha"
-                      value={registerConfirmPassword}
-                      onChange={e => setRegisterConfirmPassword(e.target.value)}
+                      onChange={e => {
+                        const pw = registerPasswordRef.current?.value ?? ''
+                        // update match indicator only — value lives in the DOM, not state
+                        ;(e.target as HTMLInputElement).dataset.match = String(e.target.value === pw)
+                      }}
                       onFocus={e => inputFocusStyle(e.currentTarget)}
                       onBlur={e => inputBlurStyle(e.currentTarget)}
                       style={inputStyle}
                       autoComplete="new-password"
                     />
-                    {registerConfirmPassword.length > 0 && (
-                      <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
-                        {registerPassword === registerConfirmPassword ? (
-                          <CheckCircle size={16} style={{ color: '#25D066' }} />
-                        ) : (
-                          <XCircle size={16} style={{ color: '#f87171' }} />
-                        )}
-                      </div>
-                    )}
+                    {/* Match indicator driven by DOM comparison */}
+                    <ConfirmPasswordMatch pwRef={registerPasswordRef} confirmRef={registerConfirmPasswordRef} />
                   </div>
 
                   {/* Botão Criar conta */}
