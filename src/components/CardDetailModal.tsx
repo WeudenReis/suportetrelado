@@ -101,8 +101,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
-  const [showActivities, setShowActivities] = useState(false)
-  const [showComments, setShowComments] = useState(false)
+  const [timelineFilter, setTimelineFilter] = useState<'all' | 'comments' | 'activity'>('all')
   const [showLabelPicker, setShowLabelPicker] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [dueDate, setDueDate] = useState(ticket.due_date || '')
@@ -454,10 +453,16 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     handleClose()
   }
 
-  const feedItems = useMemo(() => [
-    ...comments.map(c => ({ type: 'comment' as const, id: c.id, user: c.user_name, text: c.content, time: c.created_at })),
-    ...(showActivities ? activities.map(a => ({ type: 'activity' as const, id: a.id, user: a.user_name, text: a.action_text, time: a.created_at })) : []),
-  ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()), [comments, activities, showActivities])
+  const feedItems = useMemo(() => {
+    const commentItems = comments.map(c => ({ type: 'comment' as const, id: c.id, user: c.user_name, text: c.content, time: c.created_at }))
+    const activityItems = activities.map(a => ({ type: 'activity' as const, id: a.id, user: a.user_name, text: a.action_text, time: a.created_at }))
+    const all = timelineFilter === 'comments'
+      ? commentItems
+      : timelineFilter === 'activity'
+      ? activityItems
+      : [...commentItems, ...activityItems]
+    return all.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+  }, [comments, activities, timelineFilter])
 
   return (
     <div
@@ -917,26 +922,37 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
           {/* ═══ RIGHT: Timeline / Activity ═══ */}
           <div className="elite-modal__col-right">
-            <div className="flex items-center justify-between mb-2 flex-shrink-0">
+
+            {/* Header with tab filters */}
+            <div className="flex items-center justify-between mb-3 flex-shrink-0">
               <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#b6c2cf' }}>
                 <MessageSquare size={14} style={{ color: '#596773' }} />
                 Timeline
-                {comments.length > 0 && <span className="text-[10px] font-normal" style={{ color: '#596773' }}>({comments.length})</span>}
+                <span className="text-[10px] font-normal" style={{ color: '#596773' }}>
+                  ({comments.length + activities.length})
+                </span>
               </div>
-              <div className="flex gap-1">
-                <button onClick={() => setShowComments(!showComments)} className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
-                  style={{ background: showComments ? 'rgba(87,157,255,0.12)' : 'rgba(255,255,255,0.06)', color: showComments ? '#579dff' : '#b6c2cf' }}>
-                  {showComments ? 'Ocultar' : 'Mostrar'} comentarios
-                </button>
-                <button onClick={() => setShowActivities(!showActivities)} className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
-                  style={{ background: showActivities ? 'rgba(87,157,255,0.12)' : 'rgba(255,255,255,0.06)', color: showActivities ? '#579dff' : '#b6c2cf' }}>
-                  {showActivities ? 'Ocultar' : 'Mostrar'} atividade
-                </button>
+              <div className="flex gap-1" style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 3 }}>
+                {(['all', 'comments', 'activity'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setTimelineFilter(f)}
+                    style={{
+                      fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 6, border: 'none',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      background: timelineFilter === f ? 'rgba(87,157,255,0.18)' : 'transparent',
+                      color: timelineFilter === f ? '#579dff' : '#596773',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                    }}
+                  >
+                    {f === 'all' ? 'Tudo' : f === 'comments' ? `Comentários${comments.length > 0 ? ` (${comments.length})` : ''}` : `Atividade${activities.length > 0 ? ` (${activities.length})` : ''}`}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Comment input + feed — only when showComments is true */}
-            {showComments && <div className="flex gap-2 mb-3 flex-shrink-0">
+            {/* Comment input - always visible */}
+            <div className="flex gap-2 mb-3 flex-shrink-0">
               <Avatar name={user} size={28} />
               <div className="flex-1 relative">
                 <textarea
@@ -945,7 +961,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   onChange={e => {
                     const val = e.target.value
                     setNewComment(val)
-                    // Detect @ mention trigger
                     const pos = e.target.selectionStart
                     const textBefore = val.slice(0, pos)
                     const atMatch = textBefore.match(/@([\w\u00C0-\u024F]*)$/)
@@ -962,7 +977,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                     if (!newComment.trim()) setCommentFocused(false)
                     setTimeout(() => setMentionQuery(null), 150)
                   }}
-                  placeholder="Escrever um comentario... Use @ para mencionar"
+                  placeholder="Escrever um comentário... Use @ para mencionar"
                   rows={commentFocused ? 3 : 1}
                   className="modal-field resize-none transition-all text-[13px]"
                   onKeyDown={e => {
@@ -1026,13 +1041,25 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   )}
                 </AnimatePresence>
               </div>
-            </div>}
+            </div>
 
-            {/* Feed */}
-            {showComments && (
-              <div className="elite-modal__feed">
-                {feedItems.map(item => (
-                  <div key={item.id} className="flex gap-2 group">
+            {/* Divider before feed */}
+            {feedItems.length > 0 && (
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', marginBottom: 10, flexShrink: 0 }} />
+            )}
+
+            {/* Feed - always rendered, filtered by tab */}
+            <div className="elite-modal__feed">
+              {feedItems.length === 0 ? (
+                <div className="text-center py-8" style={{ color: '#596773' }}>
+                  <MessageSquare size={22} style={{ margin: '0 auto 8px', opacity: 0.35 }} />
+                  <p style={{ fontSize: 12 }}>
+                    {timelineFilter === 'comments' ? 'Nenhum comentário ainda.' : timelineFilter === 'activity' ? 'Nenhuma atividade registrada.' : 'Nenhuma atividade ainda.'}
+                  </p>
+                </div>
+              ) : (
+                feedItems.map(item => (
+                  <div key={item.id} className="flex gap-2 group" style={{ marginBottom: 12 }}>
                     <Avatar name={item.user} size={24} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -1040,6 +1067,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                           {item.user.includes('@') ? item.user.split('@')[0] : item.user}
                         </span>
                         <span className="text-[10px]" style={{ color: '#596773' }}>{timeAgo(item.time)}</span>
+                        {item.type === 'activity' && (
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
+                            background: 'rgba(139,92,246,0.12)', color: '#a78bfa',
+                            fontFamily: "'Space Grotesk', sans-serif",
+                          }}>ATIVIDADE</span>
+                        )}
                       </div>
                       {item.type === 'comment' ? (
                         <>
@@ -1068,22 +1102,10 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                       )}
                     </div>
                   </div>
-                ))}
-                {feedItems.length === 0 && (
-                  <div className="text-center py-6 text-[12px]" style={{ color: '#596773' }}>Nenhuma atividade ainda.</div>
-                )}
-                <div ref={commentsEndRef} />
-              </div>
-            )}
-
-            {!showComments && comments.length > 0 && (
-              <div className="flex-1 flex items-center justify-center">
-                <button onClick={() => setShowComments(true)} className="text-[11px] px-3 py-2 rounded-lg transition-colors hover:bg-white/5" style={{ color: '#596773', border: '1px dashed rgba(166,197,226,0.12)' }}>
-                  <MessageSquare size={14} className="inline mr-1.5" style={{ verticalAlign: '-2px' }} />
-                  {comments.length} comentario{comments.length !== 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
+                ))
+              )}
+              <div ref={commentsEndRef} />
+            </div>
           </div>
         </div>
 
