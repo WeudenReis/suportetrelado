@@ -272,11 +272,11 @@ export default function App() {
 
     async function checkSession(email: string | null) {
       if (!email) { setUser(null); setLoading(false); return }
-      logger.debug('Auth', 'checkSession chamado', { email })
+      logger.debug('Auth', 'checkSession chamado')
 
       // Bypass absoluto para super admins — antes de qualquer query
       if (isSuperAdmin(email)) {
-        logger.debug('Auth', 'Super admin bypass aplicado', { email })
+        logger.debug('Auth', 'Super admin bypass aplicado')
         setUnauthorizedEmail(null)
         setUser(email)
         setLoading(false)
@@ -284,7 +284,7 @@ export default function App() {
       }
 
       const authorized = await checkAuthorizedUser(email)
-      logger.debug('Auth', 'checkAuthorizedUser resultado', { authorized, email })
+      logger.debug('Auth', 'checkAuthorizedUser resultado', { authorized })
       if (!authorized) {
         setUnauthorizedEmail(email)
         await supabase.auth.signOut()
@@ -298,13 +298,13 @@ export default function App() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
-      logger.debug('Auth', 'getSession', { email })
+      logger.debug('Auth', 'getSession')
       checkSession(email)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const email = session?.user?.email ?? session?.user?.user_metadata?.full_name ?? null
-      logger.debug('Auth', 'onAuthStateChange', { event: _event, email })
+      logger.debug('Auth', 'onAuthStateChange', { event: _event })
       if (_event === 'PASSWORD_RECOVERY') {
         setRecoveryMode(true)
         return
