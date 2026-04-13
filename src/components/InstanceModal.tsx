@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Loader2, Plug, CheckCircle2, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -53,19 +53,7 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
   const [errorMsg, setErrorMsg] = useState('')
   const firstInputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-focus first field when modal opens
-  useEffect(() => {
-    if (open) {
-      setValidation('idle')
-      setErrorMsg('')
-      loadExistingConfig()
-      // Delay auto-focus to after animation
-      const timer = setTimeout(() => firstInputRef.current?.focus(), 200)
-      return () => clearTimeout(timer)
-    }
-  }, [open])
-
-  async function loadExistingConfig() {
+  const loadExistingConfig = useCallback(async () => {
     setLoadingExisting(true)
     try {
       const { data, error } = await supabase
@@ -87,7 +75,19 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
     } finally {
       setLoadingExisting(false)
     }
-  }
+  }, [user])
+
+  // Auto-focus first field when modal opens
+  useEffect(() => {
+    if (open) {
+      setValidation('idle')
+      setErrorMsg('')
+      loadExistingConfig()
+      // Delay auto-focus to after animation
+      const timer = setTimeout(() => firstInputRef.current?.focus(), 200)
+      return () => clearTimeout(timer)
+    }
+  }, [open, loadExistingConfig])
 
   async function handleValidate() {
     if (!config.instance_code.trim()) {

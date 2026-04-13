@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX, Mail, Lock, Eye, EyeOff, ArrowRight, User, CheckCircle, XCircle } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
@@ -130,11 +130,13 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
     }
   }, [recaptchaSiteKey])
 
-  function pushToast(type: ToastType, title: string, message: string) {
+  const pushToast = useCallback((type: ToastType, title: string, message: string) => {
     const id = Math.random().toString(36).slice(2)
     setToasts(prev => [{ id, type, title, message }, ...prev])
-  }
-  function dismissToast(id: string) { setToasts(prev => prev.filter(t => t.id !== id)) }
+  }, [])
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
 
   useEffect(() => {
     const hash = window.location.hash

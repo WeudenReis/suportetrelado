@@ -1,14 +1,15 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
 import { DndContext, DragOverlay, closestCenter, closestCorners, pointerWithin, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, horizontalListSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Search, Share2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, LayoutGrid, List, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { clsx } from 'clsx'
 import Card from './Card'
-import CardDetailModal, { parseTag } from './CardDetailModal'
 import ErrorBoundary from './ErrorBoundary'
-import InstanceModal from './InstanceModal'
-import { ArchivedPanel } from './ArchivedPanel'
+import { parseTag } from '../lib/tagUtils'
+const CardDetailModal = lazy(() => import('./CardDetailModal'))
+const InstanceModal = lazy(() => import('./InstanceModal'))
+const ArchivedPanel = lazy(() => import('./ArchivedPanel').then(m => ({ default: m.ArchivedPanel })))
 import { supabase, fetchTickets, fetchTicketsCount, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, fetchUserProfiles, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
 import { fetchBoardColumns, insertBoardColumn, updateBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { COLUMNS } from '../lib/kanbanColumns'
@@ -16,10 +17,10 @@ import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShor
 import type { Ticket, TicketStatus, UserProfile, BoardLabel } from '../lib/supabase'
 import ShortcutsHelpModal from './kanban/ShortcutsHelpModal'
 import BulkActionsBar from './kanban/BulkActionsBar'
-import AutoRulesModal from './kanban/AutoRulesModal'
-import LabelsManagerModal from './kanban/LabelsManagerModal'
-import SettingsPanel from './kanban/SettingsPanel'
-import MembersManagerPanel from './kanban/MembersManagerPanel'
+const AutoRulesModal = lazy(() => import('./kanban/AutoRulesModal'))
+const LabelsManagerModal = lazy(() => import('./kanban/LabelsManagerModal'))
+const SettingsPanel = lazy(() => import('./kanban/SettingsPanel'))
+const MembersManagerPanel = lazy(() => import('./kanban/MembersManagerPanel'))
 import AddTicketModal from './kanban/AddTicketModal'
 import FilterPanel from './kanban/FilterPanel'
 import DepartmentSwitcher from './kanban/DepartmentSwitcher'
@@ -173,7 +174,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       logger.error('KanbanBoard', 'Falha ao carregar tickets', { error: String(err) })
       showToast('Erro ao carregar tickets', 'err')
     }
-  }, [applyRulesToBatch, departmentId])
+  }, [applyRulesToBatch, departmentId, showToast])
 
   // --- Load more tickets ---
   const loadMoreTickets = useCallback(async () => {
@@ -197,46 +198,57 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     } finally {
       setLoadingMore(false)
     }
-  }, [currentPage, departmentId])
+  }, [currentPage, departmentId, showToast])
 
   // Helper: aplica regras automáticas a um ticket individual (via hook)
   // Funções 'applyRulesToTicket' e 'applyRulesToBatch' agora vêm de useAutoRules()
 
   useEffect(() => {
-    setLoading(true)
-    loadTickets().finally(() => setLoading(false))
+    // Debounce: evita reconexão-storm quando o usuário alterna departamentos rapidamente
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
 
-    const realtimeFilter = departmentId ? { filter: `department_id=eq.${departmentId}` } : {}
-    const channel = supabase
-      .channel(`tickets-realtime-${departmentId || 'all'}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
-        setTickets(prev => {
-          if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
-          const newTicket = applyRulesToTicket({ ...(payload.new as Ticket), attachment_count: 0 } as Ticket)
-          return [...prev, newTicket]
+    const timer = setTimeout(() => {
+      if (cancelled) return
+      setLoading(true)
+      loadTickets().finally(() => setLoading(false))
+
+      const realtimeFilter = departmentId ? { filter: `department_id=eq.${departmentId}` } : {}
+      channel = supabase
+        .channel(`tickets-realtime-${departmentId || 'all'}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
+          setTickets(prev => {
+            if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
+            const newTicket = applyRulesToTicket({ ...(payload.new as Ticket), attachment_count: 0 } as Ticket)
+            return [...prev, newTicket]
+          })
         })
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
-        setTickets(prev => prev.map(t => {
-          if (t.id !== (payload.new as Ticket).id) return t
-          return { ...(payload.new as Ticket), attachment_count: t.attachment_count || 0 }
-        }))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
-        setTickets(prev => prev.filter(t => t.id !== (payload.old as Record<string, string>).id))
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments', ...realtimeFilter }, () => {
-        fetchAttachmentCounts(departmentId ?? undefined).then(counts => {
-          setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
+          setTickets(prev => prev.map(t => {
+            if (t.id !== (payload.new as Ticket).id) return t
+            return { ...(payload.new as Ticket), attachment_count: t.attachment_count || 0 }
+          }))
         })
-      })
-      .subscribe((status) => {
-        setIsConnected(status === 'SUBSCRIBED')
-      })
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
+          setTickets(prev => prev.filter(t => t.id !== (payload.old as Record<string, string>).id))
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments', ...realtimeFilter }, () => {
+          fetchAttachmentCounts(departmentId ?? undefined).then(counts => {
+            setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
+          })
+        })
+        .subscribe((status) => {
+          setIsConnected(status === 'SUBSCRIBED')
+        })
 
-    channelRef.current = channel
+      channelRef.current = channel
+    }, 300)
 
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [loadTickets, departmentId, applyRulesToTicket])
 
   // Open a specific ticket when openTicketId is set (e.g. from Inbox notification)
@@ -342,7 +354,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     for (const id of ids) {
       await updateTicket(id, { status: targetColumn as TicketStatus }).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
     }
-  }, [selectedCardIds])
+  }, [selectedCardIds, showToast])
 
   const handleBulkArchive = useCallback(async () => {
     if (selectedCardIds.size === 0) return
@@ -354,7 +366,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     for (const id of ids) {
       await Promise.resolve(supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', id)).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
     }
-  }, [selectedCardIds])
+  }, [selectedCardIds, showToast])
 
   const collisionDetectionStrategy: CollisionDetection = (args) => {
     const dragType = args.active.data.current?.type
@@ -513,12 +525,12 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     }
   }
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true)
     setCurrentPage(1)
     await loadTickets(1)
     setRefreshing(false)
-  }
+  }, [loadTickets])
 
   const staleCount = useMemo(() => tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 12 * 60 * 60 * 1000 && t.status !== 'resolved').length, [tickets])
   const visibleUsers = useMemo(() => onlineUsers.length > 0 ? onlineUsers : [user], [onlineUsers, user])
@@ -545,7 +557,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       if (showSettings) { setShowSettings(false); return }
       if (showArchivedPanel) { setShowArchivedPanel(false); return }
     }},
-  ], [noModalOpen, allColumns, showAddModal, selectedTicket, showSettings, showFilters, showArchivedPanel, showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp, handleRefresh])
+  ], [noModalOpen, showAddModal, selectedTicket, showSettings, showFilters, showArchivedPanel, showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp, handleRefresh, setShowFilters])
 
   useKeyboardShortcuts(shortcutActions)
 
@@ -606,7 +618,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     } catch {
       showToast('Erro ao renomear lista', 'err')
     }
-  }, [])
+  }, [showToast])
 
   const handleSaveColumnColor = useCallback(async (colId: string, color: string) => {
     setColumns(prev => prev.map(c => c.id === colId ? { ...c, dot_color: color } : c))
@@ -616,7 +628,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     } catch {
       showToast('Erro ao mudar cor da lista', 'err')
     }
-  }, [])
+  }, [showToast])
 
   const handleSortColumn = useCallback((colId: string, sortType: 'newest' | 'oldest' | 'alpha' | 'due') => {
     setTickets(prev => {
@@ -640,7 +652,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     })
     setColorPickerColumnId(null)
     showToast('Lista ordenada', 'ok')
-  }, [])
+  }, [showToast])
 
   const boardWrapperStyle: React.CSSProperties = {
     display: 'flex',
@@ -1038,10 +1050,12 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
 
       {/* Painel de arquivados */}
       {showArchivedPanel && (
-        <ArchivedPanel
-          onClose={() => setShowArchivedPanel(false)}
-          onRestore={() => { loadTickets(); setShowArchivedPanel(false) }}
-        />
+        <Suspense fallback={null}>
+          <ArchivedPanel
+            onClose={() => setShowArchivedPanel(false)}
+            onRestore={() => { loadTickets(); setShowArchivedPanel(false) }}
+          />
+        </Suspense>
       )}
 
       {/* Filtros avançados panel */}
@@ -1843,72 +1857,82 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       {/* Settings Panel */}
       <AnimatePresence>
         {showSettings && (
-          <SettingsPanel
-            wallpaper={wallpaper}
-            wallpaperInput={wallpaperInput}
-            recentWallpapers={recentWallpapers}
-            onWallpaperInputChange={setWallpaperInput}
-            onApplyWallpaper={applyWallpaper}
-            onWallpaperFileSelect={handleWallpaperFileSelect}
-            onRemoveRecentWallpaper={removeRecentWallpaper}
-            onClearRecentWallpapers={clearRecentWallpapers}
-            onDeleteCurrentWallpaper={deleteCurrentWallpaper}
-            onOpenLabelsManager={() => { setShowLabelsManager(true); fetchBoardLabels(departmentId ?? undefined).then(setBoardLabels).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) })) }}
-            onOpenAutoRules={() => setShowAutoRules(true)}
-            onOpenMembersPanel={() => { setShowSettings(false); setShowMembersManager(true) }}
-            onClose={() => setShowSettings(false)}
-          />
+          <Suspense fallback={null}>
+            <SettingsPanel
+              wallpaper={wallpaper}
+              wallpaperInput={wallpaperInput}
+              recentWallpapers={recentWallpapers}
+              onWallpaperInputChange={setWallpaperInput}
+              onApplyWallpaper={applyWallpaper}
+              onWallpaperFileSelect={handleWallpaperFileSelect}
+              onRemoveRecentWallpaper={removeRecentWallpaper}
+              onClearRecentWallpapers={clearRecentWallpapers}
+              onDeleteCurrentWallpaper={deleteCurrentWallpaper}
+              onOpenLabelsManager={() => { setShowLabelsManager(true); fetchBoardLabels(departmentId ?? undefined).then(setBoardLabels).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) })) }}
+              onOpenAutoRules={() => setShowAutoRules(true)}
+              onOpenMembersPanel={() => { setShowSettings(false); setShowMembersManager(true) }}
+              onClose={() => setShowSettings(false)}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
 
       {/* Auto Rules Manager Modal */}
       <AnimatePresence>
         {showAutoRules && (
-          <AutoRulesModal
-            columns={allColumns}
-            onClose={() => setShowAutoRules(false)}
-            onRunRules={() => { setShowAutoRules(true) }}
-            onShowToast={showToast}
-            user={user}
-            departmentId={departmentId}
-          />
+          <Suspense fallback={null}>
+            <AutoRulesModal
+              columns={allColumns}
+              onClose={() => setShowAutoRules(false)}
+              onRunRules={() => { setShowAutoRules(true) }}
+              onShowToast={showToast}
+              user={user}
+              departmentId={departmentId}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
 
       {/* Members Manager Panel */}
       <AnimatePresence>
         {showMembersManager && (
-          <MembersManagerPanel onClose={() => setShowMembersManager(false)} />
+          <Suspense fallback={null}>
+            <MembersManagerPanel onClose={() => setShowMembersManager(false)} />
+          </Suspense>
         )}
       </AnimatePresence>
 
       {/* Labels Manager Modal */}
       {showLabelsManager && (
-        <LabelsManagerModal
-          boardLabels={boardLabels}
-          departmentId={departmentId}
-          onLabelsChange={setBoardLabels}
-          onClose={() => setShowLabelsManager(false)}
-        />
+        <Suspense fallback={null}>
+          <LabelsManagerModal
+            boardLabels={boardLabels}
+            departmentId={departmentId}
+            onLabelsChange={setBoardLabels}
+            onClose={() => setShowLabelsManager(false)}
+          />
+        </Suspense>
       )}
 
             {/* Card Detail Modal */}
       <AnimatePresence>
         {selectedTicket && (
           <ErrorBoundary>
-            <CardDetailModal
-              ticket={selectedTicket}
-              user={user}
-              onClose={() => {
-                setSelectedTicket(null)
-                // Recarregar contagem de anexos ao fechar o modal
-                fetchAttachmentCounts(departmentId ?? undefined).then(counts => {
-                  setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
-                })
-              }}
-              onUpdate={handleTicketUpdate}
-              onDelete={handleTicketDelete}
-            />
+            <Suspense fallback={null}>
+              <CardDetailModal
+                ticket={selectedTicket}
+                user={user}
+                onClose={() => {
+                  setSelectedTicket(null)
+                  // Recarregar contagem de anexos ao fechar o modal
+                  fetchAttachmentCounts(departmentId ?? undefined).then(counts => {
+                    setTickets(prev => prev.map(t => ({ ...t, attachment_count: counts[t.id] || 0 })))
+                  })
+                }}
+                onUpdate={handleTicketUpdate}
+                onDelete={handleTicketDelete}
+              />
+            </Suspense>
           </ErrorBoundary>
         )}
       </AnimatePresence>
@@ -1919,7 +1943,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       </AnimatePresence>
 
       {/* Instance Configuration Modal */}
-      <InstanceModal open={showInstanceModal} onClose={() => setShowInstanceModal(false)} user={user} />
+      {showInstanceModal && (
+        <Suspense fallback={null}>
+          <InstanceModal open={showInstanceModal} onClose={() => setShowInstanceModal(false)} user={user} />
+        </Suspense>
+      )}
 
       {/* Bulk Actions Bar */}
       <AnimatePresence>

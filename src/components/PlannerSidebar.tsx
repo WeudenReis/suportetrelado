@@ -57,7 +57,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
         localStorage.setItem(localKey, JSON.stringify(merged))
       }
     })
-  }, [user])
+  }, [user, localKey])
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1)

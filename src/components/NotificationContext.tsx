@@ -212,7 +212,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
     checkDueDates();
     const interval = setInterval(checkDueDates, 5 * 60 * 1000); // Verifica a cada 5 min
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, departmentId]);
 
   useEffect(() => {
     refreshNotifications();
@@ -231,7 +231,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [refreshNotifications, user]);
+  }, [refreshNotifications, user, showBrowserNotification, showToast]);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 

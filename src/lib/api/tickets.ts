@@ -2,6 +2,7 @@ import { supabase } from '../supabase'
 import { logger } from '../logger'
 import type { Ticket, TicketInsert, PaginationOptions } from '../supabase'
 import { TicketInsertSchema, TicketUpdateSchema, parseOrThrow } from '../schemas'
+import { enqueueOnNetworkError } from '../offlineQueue'
 
 export async function fetchTickets(opts?: { departmentId?: string } & PaginationOptions): Promise<Ticket[]> {
   let query = supabase.from('tickets').select('*').eq('is_archived', false)
@@ -18,37 +19,41 @@ export async function fetchTickets(opts?: { departmentId?: string } & Pagination
 
 export async function insertTicket(ticket: TicketInsert): Promise<Ticket> {
   const validated = parseOrThrow(TicketInsertSchema, ticket, 'insertTicket')
-  const { data, error } = await supabase
-    .from('tickets')
-    .insert(validated)
-    .select()
-    .single()
-  if (error) {
-    logger.error('Tickets', 'Falha ao inserir ticket', { error })
-    if (error.message?.includes('schema cache')) {
-      throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
+  return await enqueueOnNetworkError('insertTicket', { ticket: validated }, async () => {
+    const { data, error } = await supabase
+      .from('tickets')
+      .insert(validated)
+      .select()
+      .single()
+    if (error) {
+      logger.error('Tickets', 'Falha ao inserir ticket', { error })
+      if (error.message?.includes('schema cache')) {
+        throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
+      }
+      throw error
     }
-    throw error
-  }
-  return data as Ticket
+    return data as Ticket
+  })
 }
 
 export async function updateTicket(id: string, updates: Partial<Ticket>): Promise<Ticket> {
   const validated = parseOrThrow(TicketUpdateSchema, updates, 'updateTicket')
-  const { data, error } = await supabase
-    .from('tickets')
-    .update(validated)
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) {
-    logger.error('Tickets', 'Falha ao atualizar ticket', { error })
-    if (error.message?.includes('schema cache')) {
-      throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
+  return await enqueueOnNetworkError('updateTicket', { id, updates: validated }, async () => {
+    const { data, error } = await supabase
+      .from('tickets')
+      .update(validated)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) {
+      logger.error('Tickets', 'Falha ao atualizar ticket', { error })
+      if (error.message?.includes('schema cache')) {
+        throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
+      }
+      throw error
     }
-    throw error
-  }
-  return data as Ticket
+    return data as Ticket
+  })
 }
 
 export async function fetchTicketsCount(opts?: { departmentId?: string }): Promise<number> {

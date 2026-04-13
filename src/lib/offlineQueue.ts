@@ -94,6 +94,27 @@ export async function withOfflineFallback<T>(
   }
 }
 
+/**
+ * Variante que enfileira em erro de rede mas re-lança o erro.
+ * Útil para APIs onde o contrato de retorno é `T` (não `T | null`)
+ * e o caller já possui optimistic UI + rollback.
+ * Quando voltar online, o executor registrado será re-executado.
+ */
+export async function enqueueOnNetworkError<T>(
+  op: string,
+  args: unknown,
+  fn: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await fn()
+  } catch (err) {
+    if (isNetworkError(err)) {
+      enqueueMutation(op, args)
+    }
+    throw err
+  }
+}
+
 /** Re-executa a fila. Itens que falharem novamente voltam à fila. */
 export async function flushQueue(): Promise<{ ok: number; failed: number }> {
   const queue = loadQueue()

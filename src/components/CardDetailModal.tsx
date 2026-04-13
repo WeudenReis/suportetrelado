@@ -19,6 +19,8 @@ import { compressCover, compressThumbnail } from '../lib/imageUtils'
 import CardAttachments from './card/CardAttachments'
 import { logger } from '../lib/logger'
 import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
+import { parseTag } from '../lib/tagUtils'
+export { parseTag }
 
 interface CardDetailModalProps {
   ticket: Ticket
@@ -66,16 +68,6 @@ function renderCommentText(text: string): React.ReactNode {
 }
 
 const TAG_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
-
-/** Parse tag stored as "name|#color" or legacy plain "name" */
-export function parseTag(raw: string): { name: string; color: string } {
-  const idx = raw.lastIndexOf('|')
-  if (idx > 0 && raw[idx + 1] === '#') {
-    return { name: raw.slice(0, idx), color: raw.slice(idx + 1) }
-  }
-  // Legacy: auto-generate color
-  return { name: raw, color: `hsl(${(raw.charCodeAt(0) * 47) % 360}, 55%, 45%)` }
-}
 
 export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete }: CardDetailModalProps) {
   const [title, setTitle] = useState(ticket.title)
