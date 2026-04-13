@@ -41,6 +41,15 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
     onClose()
   }
 
+  // Alterna seleção de dias
+  const toggleDay = (value: number) => {
+    setNotifyDaysBefore(prev =>
+      prev.includes(value)
+        ? prev.filter(v => v !== value)
+        : [...prev, value].sort((a, b) => a - b)
+    )
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -96,12 +105,12 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
                   </p>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[
+                    {(
                       { value: 1, label: '1 dia (24h) antes' },
                       { value: 2, label: '2 dias antes' },
                       { value: 3, label: '3 dias antes' },
-                    ].map(opt => (
-                      <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                    ).map(opt => (
+                      <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => toggleDay(opt.value)}>
                         <div style={{
                           width: 18, height: 18, borderRadius: 4, 
                           border: notifyDaysBefore.includes(opt.value) ? 'none' : '1px solid rgba(255,255,255,0.2)',
