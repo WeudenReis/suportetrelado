@@ -20,9 +20,13 @@ export async function fetchNotifications(email: string, opts?: PaginationOptions
   return (data ?? []) as Notification[]
 }
 
-export async function insertNotification(notif: Omit<Notification, 'id' | 'is_read' | 'created_at'>): Promise<void> {
+export async function insertNotification(notif: Omit<Notification, 'id' | 'is_read' | 'created_at'>): Promise<boolean> {
   const { error } = await supabase.from('notifications').insert(notif as Record<string, unknown>)
-  if (error) logger.warn('Notifications', 'insertNotification falhou', { error: error.message })
+  if (error) {
+    logger.warn('Notifications', 'insertNotification falhou', { error: error.message })
+    return false
+  }
+  return true
 }
 
 export async function markNotificationRead(id: string): Promise<void> {

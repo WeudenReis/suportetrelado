@@ -113,7 +113,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
             if (notifyDays.includes(diffDays)) {
               const notifId = `${t.id}_due_${diffDays}`;
               if (!newCache[notifId]) {
-                await insertNotification({
+                const ok = await insertNotification({
                   department_id: t.department_id,
                   recipient_email: user,
                   sender_name: 'Sistema',
@@ -124,8 +124,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
                     ? 'Este cartão vence hoje!'
                     : `Este cartão vence em ${diffDays} dia(s) (${t.due_date.slice(0, 10)}).`,
                 });
-                newCache[notifId] = true;
-                modified = true;
+                if (ok) { newCache[notifId] = true; modified = true; }
               }
             }
           }
@@ -142,7 +141,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
           if (notifyDays.includes(diffDays) && diffDays > 0) {
             const notifId = `planner_${ev.id}_days_${diffDays}`;
             if (!newCache[notifId]) {
-              await insertNotification({
+              const ok = await insertNotification({
                 department_id: departmentId || '00000000-0000-0000-0000-000000000010',
                 recipient_email: user,
                 sender_name: 'Sistema',
@@ -151,8 +150,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
                 ticket_title: ev.title,
                 message: `Lembrete: "${ev.title}" acontece em ${diffDays} dia(s) (${ev.date}).`,
               });
-              newCache[notifId] = true;
-              modified = true;
+              if (ok) { newCache[notifId] = true; modified = true; }
             }
           }
 
@@ -173,7 +171,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
                   : diff === 0
                   ? 'agora'
                   : `há ${diff} min`;
-                await insertNotification({
+                const ok = await insertNotification({
                   department_id: departmentId || '00000000-0000-0000-0000-000000000010',
                   recipient_email: user,
                   sender_name: 'Sistema',
@@ -182,14 +180,13 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
                   ticket_title: ev.title,
                   message: `Evento "${ev.title}" começa ${timeLabel} (${ev.start_time}).`,
                 });
-                newCache[notifId] = true;
-                modified = true;
+                if (ok) { newCache[notifId] = true; modified = true; }
               }
             } else {
               // Evento sem horário: notificar uma vez no dia
               const notifId = `planner_${ev.id}_today_allday`;
               if (!newCache[notifId]) {
-                await insertNotification({
+                const ok = await insertNotification({
                   department_id: departmentId || '00000000-0000-0000-0000-000000000010',
                   recipient_email: user,
                   sender_name: 'Sistema',
@@ -198,8 +195,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
                   ticket_title: ev.title,
                   message: `Evento de hoje: "${ev.title}".`,
                 });
-                newCache[notifId] = true;
-                modified = true;
+                if (ok) { newCache[notifId] = true; modified = true; }
               }
             }
           }
