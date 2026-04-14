@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check, KeyRound, Eye, EyeOff, Copy, CheckCircle2, UserMinus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -46,8 +47,10 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
   const [resetSuccess, setResetSuccess] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
   const [removingMember, setRemovingMember] = useState(false)
+  const [removeError, setRemoveError] = useState<string | null>(null)
 
   const canChangeRoles = myRole === 'admin' && hasPermission('members:change_role')
+  const canRemoveMembers = myRole === 'admin' && hasPermission('members:remove')
 
   // Email do usuário logado para impedir auto-remoção
   const [myEmail, setMyEmail] = useState<string | null>(null)
@@ -196,29 +199,39 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
 
   const handleRemoveMember = useCallback(async (memberEmail: string) => {
     setRemovingMember(true)
+    setRemoveError(null)
     try {
-      // Remover de org_members
+      // 1. Remover de org_members (tem policy DELETE)
       if (organizationId) {
         const { error: omErr } = await supabase
           .from('org_members')
           .delete()
           .eq('organization_id', organizationId)
           .eq('user_email', memberEmail)
-        if (omErr) logger.warn('MembersPanel', 'Falha ao remover de org_members', { error: omErr.message })
+        if (omErr) {
+          logger.warn('MembersPanel', 'Falha ao remover de org_members', { error: omErr.message })
+          setRemoveError('Falha ao remover o membro da organização. Tente novamente.')
+          return
+        }
       }
 
-      // Remover de user_profiles
+      // 2. Remover de user_profiles (requer migration 013 aplicada no Supabase)
       const { error: upErr } = await supabase
         .from('user_profiles')
         .delete()
         .eq('email', memberEmail)
-      if (upErr) logger.warn('MembersPanel', 'Falha ao remover de user_profiles', { error: upErr.message })
+      if (upErr) {
+        logger.warn('MembersPanel', 'Falha ao remover de user_profiles', { error: upErr.message })
+        // Falha não bloqueia: org_members já foi removido, usuário perdeu acesso.
+        // Registramos o erro mas concluímos o fluxo.
+      }
 
-      // Atualizar estado local
+      // 3. Confirmar remoção na UI apenas após o banco ter persistido
       setMembers(prev => prev.filter(m => m.email !== memberEmail))
       setConfirmRemove(null)
     } catch (err) {
       logger.error('MembersPanel', 'Exceção ao remover membro', { error: String(err) })
+      setRemoveError('Erro inesperado. Verifique sua conexão e tente novamente.')
     } finally {
       setRemovingMember(false)
     }
@@ -589,9 +602,9 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                         {/* Ações */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                           {/* Botão remover membro (admin only, não remove outros admins nem a si mesmo) */}
-                          {canChangeRoles && myEmail && member.email.toLowerCase() !== myEmail && member.role !== 'admin' && (
+                          {canRemoveMembers && myEmail && member.email.toLowerCase() !== myEmail && member.role !== 'admin' && (
                             <button
-                              onClick={() => setConfirmRemove(member.email)}
+                              onClick={() => { setRemoveError(null); setConfirmRemove(member.email) }}
                               style={{
                                 width: 30, height: 30, borderRadius: 8, border: 'none',
                                 background: 'transparent',
@@ -720,7 +733,8 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
             )
           })}
 
-          {/* Modal de redefinir senha */}
+          {/* Modal de redefinir senha — portal para escapar do transform do painel */}
+          {createPortal(
           <AnimatePresence>
             {resetPasswordEmail && canChangeRoles && (
               <motion.div
@@ -909,10 +923,12 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
               </motion.div>
             )}
           </AnimatePresence>
+          , document.body)}
 
-          {/* Modal de confirmação de remoção */}
+          {/* Modal de confirmação de remoção — portal para escapar do transform do painel */}
+          {createPortal(
           <AnimatePresence>
-            {confirmRemove && canChangeRoles && (
+            {confirmRemove && canRemoveMembers && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -922,7 +938,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
                 }}
-                onClick={e => { if (e.target === e.currentTarget) setConfirmRemove(null) }}
+                onClick={e => { if (e.target === e.currentTarget) { setRemoveError(null); setConfirmRemove(null) } }}
               >
                 <motion.div
                   initial={{ scale: 0.95, opacity: 0, y: 10 }}
@@ -958,9 +974,21 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                     Tem certeza que deseja remover este membro? Ele perderá acesso à plataforma e precisará ser adicionado novamente.
                   </p>
 
+                  {removeError && (
+                    <div style={{
+                      marginBottom: 16, padding: '10px 14px', borderRadius: 10,
+                      background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)',
+                      fontSize: 12, color: '#fca5a5', fontFamily: "'Space Grotesk', sans-serif",
+                      display: 'flex', alignItems: 'center', gap: 8,
+                    }}>
+                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                      {removeError}
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                     <button
-                      onClick={() => setConfirmRemove(null)}
+                      onClick={() => { setRemoveError(null); setConfirmRemove(null) }}
                       style={{
                         padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600,
                         fontFamily: "'Space Grotesk', sans-serif",
@@ -992,6 +1020,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
               </motion.div>
             )}
           </AnimatePresence>
+          , document.body)}
 
           {/* Vazio */}
           {!loading && !error && members.length === 0 && (
