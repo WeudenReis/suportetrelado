@@ -20,6 +20,7 @@ const AutoRulesModal = lazy(() => import('./kanban/AutoRulesModal'))
 const LabelsManagerModal = lazy(() => import('./kanban/LabelsManagerModal'))
 const SettingsPanel = lazy(() => import('./kanban/SettingsPanel'))
 const MembersManagerPanel = lazy(() => import('./kanban/MembersManagerPanel'))
+const MyProfilePanel = lazy(() => import('./kanban/MyProfilePanel'))
 import AddTicketModal from './kanban/AddTicketModal'
 import FilterPanel from './kanban/FilterPanel'
 import DepartmentSwitcher from './kanban/DepartmentSwitcher'
@@ -63,6 +64,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showAddModal, setShowAddModal] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showMyProfile, setShowMyProfile] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
   const showToast = useCallback((msg: string, type: 'ok' | 'err') => {
     setToast({ msg, type })
@@ -646,7 +648,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             <Settings size={16} />
           </button>
 
-          <button onClick={() => setShowMembersManager(true)} className="trello-icon-btn" type="button" title="Equipe">
+          <button onClick={() => setShowMyProfile(true)} className="trello-icon-btn" type="button" title="Meu Perfil">
             <Users size={16} />
           </button>
 
@@ -1638,6 +1640,15 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
         {showMembersManager && (
           <Suspense fallback={null}>
             <MembersManagerPanel onClose={() => setShowMembersManager(false)} />
+          </Suspense>
+        )}
+      </AnimatePresence>
+
+      {/* My Profile Panel */}
+      <AnimatePresence>
+        {showMyProfile && (
+          <Suspense fallback={null}>
+            <MyProfilePanel onClose={() => setShowMyProfile(false)} />
           </Suspense>
         )}
       </AnimatePresence>
