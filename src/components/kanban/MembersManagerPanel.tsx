@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check, KeyRound, Eye, EyeOff, Copy, CheckCircle2, UserMinus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -732,7 +733,8 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
             )
           })}
 
-          {/* Modal de redefinir senha */}
+          {/* Modal de redefinir senha — portal para escapar do transform do painel */}
+          {createPortal(
           <AnimatePresence>
             {resetPasswordEmail && canChangeRoles && (
               <motion.div
@@ -921,8 +923,10 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
               </motion.div>
             )}
           </AnimatePresence>
+          , document.body)}
 
-          {/* Modal de confirmação de remoção */}
+          {/* Modal de confirmação de remoção — portal para escapar do transform do painel */}
+          {createPortal(
           <AnimatePresence>
             {confirmRemove && canRemoveMembers && (
               <motion.div
@@ -1016,6 +1020,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
               </motion.div>
             )}
           </AnimatePresence>
+          , document.body)}
 
           {/* Vazio */}
           {!loading && !error && members.length === 0 && (
