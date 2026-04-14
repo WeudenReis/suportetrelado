@@ -17,6 +17,7 @@ import {
 } from '../lib/supabase'
 import { compressCover, compressThumbnail } from '../lib/imageUtils'
 import CardAttachments from './card/CardAttachments'
+import { useOrg } from '../lib/org'
 import { logger } from '../lib/logger'
 import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
@@ -74,6 +75,7 @@ function renderCommentText(text: string): React.ReactNode {
 const TAG_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
 
 export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete, boardColumns = [] }: CardDetailModalProps) {
+  const { departmentId: userDeptId } = useOrg()
   const statusLabel = useCallback((id: string) => {
     const col = boardColumns.find(c => c.id === id)
     return col?.title || LEGACY_STATUS_MAP[id] || id
@@ -376,7 +378,9 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       setCoverImage(localPreview)
 
       const ts = Date.now()
-      const deptPrefix = ticket.department_id ? `${ticket.department_id}/` : 'shared/'
+      // Prioridade: dept do ticket → dept ativo do usuário → 'shared/' (tickets legados sem dept)
+      const resolvedDeptId = ticket.department_id ?? userDeptId ?? null
+      const deptPrefix = resolvedDeptId ? `${resolvedDeptId}/` : 'shared/'
       const coverPath = `${deptPrefix}${ticket.id}/cover_${ts}.webp`
       const thumbPath = `${deptPrefix}${ticket.id}/thumb_${ts}.webp`
 

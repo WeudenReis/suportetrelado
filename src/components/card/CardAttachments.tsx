@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Paperclip, Download, Trash2, Loader2, Video, FileText, Image as ImageIcon } from 'lucide-react'
 import { fetchAttachments, uploadAttachment, deleteAttachment } from '../../lib/supabase'
 import { compressAttachment } from '../../lib/imageUtils'
+import { useOrg } from '../../lib/org'
 import type { Attachment, Ticket } from '../../lib/supabase'
 
 interface CardAttachmentsProps {
@@ -12,6 +13,7 @@ interface CardAttachmentsProps {
 }
 
 export default function CardAttachments({ ticketId, ticketDepartmentId, user }: CardAttachmentsProps) {
+  const { departmentId: userDeptId } = useOrg()
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -26,7 +28,9 @@ export default function CardAttachments({ ticketId, ticketDepartmentId, user }: 
     setUploading(true)
     for (const file of Array.from(files)) {
       const compressed = await compressAttachment(file)
-      const att = await uploadAttachment(ticketId, compressed, user, ticketDepartmentId ?? undefined)
+      // Prioridade: dept do ticket → dept ativo do usuário → undefined (cai em 'shared/')
+      const resolvedDept = ticketDepartmentId ?? userDeptId ?? undefined
+      const att = await uploadAttachment(ticketId, compressed, user, resolvedDept)
       if (att) setAttachments(prev => [...prev, att])
     }
     setUploading(false)
