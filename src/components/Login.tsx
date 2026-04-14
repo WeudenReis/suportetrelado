@@ -535,29 +535,12 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                   </button>
                 </div>
 
-                {/* Link para cadastro */}
-                <p style={{
-                  textAlign: 'center', marginTop: 20, marginBottom: 0, fontSize: 13, color: '#6B7685',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                }}>
-                  Não tem uma conta?{' '}
-                  <button
-                    onClick={() => switchMode('register')}
-                    style={{
-                      background: 'none', border: 'none', color: '#25D066', cursor: 'pointer',
-                      fontWeight: 600, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
-                      textDecoration: 'none', padding: 0,
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
-                    onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
-                  >
-                    Criar conta
-                  </button>
-                </p>
+
               </motion.div>
             )}
 
-            {mode === 'register' && (
+            {/* Registro removido — somente admins criam usuários via painel */}
+            {false && (
               <motion.div key="register" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
                 {/* Formulário de cadastro */}
                 <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
