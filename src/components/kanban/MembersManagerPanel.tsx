@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check, KeyRound, Eye, EyeOff, Copy, CheckCircle2 } from 'lucide-react'
+import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check, KeyRound, Eye, EyeOff, Copy, CheckCircle2, UserMinus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrg, type OrgRole } from '../../lib/org'
 import { logger } from '../../lib/logger'
@@ -44,8 +44,18 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [resettingPassword, setResettingPassword] = useState(false)
   const [resetSuccess, setResetSuccess] = useState<string | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+  const [removingMember, setRemovingMember] = useState(false)
 
   const canChangeRoles = myRole === 'admin' && hasPermission('members:change_role')
+
+  // Email do usuário logado para impedir auto-remoção
+  const [myEmail, setMyEmail] = useState<string | null>(null)
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.email) setMyEmail(data.user.email.toLowerCase())
+    })
+  }, [])
 
   const fetchMembers = useCallback(async () => {
     setLoading(true)
@@ -181,6 +191,36 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
       logger.error('MembersPanel', 'Exceção ao alterar role', { error: String(err) })
     } finally {
       setUpdatingRole(false)
+    }
+  }, [organizationId])
+
+  const handleRemoveMember = useCallback(async (memberEmail: string) => {
+    setRemovingMember(true)
+    try {
+      // Remover de org_members
+      if (organizationId) {
+        const { error: omErr } = await supabase
+          .from('org_members')
+          .delete()
+          .eq('organization_id', organizationId)
+          .eq('user_email', memberEmail)
+        if (omErr) logger.warn('MembersPanel', 'Falha ao remover de org_members', { error: omErr.message })
+      }
+
+      // Remover de user_profiles
+      const { error: upErr } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('email', memberEmail)
+      if (upErr) logger.warn('MembersPanel', 'Falha ao remover de user_profiles', { error: upErr.message })
+
+      // Atualizar estado local
+      setMembers(prev => prev.filter(m => m.email !== memberEmail))
+      setConfirmRemove(null)
+    } catch (err) {
+      logger.error('MembersPanel', 'Exceção ao remover membro', { error: String(err) })
+    } finally {
+      setRemovingMember(false)
     }
   }, [organizationId])
 
@@ -548,6 +588,25 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
 
                         {/* Ações */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                          {/* Botão remover membro (admin only, não pode remover a si mesmo) */}
+                          {canChangeRoles && myEmail && member.email.toLowerCase() !== myEmail && (
+                            <button
+                              onClick={() => setConfirmRemove(member.email)}
+                              style={{
+                                width: 30, height: 30, borderRadius: 8, border: 'none',
+                                background: 'transparent',
+                                color: '#596773',
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.15s',
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#f87171' }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
+                              title="Remover membro"
+                            >
+                              <UserMinus size={14} />
+                            </button>
+                          )}
+
                           {/* Botão reset senha (admin only) */}
                           {canChangeRoles && (
                             <button
@@ -845,6 +904,89 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                         {resettingPassword ? 'Redefinindo...' : 'Redefinir senha'}
                       </button>
                     </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Modal de confirmação de remoção */}
+          <AnimatePresence>
+            {confirmRemove && canChangeRoles && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{
+                  position: 'fixed', inset: 0, zIndex: 60,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
+                }}
+                onClick={e => { if (e.target === e.currentTarget) setConfirmRemove(null) }}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                  style={{
+                    width: '100%', maxWidth: 380, borderRadius: 20, padding: '28px',
+                    background: '#22272B', border: '1px solid rgba(239,68,68,0.15)',
+                    boxShadow: '0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                    <div style={{
+                      width: 42, height: 42, borderRadius: 12,
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(239,68,68,0.2)',
+                    }}>
+                      <UserMinus size={20} style={{ color: '#fff' }} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: '#E5E7EB', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                        Remover membro
+                      </h3>
+                      <p style={{ fontSize: 12, color: '#596773', margin: '2px 0 0', fontFamily: "'Space Grotesk', sans-serif" }}>
+                        {confirmRemove}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p style={{ fontSize: 13, color: '#9FADBC', fontFamily: "'Space Grotesk', sans-serif", lineHeight: 1.5, margin: '0 0 20px' }}>
+                    Tem certeza que deseja remover este membro? Ele perderá acesso à plataforma e precisará ser adicionado novamente.
+                  </p>
+
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setConfirmRemove(null)}
+                      style={{
+                        padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        background: 'rgba(255,255,255,0.04)', color: '#9FADBC', border: '1px solid rgba(255,255,255,0.08)',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => handleRemoveMember(confirmRemove)}
+                      disabled={removingMember}
+                      style={{
+                        padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        background: '#ef4444', color: '#fff', border: 'none',
+                        cursor: removingMember ? 'not-allowed' : 'pointer',
+                        opacity: removingMember ? 0.6 : 1, transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { if (!removingMember) e.currentTarget.style.background = '#dc2626' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#ef4444' }}
+                    >
+                      {removingMember ? 'Removendo...' : 'Remover'}
+                    </button>
                   </div>
                 </motion.div>
               </motion.div>
