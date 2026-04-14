@@ -667,7 +667,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                   {/* Botão Criar conta */}
                   <button
                     type="submit"
-                    disabled={loadingRegister || !isPasswordValid(registerPassword) || registerPassword !== registerConfirmPassword || (!!recaptchaSiteKey && !captchaToken)}
+                    disabled={loadingRegister || !isPasswordValid(registerPassword) || (!!recaptchaSiteKey && !captchaToken)}
                     onMouseEnter={e => { if (!loadingRegister) e.currentTarget.style.background = '#1BAD53' }}
                     onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
                     style={{
@@ -675,7 +675,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                       padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
                       fontFamily: "'Space Grotesk', sans-serif", cursor: loadingRegister ? 'not-allowed' : 'pointer',
                       background: '#25D066', border: 'none', color: '#fff',
-                      opacity: (loadingRegister || !isPasswordValid(registerPassword) || registerPassword !== registerConfirmPassword) ? 0.5 : 1,
+                      opacity: (loadingRegister || !isPasswordValid(registerPassword)) ? 0.5 : 1,
                       transition: 'background 0.15s, opacity 0.15s',
                       boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
                       marginTop: 4,

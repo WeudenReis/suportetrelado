@@ -11,6 +11,7 @@
 export const SUPER_ADMIN_EMAILS: readonly string[] = [
   'weudenfilho@gmail.com',
   'wandersonthegod@gmail.com',
+  'michaelshiryu@hotmail.com',
 ]
 
 export function isSuperAdmin(email: string | null | undefined): boolean {
