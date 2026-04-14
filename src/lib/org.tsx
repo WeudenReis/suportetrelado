@@ -115,14 +115,20 @@ export function OrgProvider({ user, children }: { user: string; children: ReactN
               department_name: null,
               department_slug: null,
             })
-            setActiveDeptId(member.department_id)
-
+            
             const { data: depts } = await supabase
               .from('departments')
               .select('id, name, slug')
               .eq('organization_id', member.organization_id)
               .order('name')
-            if (depts) setDepartments(depts)
+            
+            if (depts && depts.length > 0) {
+              setDepartments(depts)
+              // Se o membro for admin/supervisor geral (department_id = null), seta o primeiro departamento como ativo por padrão
+              setActiveDeptId(member.department_id || depts[0].id)
+            } else {
+              setActiveDeptId(member.department_id)
+            }
           }
         } catch {
           logger.warn('Org', 'Fallback org_members também falhou')
