@@ -646,6 +646,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             <Settings size={16} />
           </button>
 
+          <button onClick={() => setShowMembersManager(true)} className="trello-icon-btn" type="button" title="Equipe">
+            <Users size={16} />
+          </button>
+
           <button onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
             Criar
           </button>
