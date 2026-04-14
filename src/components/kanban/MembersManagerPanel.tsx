@@ -588,8 +588,8 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
 
                         {/* Ações */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                          {/* Botão remover membro (admin only, não pode remover a si mesmo) */}
-                          {canChangeRoles && myEmail && member.email.toLowerCase() !== myEmail && (
+                          {/* Botão remover membro (admin only, não remove outros admins nem a si mesmo) */}
+                          {canChangeRoles && myEmail && member.email.toLowerCase() !== myEmail && member.role !== 'admin' && (
                             <button
                               onClick={() => setConfirmRemove(member.email)}
                               style={{
