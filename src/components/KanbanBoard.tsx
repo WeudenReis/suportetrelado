@@ -10,7 +10,7 @@ import { parseTag } from '../lib/tagUtils'
 const CardDetailModal = lazy(() => import('./CardDetailModal'))
 const InstanceModal = lazy(() => import('./InstanceModal'))
 const ArchivedPanel = lazy(() => import('./ArchivedPanel').then(m => ({ default: m.ArchivedPanel })))
-import { supabase, fetchTickets, fetchTicketsCount, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
+import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
 import { insertBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShortcuts'
 import type { Ticket, TicketStatus, BoardLabel } from '../lib/supabase'
@@ -113,11 +113,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     selectedCardIds, setSelectedCardIds,
     toggleBulkSelect, handleBulkMove, handleBulkArchive,
   } = useKanbanBulkActions({ showToast, setTickets })
-  const PAGE_SIZE = 50
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalTickets, setTotalTickets] = useState(0)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const hasMoreTickets = tickets.length < totalTickets
 
   // Filtros + busca (full-text server-side com fallback local) extraídos para hook
   const {
@@ -148,14 +143,12 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   } = useKanbanWallpaper({ user, onToast: showToast })
 
   // --- Load tickets from Supabase ---
-  const loadTickets = useCallback(async (page = 1) => {
+  const loadTickets = useCallback(async () => {
     try {
-      const [data, attCounts, count] = await Promise.all([
-        fetchTickets({ page, pageSize: PAGE_SIZE, departmentId: departmentId ?? undefined }),
+      const [data, attCounts] = await Promise.all([
+        fetchTickets({ departmentId: departmentId ?? undefined }),
         fetchAttachmentCounts(departmentId ?? undefined),
-        fetchTicketsCount({ departmentId: departmentId ?? undefined }),
       ])
-      setTotalTickets(count)
       const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
 
       // Processar regras automáticas antes de setar os tickets
@@ -175,29 +168,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     }
   }, [applyRulesToBatch, departmentId, showToast])
 
-  // --- Load more tickets ---
-  const loadMoreTickets = useCallback(async () => {
-    const nextPage = currentPage + 1
-    setLoadingMore(true)
-    try {
-      const [data, attCounts] = await Promise.all([
-        fetchTickets({ page: nextPage, pageSize: PAGE_SIZE, departmentId: departmentId ?? undefined }),
-        fetchAttachmentCounts(departmentId ?? undefined),
-      ])
-      const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
-      setTickets(prev => {
-        const existingIds = new Set(prev.map(t => t.id))
-        const newTickets = loaded.filter(t => !existingIds.has(t.id))
-        return [...prev, ...newTickets]
-      })
-      setCurrentPage(nextPage)
-    } catch (err) {
-      logger.error('KanbanBoard', 'Falha ao carregar mais tickets', { error: String(err) })
-      showToast('Erro ao carregar mais tickets', 'err')
-    } finally {
-      setLoadingMore(false)
-    }
-  }, [currentPage, departmentId, showToast])
 
   // Helper: aplica regras automáticas a um ticket individual (via hook)
   // Funções 'applyRulesToTicket' e 'applyRulesToBatch' agora vêm de useAutoRules()
@@ -371,9 +341,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [inlineCreating, setInlineCreating] = useState(false)
   const handleInlineAdd = async (col: TicketStatus) => {
     if (!inlineTitle.trim()) return
+    if (!departmentId) { showToast('Selecione um departamento antes de criar um cartão', 'err'); return }
     setInlineCreating(true)
     try {
-      const created = await insertTicket({ department_id: departmentId ?? '', title: inlineTitle.trim(), description: '', status: col, priority: 'medium', assignee: user })
+      const created = await insertTicket({ department_id: departmentId, title: inlineTitle.trim(), description: '', status: col, priority: 'medium', assignee: user })
       setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
       setInlineTitle('')
       setAddingTo(null)
@@ -386,8 +357,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
-    setCurrentPage(1)
-    await loadTickets(1)
+    await loadTickets()
     setRefreshing(false)
   }, [loadTickets])
 
@@ -559,11 +529,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
           <button onClick={handleRefresh} className="trello-icon-btn" type="button" title="Atualizar tickets">
             <RefreshCw size={16} className={clsx(refreshing && 'animate-spin')} />
           </button>
-          {totalTickets > 0 && (
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ color: 'var(--text-muted)', background: 'var(--bg-card)' }} title={`${tickets.length} de ${totalTickets} tickets carregados`}>
-              {tickets.length}/{totalTickets}
-            </span>
-          )}
 
           <button
             className="trello-icon-btn"
@@ -1060,19 +1025,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                     />
                                   ))}
                               </SortableContext>
-                              {/* Botão "Carregar mais" — paginação */}
-                              {hasMoreTickets && !searchQuery.trim() && (
-                                <button
-                                  onClick={loadMoreTickets}
-                                  disabled={loadingMore}
-                                  className="w-full py-2 mt-1 rounded-lg text-xs font-medium transition-colors"
-                                  style={{ color: 'var(--text-muted)', background: 'transparent', border: '1px dashed var(--border-subtle)', cursor: loadingMore ? 'wait' : 'pointer' }}
-                                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
-                                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
-                                >
-                                  {loadingMore ? <><Loader2 size={12} className="inline mr-1 animate-spin" />Carregando...</> : `Carregar mais tickets`}
-                                </button>
-                              )}
                             </div>
                           </DroppableColumn>
 
@@ -1615,9 +1567,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             columns={allColumns}
             initialStatus={(allColumns[0]?.id || 'backlog') as TicketStatus}
             onAdd={async (ticket) => {
+              if (!departmentId) { showToast('Selecione um departamento antes de criar um cartão', 'err'); return }
               setCreatingTicket(true)
               try {
-                const created = await insertTicket({ department_id: departmentId ?? '', title: ticket.title.trim(), description: ticket.description || '', status: ticket.status, priority: ticket.priority, cliente: ticket.cliente || '', instancia: ticket.instancia || '', assignee: user })
+                const created = await insertTicket({ department_id: departmentId, title: ticket.title.trim(), description: ticket.description || '', status: ticket.status, priority: ticket.priority, cliente: ticket.cliente || '', instancia: ticket.instancia || '', assignee: user })
                 setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
                 setShowAddModal(false)
                 showToast('Ticket criado!', 'ok')
