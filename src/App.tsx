@@ -15,6 +15,7 @@ import { insertComment } from './lib/api/comments'
 import { insertTicket, updateTicket } from './lib/api/tickets'
 import type { TicketInsert } from './lib/supabase'
 import { isSuperAdmin } from './lib/superAdmins'
+import { useOrg } from './lib/org'
 import Login from './components/Login'
 import KanbanBoard from './components/KanbanBoard'
 import BottomNav from './components/BottomNav'
@@ -253,6 +254,114 @@ function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
   )
 }
 
+/* ── Tela de conta autenticada mas sem vínculo org ── */
+function PendingAccessScreen({ user, onLogout }: { user: string; onLogout: () => void }) {
+  return (
+    <div style={{
+      minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: '#1d2125', fontFamily: "'Space Grotesk', sans-serif",
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 440, margin: '0 24px',
+        background: '#22272b', borderRadius: 20, padding: '44px 40px',
+        border: '1px solid rgba(255,255,255,0.06)',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+      }}>
+        {/* Ícone */}
+        <div style={{
+          width: 64, height: 64, borderRadius: 18,
+          background: 'linear-gradient(135deg, #25D066 0%, #1BAD53 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 24,
+          boxShadow: '0 8px 24px rgba(37,208,102,0.25)',
+        }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        </div>
+
+        {/* Título */}
+        <h1 style={{
+          fontFamily: "'Paytone One', sans-serif", fontSize: 20, fontWeight: 900,
+          color: '#E5E7EB', margin: '0 0 8px', textAlign: 'center', letterSpacing: '-0.01em',
+        }}>
+          Acesso em Configuração
+        </h1>
+
+        {/* Subtítulo */}
+        <p style={{
+          fontSize: 13, color: '#8C96A3', textAlign: 'center', lineHeight: 1.6,
+          margin: '0 0 28px', maxWidth: 320,
+        }}>
+          Conta autenticada com sucesso. Seu acesso aos canais do Kanban aguarda a
+          finalização do vínculo por um <strong style={{ color: '#b6c2cf' }}>Administrador</strong>.
+        </p>
+
+        {/* E-mail */}
+        <div style={{
+          width: '100%', padding: '10px 14px', borderRadius: 10, marginBottom: 28,
+          background: 'rgba(37,208,102,0.06)', border: '1px solid rgba(37,208,102,0.14)',
+          fontSize: 12, color: '#25D066', textAlign: 'center', wordBreak: 'break-all',
+        }}>
+          {user}
+        </div>
+
+        {/* Instruções */}
+        <div style={{
+          width: '100%', padding: '14px 16px', borderRadius: 10, marginBottom: 28,
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+          fontSize: 12, color: '#6B7685', lineHeight: 1.7,
+        }}>
+          <p style={{ margin: '0 0 6px', fontWeight: 700, color: '#8C96A3' }}>Próximos passos:</p>
+          <p style={{ margin: 0 }}>① O administrador adicionará sua conta a um departamento</p>
+          <p style={{ margin: 0 }}>② Após o vínculo, faça logout e entre novamente</p>
+        </div>
+
+        {/* Botão sair */}
+        <button
+          onClick={onLogout}
+          style={{
+            width: '100%', padding: '12px 0', borderRadius: 12, fontSize: 13, fontWeight: 700,
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+            color: '#8C96A3', cursor: 'pointer', transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = '#b6c2cf' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#8C96A3' }}
+        >
+          Sair da conta
+        </button>
+      </div>
+
+      <p style={{
+        position: 'fixed', bottom: 20, left: 0, right: 0, textAlign: 'center',
+        fontSize: 11, color: '#3B4754',
+      }}>
+        © {new Date().getFullYear()} chatPro
+      </p>
+    </div>
+  )
+}
+
+/* ── Gate que bloqueia o app enquanto a org não está resolvida ── */
+function OrgGate({ user, onLogout, children }: { user: string; onLogout: () => void; children: React.ReactNode }) {
+  const { permissions, loading } = useOrg()
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1d2125' }}>
+        <Loader2 size={28} className="animate-spin" style={{ color: '#25D066' }} />
+      </div>
+    )
+  }
+
+  if (!permissions) {
+    return <PendingAccessScreen user={user} onLogout={onLogout} />
+  }
+
+  return <>{children}</>
+}
+
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -361,19 +470,21 @@ export default function App() {
           ) : (
             <ErrorBoundary>
               <OrgProvider user={user!}>
-                <NotificationProvider user={user!}>
-                  <AnnouncementProvider>
-                    <AppContent
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    user={user!}
-                    plannerTickets={plannerTickets}
-                    openTicketId={openTicketId}
-                    setOpenTicketId={setOpenTicketId}
-                    onLogout={handleLogout}
-                  />
-                </AnnouncementProvider>
-                </NotificationProvider>
+                <OrgGate user={user!} onLogout={handleLogout}>
+                  <NotificationProvider user={user!}>
+                    <AnnouncementProvider>
+                      <AppContent
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
+                        user={user!}
+                        plannerTickets={plannerTickets}
+                        openTicketId={openTicketId}
+                        setOpenTicketId={setOpenTicketId}
+                        onLogout={handleLogout}
+                      />
+                    </AnnouncementProvider>
+                  </NotificationProvider>
+                </OrgGate>
               </OrgProvider>
             </ErrorBoundary>
           )}
