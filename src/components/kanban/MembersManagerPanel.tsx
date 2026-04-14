@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check, KeyRound, Eye, EyeOff, Copy, CheckCircle2, UserMinus } from 'lucide-react'
+import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check, KeyRound, Eye, EyeOff, Copy, CheckCircle2, UserMinus, Pencil } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useOrg, type OrgRole } from '../../lib/org'
 import { logger } from '../../lib/logger'
@@ -48,6 +48,12 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
   const [removingMember, setRemovingMember] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
+
+  // Edição inline de nome próprio
+  const [editingNameEmail, setEditingNameEmail] = useState<string | null>(null)
+  const [editingNameValue, setEditingNameValue] = useState('')
+  const [savingName, setSavingName] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   const canChangeRoles = myRole === 'admin' && hasPermission('members:change_role')
   const canRemoveMembers = myRole === 'admin' && hasPermission('members:remove')
@@ -196,6 +202,31 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
       setUpdatingRole(false)
     }
   }, [organizationId])
+
+  const handleSaveName = useCallback(async () => {
+    if (!editingNameEmail) return
+    const trimmed = editingNameValue.trim()
+    if (!trimmed) { setEditingNameEmail(null); return }
+    setSavingName(true)
+    try {
+      const { error: upErr } = await supabase
+        .from('user_profiles')
+        .update({ name: trimmed })
+        .eq('email', editingNameEmail)
+      if (upErr) {
+        logger.error('MembersPanel', 'Falha ao salvar nome', { error: upErr.message })
+        return
+      }
+      setMembers(prev => prev.map(m =>
+        m.email === editingNameEmail ? { ...m, name: trimmed } : m
+      ))
+      setEditingNameEmail(null)
+    } catch (err) {
+      logger.error('MembersPanel', 'Exceção ao salvar nome', { error: String(err) })
+    } finally {
+      setSavingName(false)
+    }
+  }, [editingNameEmail, editingNameValue])
 
   const handleRemoveMember = useCallback(async (memberEmail: string) => {
     setRemovingMember(true)
@@ -554,24 +585,97 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
 
                         {/* Info */}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{
-                              fontSize: 14, fontWeight: 600, color: '#E5E7EB',
-                              fontFamily: "'Space Grotesk', sans-serif",
-                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                            }}>
-                              {member.name}
-                            </span>
-                            {online && (
+                          {/* Linha do nome — modo edição ou exibição */}
+                          {editingNameEmail === member.email ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <input
+                                ref={nameInputRef}
+                                autoFocus
+                                value={editingNameValue}
+                                onChange={e => setEditingNameValue(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleSaveName()
+                                  if (e.key === 'Escape') setEditingNameEmail(null)
+                                }}
+                                disabled={savingName}
+                                style={{
+                                  flex: 1, minWidth: 0,
+                                  padding: '3px 8px', borderRadius: 7, fontSize: 13,
+                                  fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600,
+                                  color: '#E5E7EB', background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid #25D066',
+                                  outline: 'none',
+                                  boxShadow: '0 0 0 2px rgba(37,208,102,0.15)',
+                                  transition: 'box-shadow 0.15s',
+                                }}
+                              />
+                              <button
+                                onClick={handleSaveName}
+                                disabled={savingName}
+                                title="Confirmar"
+                                style={{
+                                  width: 22, height: 22, borderRadius: 6, border: 'none',
+                                  background: 'rgba(37,208,102,0.18)', color: '#25D066',
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  flexShrink: 0, transition: 'background 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.32)' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.18)' }}
+                              >
+                                <Check size={12} />
+                              </button>
+                              <button
+                                onClick={() => setEditingNameEmail(null)}
+                                title="Cancelar"
+                                style={{
+                                  width: 22, height: 22, borderRadius: 6, border: 'none',
+                                  background: 'rgba(255,255,255,0.05)', color: '#596773',
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  flexShrink: 0, transition: 'background 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#596773' }}
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                               <span style={{
-                                fontSize: 9, fontWeight: 600, color: '#25D066',
+                                fontSize: 14, fontWeight: 600, color: '#E5E7EB',
                                 fontFamily: "'Space Grotesk', sans-serif",
-                                background: 'rgba(37,208,102,0.1)', padding: '1px 6px', borderRadius: 4,
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                               }}>
-                                online
+                                {member.name}
                               </span>
-                            )}
-                          </div>
+                              {online && (
+                                <span style={{
+                                  fontSize: 9, fontWeight: 600, color: '#25D066',
+                                  fontFamily: "'Space Grotesk', sans-serif",
+                                  background: 'rgba(37,208,102,0.1)', padding: '1px 6px', borderRadius: 4,
+                                  flexShrink: 0,
+                                }}>
+                                  online
+                                </span>
+                              )}
+                              {myEmail && member.email.toLowerCase() === myEmail && (
+                                <button
+                                  onClick={() => { setEditingNameValue(member.name); setEditingNameEmail(member.email) }}
+                                  title="Editar meu nome"
+                                  style={{
+                                    width: 18, height: 18, borderRadius: 5, border: 'none',
+                                    background: 'transparent', color: '#4B5563',
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    flexShrink: 0, padding: 0, transition: 'color 0.15s',
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.color = '#25D066' }}
+                                  onMouseLeave={e => { e.currentTarget.style.color = '#4B5563' }}
+                                >
+                                  <Pencil size={11} />
+                                </button>
+                              )}
+                            </div>
+                          )}
                           <span style={{
                             fontSize: 11, color: '#596773',
                             fontFamily: "'Space Grotesk', sans-serif",
