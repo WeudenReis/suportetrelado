@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare, Loader2 } from 'lucide-react';
 import { animate, useReducedMotion } from 'framer-motion';
+import clsx from 'clsx';
 import { updateTicket, type Ticket } from '../lib/supabase';
 import { logger } from '../lib/logger';
 import { parseTag } from './CardDetailModal';
@@ -200,7 +201,14 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
   return (
     <div
       ref={cardRef}
-      className={`${styles.card} ${card.is_completed ? styles.cardCompleted : ''} ${isDragging ? styles.cardDragging : ''} ${compact ? styles.cardCompact : ''} ${slaClass} ${isMutatingProp ? styles.cardMutating : ''}`}
+      className={clsx(
+        styles.card,
+        card.is_completed && styles.cardCompleted,
+        isDragging && styles.cardDragging,
+        compact && styles.cardCompact,
+        slaClass,
+        isMutatingProp && styles.cardMutating,
+      )}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -227,7 +235,11 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
           )}
           {/* Check */}
           <button
-            className={`${styles.checkBtn} ${card.is_completed ? styles.checkBtnDone : ''} ${isHovered || card.is_completed ? styles.checkBtnVisible : ''}`}
+            className={clsx(
+              styles.checkBtn,
+              card.is_completed && styles.checkBtnDone,
+              (isHovered || card.is_completed) && styles.checkBtnVisible,
+            )}
             onClick={handleToggleComplete}
             onPointerDown={e => e.stopPropagation()}
             title={card.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
@@ -236,7 +248,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
             {card.is_completed && <Check size={11} strokeWidth={3} />}
           </button>
           {/* Título */}
-          <p className={`${styles.compactTitle} ${card.is_completed ? styles.titleDone : ''}`}>{card.title}</p>
+          <p className={clsx(styles.compactTitle, card.is_completed && styles.titleDone)}>{card.title}</p>
           {/* Avatar */}
           {card.assignee && (() => {
             const { initial, tooltip } = getAssigneeDisplay(card.assignee)
@@ -248,7 +260,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
           })()}
           {/* Ações */}
           {!isEditing && (
-            <div className={`${styles.actions} ${isHovered ? styles.actionsVisible : ''}`}>
+            <div className={clsx(styles.actions, isHovered && styles.actionsVisible)}>
               <button className={styles.actionBtn} onClick={handleArchive} onPointerDown={e => e.stopPropagation()} title="Arquivar" type="button"><Archive size={12} /></button>
             </div>
           )}
@@ -309,7 +321,11 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
 
           {/* Botão de check (esquerda) — só no hover ou se concluído */}
           <button
-            className={`${styles.checkBtn} ${card.is_completed ? styles.checkBtnDone : ''} ${isHovered || card.is_completed ? styles.checkBtnVisible : ''}`}
+            className={clsx(
+              styles.checkBtn,
+              card.is_completed && styles.checkBtnDone,
+              (isHovered || card.is_completed) && styles.checkBtnVisible,
+            )}
             onClick={handleToggleComplete}
             onPointerDown={e => e.stopPropagation()}
             title={card.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
@@ -332,14 +348,14 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
               onClick={e => e.stopPropagation()}
             />
           ) : (
-            <p className={`${styles.title} ${card.is_completed ? styles.titleDone : ''}`}>
+            <p className={clsx(styles.title, card.is_completed && styles.titleDone)}>
               {card.title}
             </p>
           )}
 
           {/* Botões de ação (direita) — só no hover */}
           {!isEditing && (
-            <div className={`${styles.actions} ${isHovered ? styles.actionsVisible : ''}`}>
+            <div className={clsx(styles.actions, isHovered && styles.actionsVisible)}>
               <button
                 className={styles.actionBtn}
                 onClick={handleArchive}
@@ -387,7 +403,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
                 </span>
               )}
               {hasChecklist && (
-                <span className={`${styles.badge} ${checkDone === checkTotal ? styles.badgeDone : ''}`} title={`Checklist: ${checkDone}/${checkTotal}`}>
+                <span className={clsx(styles.badge, checkDone === checkTotal && styles.badgeDone)} title={`Checklist: ${checkDone}/${checkTotal}`}>
                   <CheckSquare size={12} />
                   {checkDone}/{checkTotal}
                 </span>
@@ -404,7 +420,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
               const elapsed = getElapsedInfo(card.created_at);
               if (!elapsed) return null;
               return (
-                <span className={`${styles.footerBadge} ${elapsed.isOverdue ? styles.footerOverdue : ''}`}>
+                <span className={clsx(styles.footerBadge, elapsed.isOverdue && styles.footerOverdue)}>
                   <Clock size={12} />
                   {elapsed.label}
                 </span>

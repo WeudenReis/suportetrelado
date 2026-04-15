@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { ArchiveRestore, Trash2, X, Search } from 'lucide-react';
+import clsx from 'clsx';
 import styles from './ArchivedPanel.module.css';
 import { useOrg } from '../lib/org';
 
@@ -138,13 +139,13 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
         {/* Tabs */}
         <div className={styles.tabs}>
           <button
-            className={`${styles.tab} ${tab === 'cards' ? styles.tabActive : ''}`}
+            className={clsx(styles.tab, tab === 'cards' && styles.tabActive)}
             onClick={() => setTab('cards')} type="button"
           >
             Cartões ({filteredCards.length})
           </button>
           <button
-            className={`${styles.tab} ${tab === 'lists' ? styles.tabActive : ''}`}
+            className={clsx(styles.tab, tab === 'lists' && styles.tabActive)}
             onClick={() => setTab('lists')} type="button"
           >
             Listas ({filteredLists.length})
