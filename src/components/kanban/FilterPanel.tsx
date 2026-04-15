@@ -71,7 +71,7 @@ export default function FilterPanel({
         <select value={filterLabel} onChange={e => onFilterLabelChange(e.target.value)} style={{ ...filterSelectStyle(filterLabel !== 'all'), maxWidth: 180 }}>
           <option value="all">Etiqueta</option>
           {uniqueLabels.map(l => {
-            const name = l.includes('::') ? l.split('::')[0] : l
+            const name = l.includes('|') ? l.split('|')[0] : l
             return <option key={l} value={l}>{name}</option>
           })}
         </select>
