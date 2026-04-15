@@ -156,14 +156,15 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
   }, [filtered, sortKey, sortAsc])
 
   const total = filtered.length
-  const resolvedCount = filtered.filter(t => t.status === 'resolved').length
+  const completedCount = filtered.filter(t => !!t.is_completed).length
+  const resolvedCount = completedCount  // "resolvido" = is_completed (checkbox)
   const highCount = filtered.filter(t => t.priority === 'high').length
-  const completedCount = filtered.filter(t => t.is_completed).length
-  const resolutionRate = total > 0 ? Math.round((resolvedCount / total) * 100) : 0
-  const backlogCount = filtered.filter(t => t.status === 'backlog').length
+  const resolutionRate = total > 0 ? Math.round((completedCount / total) * 100) : 0
+  const firstColId = columns[0]?.id ?? 'backlog'
+  const backlogCount = filtered.filter(t => t.status === firstColId).length
 
   const avgHours = useMemo(() => {
-    const res = filtered.filter(t => t.status === 'resolved')
+    const res = filtered.filter(t => !!t.is_completed)
     if (!res.length) return 0
     const ms = res.reduce((s, t) => s + (new Date(t.updated_at).getTime() - new Date(t.created_at).getTime()), 0)
     return Math.round(ms / res.length / 3_600_000)
@@ -219,13 +220,19 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     return Array.from(set).sort()
   }, [active])
 
+  const colLabelMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    columns.forEach(c => { m[c.id] = c.title })
+    return m
+  }, [columns])
+
   const handleExport = useCallback(() => {
-    const h = ['ID', 'Título', 'Status', 'Prioridade', 'Responsável', 'Cliente', 'Criado em', 'Atualizado em', 'Dias aberto']
-    const rows = sorted.map(t => [t.id, `"${(t.title || '').replace(/"/g, '""')}"`, STATUS_L[t.status] || t.status, PRIORITY_L[t.priority] || t.priority, t.assignee || '', t.cliente || '', t.created_at, t.updated_at, daysBetween(t.created_at, t.updated_at)])
+    const h = ['ID', 'Título', 'Status', 'Concluído', 'Prioridade', 'Responsável', 'Cliente', 'Criado em', 'Atualizado em', 'Dias aberto']
+    const rows = sorted.map(t => [t.id, `"${(t.title || '').replace(/"/g, '""')}"`, colLabelMap[t.status] || t.status, t.is_completed ? 'Sim' : 'Não', PRIORITY_L[t.priority] || t.priority, t.assignee || '', t.cliente || '', t.created_at, t.updated_at, daysBetween(t.created_at, t.updated_at)])
     const csv = [h.join(','), ...rows.map(r => r.join(','))].join('\n')
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })), download: `dashboard-${new Date().toISOString().slice(0, 10)}.csv` })
     a.click()
-  }, [sorted])
+  }, [sorted, colLabelMap])
 
   const handleExportPDF = useCallback(async () => {
     const { jsPDF } = await import('jspdf')
@@ -306,17 +313,16 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     setColor('#E5E7EB'); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
     doc.text('STATUS DO PIPELINE', margin, y); y += 5
     setDraw('#1e2a3a'); doc.setLineWidth(0.3); doc.line(margin, y, W - margin, y); y += 4
-    const statusEntries = Object.entries(STATUS_L)
-    const maxSt = Math.max(...statusEntries.map(([k]) => statusDist[k] || 0), 1)
-    statusEntries.forEach(([k, label]) => {
-      const val = statusDist[k] || 0
+    const maxSt = Math.max(...columns.map(c => statusDist[c.id] || 0), 1)
+    columns.forEach(col => {
+      const val = statusDist[col.id] || 0
       const pct = val / maxSt
       const barMaxW = contentW - 42
       checkPage(10)
       setColor('#8C96A3'); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal')
-      doc.text(label, margin, y + 4)
+      doc.text(col.title.slice(0, 18), margin, y + 4)
       setFill('#1e2a3a'); doc.roundedRect(margin + 38, y, barMaxW, 6, 1, 1, 'F')
-      const bColor = STATUS_C[k] || '#579dff'
+      const bColor = col.dot_color || '#579dff'
       setFill(bColor); doc.roundedRect(margin + 38, y, Math.max(barMaxW * pct, 2), 6, 1, 1, 'F')
       setColor('#E5E7EB'); doc.setFontSize(6.5)
       doc.text(String(val), margin + 38 + barMaxW + 2, y + 4.5)
@@ -398,13 +404,13 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
       const dias = daysBetween(t.created_at, new Date().toISOString())
       const rowData = [
         (t.title || '').slice(0, 38),
-        STATUS_L[t.status] || t.status,
+        (colLabelMap[t.status] || t.status).slice(0, 16),
         PRIORITY_L[t.priority] || t.priority,
         (t.assignee || '—').split('@')[0].slice(0, 20),
         t.created_at.slice(0, 10),
         `${dias}d`,
       ]
-      const rowColors = ['#B6C2CF', STATUS_C[t.status] || '#B6C2CF', PRIORITY_C[t.priority] || '#B6C2CF', '#8C96A3', '#596773', dias > 7 ? '#ef5c48' : dias > 3 ? '#e2b203' : '#4bce97']
+      const rowColors = ['#B6C2CF', columns.find(c => c.id === t.status)?.dot_color || '#B6C2CF', PRIORITY_C[t.priority] || '#B6C2CF', '#8C96A3', '#596773', dias > 7 ? '#ef5c48' : dias > 3 ? '#e2b203' : '#4bce97']
       let rx = margin
       rowData.forEach((val, vi) => {
         setColor(rowColors[vi]); doc.setFontSize(6.5); doc.setFont('helvetica', vi === 0 ? 'bold' : 'normal')
@@ -429,7 +435,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     }
 
     doc.save(`dashboard-executivo-${new Date().toISOString().slice(0, 10)}.pdf`)
-  }, [sorted, total, highCount, resolvedCount, resolutionRate, avgHours, backlogCount, statusDist, priorityDist, memberDist, dateRange, customStart, customEnd])
+  }, [sorted, total, highCount, completedCount, resolutionRate, avgHours, backlogCount, statusDist, priorityDist, memberDist, dateRange, customStart, customEnd, columns, colLabelMap])
 
   const TABS = [
     { key: 'overview' as const, label: 'Visão Geral', icon: <BarChart3 size={13} /> },
@@ -520,15 +526,14 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
         <div style={{ display: 'flex', gap: 8, padding: '10px 28px', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', flexShrink: 0, background: '#0d1520' }}>
           <Filter size={12} color="#596773" />
           <span style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Filtrar:</span>
-          {[
-            { val: filterStatus, set: setFilterStatus, opts: STATUS_L, placeholder: 'Todos status' },
-            { val: filterPriority, set: setFilterPriority, opts: PRIORITY_L, placeholder: 'Todas prioridades' },
-          ].map((f, i) => (
-            <select key={i} value={f.val} onChange={e => f.set(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
-              <option value="all">{f.placeholder}</option>
-              {Object.entries(f.opts).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          ))}
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
+            <option value="all">Todos status</option>
+            {columns.map(col => <option key={col.id} value={col.id}>{col.title}</option>)}
+          </select>
+          <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
+            <option value="all">Todas prioridades</option>
+            {Object.entries(PRIORITY_L).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
           <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
             <option value="all">Todos responsáveis</option>
             {allAssignees.map(a => <option key={a} value={a}>{a.split('@')[0]}</option>)}
@@ -550,11 +555,11 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* KPIs */}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <KPI icon={<Activity size={13} />}    label="Total tickets"   value={total}                color="#25D066" sub={`${backlogCount} em backlog`} />
+                <KPI icon={<Activity size={13} />}    label="Total ativos"   value={active.length}        color="#25D066" sub={`${backlogCount} em ${columns[0]?.title ?? 'backlog'}`} />
                 <KPI icon={<ShieldAlert size={13} />} label="Alta prioridade" value={highCount}            color="#ef5c48" sub="tickets urgentes" />
-                <KPI icon={<CheckCircle2 size={13} />} label="Taxa resolução" value={`${resolutionRate}%`} color="#4bce97" sub={`${resolvedCount} resolvidos`} />
-                <KPI icon={<Clock size={13} />}        label="Tempo médio"    value={`${avgHours}h`}        color="#e2b203" sub="para resolver" />
-                <KPI icon={<Target size={13} />}       label="Concluídos"     value={completedCount}        color="#a259ff" sub={`de ${total} tickets`} />
+                <KPI icon={<CheckCircle2 size={13} />} label="Taxa resolução" value={`${resolutionRate}%`} color="#4bce97" sub={`${completedCount} concluídos`} />
+                <KPI icon={<Clock size={13} />}        label="Tempo médio"    value={`${avgHours}h`}        color="#e2b203" sub="para concluir" />
+                <KPI icon={<Target size={13} />}       label="Concluídos"     value={completedCount}        color="#a259ff" sub={`de ${total} no filtro`} />
               </div>
 
               {/* Charts 2-column */}
@@ -562,9 +567,9 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 {/* Status */}
                 <div style={cardStyle}>
                   <SectionH icon={<Columns3 size={12} />} title="Status do pipeline" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {Object.entries(STATUS_L).map(([k, v]) => (
-                      <HBar key={k} label={v} value={statusDist[k] || 0} max={maxStatus} color={STATUS_C[k]} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', maxHeight: 220, paddingRight: 4 }} className="inbox-scroll">
+                    {columns.map(col => (
+                      <HBar key={col.id} label={col.title} value={statusDist[col.id] || 0} max={maxStatus} color={col.dot_color || '#579dff'} />
                     ))}
                   </div>
                 </div>
