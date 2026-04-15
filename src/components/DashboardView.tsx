@@ -88,13 +88,6 @@ function MetricCard({ icon, label, value, color, sub }: { icon: React.ReactNode;
   )
 }
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  backlog:      { label: 'Backlog',         color: '#579dff' },
-  in_progress:  { label: 'Em Progresso',    color: '#e2b203' },
-  waiting_devs: { label: 'Aguardando Devs', color: '#f5a623' },
-  resolved:     { label: 'Resolvido',       color: '#4bce97' },
-}
-
 const PRIORITY_LABELS: Record<string, { label: string; color: string }> = {
   high:   { label: 'Alta',   color: '#ef5c48' },
   medium: { label: 'Média',  color: '#e2b203' },
@@ -149,32 +142,40 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
 
   // ── Métricas ──
   const totalActive = active.length
-  const resolved = active.filter(t => t.status === 'resolved').length
+  const completed = active.filter(t => !!t.is_completed).length
   const highPriority = active.filter(t => t.priority === 'high').length
-  const completed = active.filter(t => t.is_completed).length
+  const firstColId = columns[0]?.id ?? 'backlog'
+  const backlogCount = active.filter(t => t.status === firstColId).length
 
   const avgResolutionHours = useMemo(() => {
-    const resolvedTickets = active.filter(t => t.status === 'resolved')
-    if (resolvedTickets.length === 0) return 0
-    const total = resolvedTickets.reduce((sum, t) => {
+    const completedTickets = active.filter(t => !!t.is_completed)
+    if (completedTickets.length === 0) return 0
+    const total = completedTickets.reduce((sum, t) => {
       const created = new Date(t.created_at).getTime()
       const updated = new Date(t.updated_at).getTime()
       return sum + (updated - created)
     }, 0)
-    return Math.round(total / resolvedTickets.length / 3_600_000)
+    return Math.round(total / completedTickets.length / 3_600_000)
   }, [active])
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), [])
   const createdToday = useMemo(() => active.filter(t => t.created_at.slice(0, 10) === todayStr).length, [active, todayStr])
-  const resolvedToday = useMemo(() => active.filter(t => t.status === 'resolved' && t.updated_at.slice(0, 10) === todayStr).length, [active, todayStr])
-  const productivityRate = useMemo(() => totalActive > 0 ? Math.round((resolved / totalActive) * 100) : 0, [resolved, totalActive])
+  const completedToday = useMemo(() => active.filter(t => !!t.is_completed && t.updated_at.slice(0, 10) === todayStr).length, [active, todayStr])
+  const productivityRate = useMemo(() => totalActive > 0 ? Math.round((completed / totalActive) * 100) : 0, [completed, totalActive])
+
+  const colLabelMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    columns.forEach(c => { m[c.id] = c.title })
+    return m
+  }, [columns])
 
   const handleExportCSV = useCallback(() => {
-    const headers = ['ID', 'Título', 'Status', 'Prioridade', 'Responsável', 'Cliente', 'Instância', 'Criado em', 'Atualizado em']
+    const headers = ['ID', 'Título', 'Status', 'Concluído', 'Prioridade', 'Responsável', 'Cliente', 'Instância', 'Criado em', 'Atualizado em']
     const rows = active.map(t => [
       t.id,
       `"${(t.title || '').replace(/"/g, '""')}"`,
-      t.status,
+      colLabelMap[t.status] || t.status,
+      t.is_completed ? 'Sim' : 'Não',
       t.priority,
       t.assignee || '',
       t.cliente || '',
@@ -190,7 +191,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     a.download = `chatpro-relatorio-${todayStr}.csv`
     a.click()
     URL.revokeObjectURL(url)
-  }, [active, todayStr])
+  }, [active, todayStr, colLabelMap])
 
   // ── Contagens por status ──
   const statusCounts = useMemo(() => {
@@ -405,7 +406,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             label="Total Ativos"
             value={totalActive}
             color="#25D066"
-            sub={`${resolved} resolvidos`}
+            sub={`${backlogCount} em ${columns[0]?.title ?? 'backlog'}`}
           />
           <MetricCard
             icon={<AlertTriangle size={14} />}
@@ -433,7 +434,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             label="Criados Hoje"
             value={createdToday}
             color="#579dff"
-            sub={`${resolvedToday} resolvidos hoje`}
+            sub={`${completedToday} concluídos hoje`}
           />
           <MetricCard
             icon={<Target size={14} />}
@@ -472,9 +473,9 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
           }}>
             Tickets por Status
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {Object.entries(STATUS_LABELS).map(([key, { label, color }]) => (
-              <Bar key={key} value={statusCounts[key] || 0} max={maxStatus} color={color} label={label} count={statusCounts[key] || 0} />
+          <div className="inbox-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', maxHeight: 200, paddingRight: 2 }}>
+            {columns.map(col => (
+              <Bar key={col.id} value={statusCounts[col.id] || 0} max={maxStatus} color={col.dot_color || '#579dff'} label={col.title} count={statusCounts[col.id] || 0} />
             ))}
           </div>
         </div>
