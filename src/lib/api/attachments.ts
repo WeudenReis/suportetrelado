@@ -21,7 +21,21 @@ export async function fetchAttachments(ticketId: string): Promise<Attachment[]> 
     .eq('ticket_id', ticketId)
     .order('created_at', { ascending: true })
   if (error) { logger.warn('Attachments', 'Tabela attachments pode não existir', { error: error.message }); return [] }
-  return (data ?? []) as Attachment[]
+
+  const rows = (data ?? []) as Attachment[]
+
+  // Renova signed URLs para evitar expiração (1h padrão do Supabase Storage).
+  // Usa storage_path quando disponível; caso contrário mantém file_url original.
+  const refreshed = await Promise.all(rows.map(async att => {
+    if (!att.storage_path) return att
+    const { data: signed } = await supabase.storage
+      .from('attachments')
+      .createSignedUrl(att.storage_path, 3600)
+    if (signed?.signedUrl) return { ...att, file_url: signed.signedUrl }
+    return att
+  }))
+
+  return refreshed
 }
 
 export async function uploadAttachment(ticketId: string, file: File, userName: string, departmentId?: string): Promise<Attachment | null> {
