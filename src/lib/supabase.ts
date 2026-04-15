@@ -69,12 +69,13 @@ export interface Comment {
 
 export interface Attachment {
   id: string
-  department_id: string
+  department_id: string | null
   ticket_id: string
   file_name: string
   file_url: string
   file_type: string
   uploaded_by: string | null
+  storage_path: string | null
   created_at: string
 }
 
