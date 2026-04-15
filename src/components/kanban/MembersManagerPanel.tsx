@@ -5,6 +5,7 @@ import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, 
 import { supabase } from '../../lib/supabase'
 import { useOrg, type OrgRole } from '../../lib/org'
 import { logger } from '../../lib/logger'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface MemberDisplay {
   id: string
@@ -382,6 +383,9 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
     members: members.filter(m => m.role === role),
   })).filter(g => g.members.length > 0)
 
+  const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, true)
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -397,6 +401,10 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
       }}
     >
       <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Gerenciar equipe"
         initial={{ x: 360 }}
         animate={{ x: 0 }}
         exit={{ x: 360 }}

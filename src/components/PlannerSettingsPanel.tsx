@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Settings, Bell, Loader2 } from 'lucide-react'
 import { fetchPlannerSettings, upsertPlannerSettings } from '../lib/supabase'
 import { useOrg } from '../lib/org'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface PlannerSettingsPanelProps {
   isOpen: boolean
@@ -17,6 +18,8 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [notifyDaysBefore, setNotifyDaysBefore] = useState<number[]>([1]) // Default 1 day before
+  const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, isOpen)
 
   useEffect(() => {
     if (isOpen) {
@@ -56,6 +59,10 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
         <>
           <div className="fixed inset-0 z-[998]" onClick={onClose} />
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Configurações do planejador"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}

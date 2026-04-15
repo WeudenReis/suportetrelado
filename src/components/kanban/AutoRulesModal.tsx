@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Settings, X, RefreshCw, Trash2, Check } from 'lucide-react'
 import type { BoardColumn } from '../../lib/boardColumns'
 import { fetchAutoRules, insertAutoRule, updateAutoRule, deleteAutoRule, loadAutoRulesCache, saveLocalRules } from '../../lib/api/templates'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 export interface AutoRule {
   id: string
@@ -38,6 +39,8 @@ interface AutoRulesModalProps {
 
 export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToast, user, departmentId }: AutoRulesModalProps) {
   const [rules, setRules] = useState<AutoRule[]>(() => loadAutoRules(departmentId))
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, true)
 
   // Carregar do banco na montagem (fetchAutoRules já atualiza o cache local)
   useEffect(() => {
@@ -96,6 +99,10 @@ export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToa
       onClick={e => e.target === e.currentTarget && onClose()}
     >
       <motion.div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Regras automáticas"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}

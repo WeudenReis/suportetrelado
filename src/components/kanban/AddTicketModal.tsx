@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, X, FileText, ChevronDown, Copy, Trash2, Loader2 } from 'lucide-react'
 import type { Ticket, TicketStatus } from '../../lib/supabase'
 import type { BoardColumn } from '../../lib/boardColumns'
 import { fetchTemplates, insertTemplate, deleteTemplate, type TicketTemplate } from '../../lib/api/templates'
 import { useOrg } from '../../lib/org'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 // Re-export para compatibilidade
 export type { TicketTemplate }
@@ -24,6 +25,8 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
   const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: initialStatus, cliente: '', instancia: '' })
   const [showTemplates, setShowTemplates] = useState(false)
   const [templates, setTemplates] = useState<TicketTemplate[]>([])
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, true)
 
   useEffect(() => {
     fetchTemplates(user, departmentId).then(setTemplates)
@@ -37,6 +40,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={e => e.target === e.currentTarget && onClose()}>
       <motion.div
+        ref={modalRef}
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 16 }}

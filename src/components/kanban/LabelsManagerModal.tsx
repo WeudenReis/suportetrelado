@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Tag, X, Pencil } from 'lucide-react'
 import { fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../../lib/supabase'
 import type { BoardLabel } from '../../lib/supabase'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 const LABEL_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
 
