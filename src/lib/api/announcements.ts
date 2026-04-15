@@ -12,7 +12,7 @@ export async function fetchAnnouncements(departmentId?: string): Promise<Announc
   return (data ?? []) as Announcement[]
 }
 
-export async function insertAnnouncement(ann: { title: string; content: string; severity: AnnouncementSeverity; author: string; is_pinned?: boolean }): Promise<Announcement | null> {
+export async function insertAnnouncement(ann: { title: string; content: string; severity: AnnouncementSeverity; author: string; is_pinned?: boolean; department_id: string }): Promise<Announcement | null> {
   const { data, error } = await supabase
     .from('announcements')
     .insert(ann)
