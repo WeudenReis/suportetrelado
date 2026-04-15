@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { ArchiveRestore, Trash2, X, Search } from 'lucide-react';
 import clsx from 'clsx';
 import styles from './ArchivedPanel.module.css';
 import { useOrg } from '../lib/org';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ArchivedCard {
   id: string
@@ -46,6 +47,8 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
   const [tab, setTab] = useState<'cards' | 'lists'>('cards');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, true);
 
   const fetchArchived = useCallback(async () => {
     setLoading(true);
@@ -110,7 +113,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
 
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.panel} onClick={e => e.stopPropagation()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Itens arquivados" className={styles.panel} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className={styles.header}>
           <h2 className={styles.title}>Itens arquivados</h2>

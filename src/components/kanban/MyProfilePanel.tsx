@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Pencil, Check, KeyRound, Eye, EyeOff, CheckCircle2, User, Copy } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { logger } from '../../lib/logger'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface ProfileData {
   name: string
@@ -19,6 +20,8 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
   const [nameValue, setNameValue]     = useState('')
   const [savingName, setSavingName]   = useState(false)
   const nameRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, true)
 
   // Alteração de senha
   const [showPwSection, setShowPwSection]   = useState(false)
@@ -161,6 +164,10 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Meu perfil"
         initial={{ x: 360 }}
         animate={{ x: 0 }}
         exit={{ x: 360 }}

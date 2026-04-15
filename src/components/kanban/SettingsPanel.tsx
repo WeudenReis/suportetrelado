@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { X, Palette, Image, Upload, RotateCcw, Clock, Trash2, Tag, Pencil, Settings, Users } from 'lucide-react'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 const WALLPAPER_PRESETS = [
   { label: 'Oceano', value: 'linear-gradient(135deg, #1a3a5c 0%, #0d2137 50%, #1e4976 100%)' },
@@ -32,10 +33,12 @@ export default function SettingsPanel({
   onOpenLabelsManager, onOpenAutoRules, onOpenMembersPanel, onClose,
 }: SettingsPanelProps) {
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(panelRef, true)
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <motion.div initial={{ x: 340 }} animate={{ x: 0 }} exit={{ x: 340 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      <motion.div ref={panelRef} role="dialog" aria-modal="true" aria-label="Configurações" initial={{ x: 340 }} animate={{ x: 0 }} exit={{ x: 340 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         style={{ width: 320, height: '100%', overflowY: 'auto', background: '#1d2125', borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
 
         {/* Header */}

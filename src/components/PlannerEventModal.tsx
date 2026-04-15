@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Calendar, Clock, Disc, Edit3 } from 'lucide-react'
 import type { PlannerEvent } from '../lib/supabase'
 import { useOrg } from '../lib/org'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface PlannerEventModalProps {
   isOpen: boolean
@@ -34,6 +35,8 @@ export default function PlannerEventModal({
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [color, setColor] = useState(COLORS[0])
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, isOpen)
 
   useEffect(() => {
     if (isOpen) {
@@ -92,6 +95,10 @@ export default function PlannerEventModal({
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         />
         <motion.div
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Evento do planejador"
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}

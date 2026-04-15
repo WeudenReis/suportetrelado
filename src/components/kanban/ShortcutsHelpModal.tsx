@@ -1,5 +1,7 @@
+import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Keyboard, X } from 'lucide-react'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 const SHORTCUTS = [
   { key: 'N', desc: 'Novo ticket' },
@@ -17,6 +19,8 @@ interface ShortcutsHelpModalProps {
 }
 
 export default function ShortcutsHelpModal({ onClose }: ShortcutsHelpModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, true)
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[70] flex items-center justify-center p-4"
@@ -24,12 +28,16 @@ export default function ShortcutsHelpModal({ onClose }: ShortcutsHelpModalProps)
       onClick={e => e.target === e.currentTarget && onClose()}
     >
       <motion.div
+        ref={modalRef}
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 16 }}
         transition={{ type: 'spring', stiffness: 400, damping: 28 }}
         className="rounded-2xl w-full max-w-sm overflow-hidden"
         style={{ background: '#1a1f23', border: '1px solid rgba(37,208,102,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Atalhos de teclado"
       >
         <div className="px-6 pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Loader2, Plug, CheckCircle2, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface InstanceModalProps {
   open: boolean
@@ -52,6 +53,8 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
   const [loadingExisting, setLoadingExisting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const firstInputRef = useRef<HTMLInputElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, open)
 
   const loadExistingConfig = useCallback(async () => {
     setLoadingExisting(true)
@@ -163,6 +166,7 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
           onClick={e => e.target === e.currentTarget && onClose()}
         >
           <motion.div
+            ref={modalRef}
             className="instance-modal"
             variants={modalVariants}
             initial="hidden"

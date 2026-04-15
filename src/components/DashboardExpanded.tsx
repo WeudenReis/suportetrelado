@@ -7,7 +7,6 @@ import {
   ArrowUpRight, ShieldAlert, Activity, Inbox, CalendarRange,
   ExternalLink, FileText,
 } from 'lucide-react'
-import { jsPDF } from 'jspdf'
 import type { Ticket, UserProfile } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import CardDetailModal from './CardDetailModal'
@@ -228,7 +227,8 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     a.click()
   }, [sorted])
 
-  const handleExportPDF = useCallback(() => {
+  const handleExportPDF = useCallback(async () => {
+    const { jsPDF } = await import('jspdf')
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const W = 210, margin = 16, contentW = W - margin * 2
     const dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })

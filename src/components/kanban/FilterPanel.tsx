@@ -43,6 +43,8 @@ export default function FilterPanel({
       exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
       style={{ overflow: 'hidden', background: '#1a1f23', borderBottom: '1px solid rgba(37,208,102,0.1)' }}
+      role="region"
+      aria-label="Filtros"
     >
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px',
