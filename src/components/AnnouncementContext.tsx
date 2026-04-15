@@ -30,7 +30,11 @@ export const AnnouncementProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const departmentId = currentDepartment?.id
 
   const load = useCallback(async () => {
-    if (!departmentId) return
+    if (!departmentId) {
+      setAnnouncements([])
+      setLoading(false)
+      return
+    }
     try {
       const data = await fetchAnnouncements(departmentId)
       setAnnouncements(data)
@@ -42,7 +46,10 @@ export const AnnouncementProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [departmentId])
 
   useEffect(() => {
-    if (!departmentId) return
+    if (!departmentId) {
+      setLoading(false)
+      return
+    }
     load()
 
     const channel = supabase
