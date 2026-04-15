@@ -1532,26 +1532,51 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                             })}
 
                             {/* Inline add card */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setAddingTo(col.id as TicketStatus)
-                                setInlineTitle('')
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.color = '#25D066' }}
-                              onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '10px 16px', borderRadius: 10, border: 'none',
-                                background: 'transparent', cursor: 'pointer',
-                                color: '#596773', fontSize: 13, fontWeight: 500,
-                                fontFamily: "'Space Grotesk', sans-serif",
-                                transition: 'color 0.15s',
-                              }}
-                            >
-                              <Plus size={14} />
-                              Adicionar card
-                            </button>
+                            {addingTo === col.id ? (
+                              <div style={{ padding: '8px 12px 10px' }}>
+                                <textarea
+                                  autoFocus
+                                  value={inlineTitle}
+                                  onChange={e => setInlineTitle(e.target.value)}
+                                  placeholder="Insira um título para este cartão..."
+                                  rows={3}
+                                  className="w-full rounded-lg p-2.5 text-sm resize-none outline-none"
+                                  style={{ background: '#22272b', color: 'var(--text-primary)', border: '1px solid rgba(166,197,226,0.15)' }}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInlineAdd(col.id as TicketStatus) }
+                                    if (e.key === 'Escape') { setAddingTo(null); setInlineTitle('') }
+                                  }}
+                                />
+                                <div className="flex items-center gap-1.5 mt-1.5">
+                                  <button onClick={() => handleInlineAdd(col.id as TicketStatus)} disabled={inlineCreating} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white flex items-center gap-1" style={{ background: inlineCreating ? 'rgba(37,208,102,0.5)' : '#25D066', cursor: inlineCreating ? 'wait' : 'pointer' }}>
+                                    {inlineCreating && <Loader2 size={13} className="animate-spin" />}
+                                    {inlineCreating ? 'Criando...' : 'Adicionar'}
+                                  </button>
+                                  <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setAddingTo(col.id as TicketStatus)
+                                  setInlineTitle('')
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.color = '#25D066' }}
+                                onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 6,
+                                  padding: '10px 16px', borderRadius: 10, border: 'none',
+                                  background: 'transparent', cursor: 'pointer',
+                                  color: '#596773', fontSize: 13, fontWeight: 500,
+                                  fontFamily: "'Space Grotesk', sans-serif",
+                                  transition: 'color 0.15s',
+                                }}
+                              >
+                                <Plus size={14} />
+                                Adicionar card
+                              </button>
+                            )}
                           </div>
                         </motion.div>
                       )}
