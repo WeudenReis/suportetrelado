@@ -70,6 +70,31 @@ export async function upsertUserProfile(email: string): Promise<void> {
   const name = fullName.trim() || (email.includes('@') ? email.split('@')[0] : email)
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
   const devRole = isSuperAdmin(email) || isDevAuthorizedEmail(email) ? 'admin' : undefined
+  
+  // Verifica se o perfil já existe para não sobrescrever `name` ou `avatar_color` customizados
+  const { data: existingProfile } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (existingProfile) {
+    // Atualiza apenas dados sistêmicos
+    const updatePayload: Record<string, any> = {
+      organization_id: organizationId,
+      last_seen_at: new Date().toISOString()
+    }
+    if (devRole) updatePayload.role = devRole
+
+    const { error: updateErr } = await supabase
+      .from('user_profiles')
+      .update(updatePayload)
+      .eq('email', email)
+    if (updateErr) logger.warn('UserProfiles', 'falha no update', { error: updateErr.message })
+    return
+  }
+
+  // Se não existir, fazemos o INSERT completo do novo usuário
   const payload = {
     email,
     name,
@@ -81,7 +106,8 @@ export async function upsertUserProfile(email: string): Promise<void> {
 
   const { error } = await supabase
     .from('user_profiles')
-    .upsert(payload, { onConflict: 'email' })
+    .insert(payload)
+  
   if (error) logger.warn('UserProfiles', 'upsertUserProfile falhou', { error: error.message })
 }
 
