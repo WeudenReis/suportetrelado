@@ -26,8 +26,7 @@ export const useAnnouncementContext = () => {
 export const AnnouncementProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
-  const { currentDepartment } = useOrg()
-  const departmentId = currentDepartment?.id
+  const { departmentId } = useOrg()
 
   const load = useCallback(async () => {
     if (!departmentId) {
