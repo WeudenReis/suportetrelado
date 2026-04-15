@@ -3,7 +3,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap'
 import { AnimatePresence } from 'framer-motion'
 import {
   X, MessageSquare, Trash2, Send, Loader2,
-  ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
+  ArrowRight, ExternalLink, MoreHorizontal,
   AlignLeft, CreditCard, Paperclip, Check, User, Calendar,
   CheckSquare, Square, Plus, Link2, Pencil, Lock
 } from 'lucide-react'
@@ -128,7 +128,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
   })
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const commentRef = useRef<HTMLTextAreaElement>(null)
   const commentsEndRef = useRef<HTMLDivElement>(null)
 
@@ -542,7 +542,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   ))
               }
             </select>
-            <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Adicionar imagem ou video"><ImageIcon size={15} /></button>
             <button onClick={(e) => { e.stopPropagation(); setShowMoreMenu(prev => !prev) }} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Mais opcoes"><MoreHorizontal size={16} /></button>
             <button onClick={handleClose} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }}><X size={18} /></button>
 
