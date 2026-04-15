@@ -37,11 +37,15 @@ export function useKanbanColumnsCRUD({ departmentId, showToast, setTickets }: Us
   const [colorPickerPos, setColorPickerPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const [colMenuView, setColMenuView] = useState<'main' | 'color' | 'sort'>('main')
 
-  // Carregar colunas do Supabase (com fallback para COLUMNS legadas)
+  // Carregar colunas do Supabase (com fallback para COLUMNS legadas) e assinar Realtime
   useEffect(() => {
+    let isMounted = true
+
     const fetchCols = async () => {
       try {
         const cols = await fetchBoardColumns(departmentId ?? undefined)
+        if (!isMounted) return
+        
         if (cols.length > 0) {
           setColumns(cols)
           setColumnOrder(cols.map(c => c.id))
@@ -51,12 +55,35 @@ export function useKanbanColumnsCRUD({ departmentId, showToast, setTickets }: Us
           setColumnOrder(fallback.map(c => c.id))
         }
       } catch {
+        if (!isMounted) return
         const fallback = buildFallbackColumns()
         setColumns(fallback)
         setColumnOrder(fallback.map(c => c.id))
       }
     }
+    
     fetchCols()
+
+    // Realtime subscription para Board Columns
+    const realtimeFilter = departmentId ? { filter: `department_id=eq.${departmentId}` } : {}
+    const channel = import('../lib/supabase').then(({ supabase }) => {
+      const ch = supabase
+        .channel(`board-columns-realtime-${departmentId || 'all'}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'board_columns', ...realtimeFilter }, () => {
+          fetchCols()
+        })
+        .subscribe()
+      return ch
+    })
+
+    return () => {
+      isMounted = false
+      channel.then(ch => {
+        import('../lib/supabase').then(({ supabase }) => {
+          supabase.removeChannel(ch)
+        })
+      })
+    }
   }, [departmentId])
 
   const allColumnsById = useMemo(() => new Map(columns.map(col => [col.id, col])), [columns])
