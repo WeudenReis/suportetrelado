@@ -28,6 +28,7 @@ import { DroppableColumn, SortableCard, SortableBoardColumn } from './kanban/Dnd
 import { useOrg } from '../lib/org'
 import { logger } from '../lib/logger'
 import { useAutoRules } from '../hooks/useAutoRules'
+import { fetchAutoRules } from '../lib/api/templates'
 import { useKanbanFilters } from '../hooks/useKanbanFilters'
 import { useKanbanWallpaper } from '../hooks/useKanbanWallpaper'
 import { useKanbanPresence } from '../hooks/useKanbanPresence'
@@ -91,6 +92,41 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showMembersManager, setShowMembersManager] = useState(false)
   const { departmentId } = useOrg()
   const { applyRulesToTicket, applyRulesToBatch } = useAutoRules(departmentId)
+
+  const applyAutoRules = useCallback(async () => {
+    try {
+      const rules = (await fetchAutoRules(user, departmentId)).filter(r => r.enabled)
+      if (!rules.length) { showToast('Nenhuma regra ativa configurada.', 'ok'); return }
+      const now = Date.now()
+      const toMove: { id: string; newStatus: TicketStatus }[] = []
+      for (const ticket of tickets.filter(t => !t.is_archived)) {
+        for (const rule of rules) {
+          if (ticket.status === rule.targetColumn) continue
+          const idleH = (now - new Date(ticket.updated_at).getTime()) / 3_600_000
+          let matches = false
+          switch (rule.condition) {
+            case 'priority_high':   matches = ticket.priority === 'high'; break
+            case 'priority_medium': matches = ticket.priority === 'medium'; break
+            case 'priority_low':    matches = ticket.priority === 'low'; break
+            case 'no_assignee':     matches = !ticket.assignee?.trim(); break
+            case 'overdue_12h':     matches = !ticket.is_completed && idleH >= 12; break
+            case 'overdue_24h':     matches = !ticket.is_completed && idleH >= 24; break
+          }
+          if (matches) { toMove.push({ id: ticket.id, newStatus: rule.targetColumn as TicketStatus }); break }
+        }
+      }
+      if (!toMove.length) { showToast('Nenhum ticket para mover.', 'ok'); return }
+      setTickets(prev => prev.map(t => {
+        const move = toMove.find(m => m.id === t.id)
+        return move ? { ...t, status: move.newStatus } : t
+      }))
+      await Promise.all(toMove.map(m => updateTicket(m.id, { status: m.newStatus })))
+      showToast(`${toMove.length} ticket(s) movido(s) pelas regras.`, 'ok')
+    } catch (err) {
+      logger.error('KanbanBoard', 'Falha ao aplicar regras', { error: String(err) })
+      showToast('Erro ao aplicar regras automáticas.', 'err')
+    }
+  }, [tickets, user, departmentId, setTickets, showToast])
   const dragOriginalStatusRef = useRef<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -1651,7 +1687,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             <AutoRulesModal
               columns={allColumns}
               onClose={() => setShowAutoRules(false)}
-              onRunRules={() => { setShowAutoRules(true) }}
+              onRunRules={() => { setShowAutoRules(false); applyAutoRules() }}
               onShowToast={showToast}
               user={user}
               departmentId={departmentId}
