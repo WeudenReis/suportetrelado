@@ -52,6 +52,19 @@ export async function checkAuthorizedUser(email: string): Promise<boolean> {
 }
 
 export async function upsertUserProfile(email: string): Promise<void> {
+  // Descobre a organization_id vinculada ao e-mail em org_members.
+  // Se o admin ainda não vinculou o usuário à equipe, cancela silenciosamente
+  // para que o OrgGate direcione ao PendingAccessScreen ("Acesso em Configuração").
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('organization_id')
+    .eq('user_email', email)
+    .limit(1)
+    .maybeSingle()
+
+  const organizationId = membership?.organization_id as string | undefined
+  if (!organizationId) return // early-return silencioso
+
   const { data: { session } } = await supabase.auth.getSession()
   const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
   const name = fullName.trim() || (email.includes('@') ? email.split('@')[0] : email)
@@ -61,6 +74,7 @@ export async function upsertUserProfile(email: string): Promise<void> {
     email,
     name,
     avatar_color: color,
+    organization_id: organizationId,
     last_seen_at: new Date().toISOString(),
     ...(devRole ? { role: devRole } : {}),
   }
