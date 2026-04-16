@@ -399,7 +399,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     setRefreshing(false)
   }, [loadTickets])
 
-  const staleCount = useMemo(() => tickets.filter(t => Date.now() - new Date(t.updated_at).getTime() > 12 * 60 * 60 * 1000 && t.status !== 'resolved').length, [tickets])
+  const staleCount = useMemo(() => tickets.filter(t =>
+    !t.is_archived &&
+    !t.is_completed &&
+    Date.now() - new Date(t.updated_at).getTime() > 12 * 60 * 60 * 1000
+  ).length, [tickets])
   const visibleUsers = useMemo(() => onlineUsers.length > 0 ? onlineUsers : [user], [onlineUsers, user])
 
   const handleCardClick = useCallback((ticket: Ticket) => {
