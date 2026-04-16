@@ -75,7 +75,10 @@ function renderCommentText(text: string): React.ReactNode {
 const TAG_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
 
 export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete, boardColumns = [] }: CardDetailModalProps) {
-  const { departmentId: userDeptId } = useOrg()
+  const { departmentId: userDeptId, hasPermission } = useOrg()
+  const canEditDetails = hasPermission('tickets:edit_details')
+  const canDelete      = hasPermission('tickets:delete')
+  const canAssign      = hasPermission('tickets:assign')
   const statusLabel = useCallback((id: string) => {
     const col = boardColumns.find(c => c.id === id)
     return col?.title || LEGACY_STATUS_MAP[id] || id
@@ -511,10 +514,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             <input
               id="card-detail-title"
               value={title}
-              onChange={e => setTitle(e.target.value)}
-              onBlur={handleTitleBlur}
+              onChange={canEditDetails ? e => setTitle(e.target.value) : undefined}
+              onBlur={canEditDetails ? handleTitleBlur : undefined}
+              readOnly={!canEditDetails}
               className="bg-transparent border-none outline-none text-base leading-tight font-bold w-full"
-              style={{ color: '#b6c2cf' }}
+              style={{ color: '#b6c2cf', cursor: canEditDetails ? 'text' : 'default' }}
             />
             <span className="text-xs whitespace-nowrap" style={{ color: '#596773' }}>
               {statusLabel(status)}
@@ -523,14 +527,15 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           <div className="flex items-center gap-1 relative flex-shrink-0">
             <select
               value={status}
-              onChange={async e => {
+              disabled={!canEditDetails}
+              onChange={canEditDetails ? async e => {
                 const next = e.target.value as TicketStatus
                 const oldLabel = statusLabel(status)
                 const newLabel = statusLabel(next)
                 setStatus(next)
                 await save({ status: next })
                 await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`, ticket.department_id)
-              }}
+              } : undefined}
               className="dark-select"
             >
               {boardColumns.length > 0
@@ -548,8 +553,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             {showMoreMenu && (
               <div className="absolute right-10 top-10 w-44 rounded-lg overflow-hidden z-20" style={{ background: '#282e33', border: '1px solid rgba(166,197,226,0.16)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }} onClick={(e) => e.stopPropagation()}>
                 <button onClick={async () => { setShowMoreMenu(false); await handleShare() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#b6c2cf' }}>Compartilhar</button>
-                <button onClick={async () => { setShowMoreMenu(false); await handleSaveAll() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#b6c2cf' }}>Salvar agora</button>
-                <button onClick={async () => { setShowMoreMenu(false); await handleDelete() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-red-500/20 transition-colors" style={{ color: '#f87171' }}>Excluir cartao</button>
+                {canEditDetails && <button onClick={async () => { setShowMoreMenu(false); await handleSaveAll() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#b6c2cf' }}>Salvar agora</button>}
+                {canDelete && <button onClick={async () => { setShowMoreMenu(false); await handleDelete() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-red-500/20 transition-colors" style={{ color: '#f87171' }}>Excluir cartao</button>}
                 <button onClick={() => { setShowMoreMenu(false); handleClose() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#596773' }}>Fechar</button>
               </div>
             )}
@@ -558,13 +563,20 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
         {/* ── Action quick bar ── */}
         <div className="flex items-center gap-1.5 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
+          {canEditDetails
+            ? <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
+            : tags.length > 0 && <div className="flex flex-wrap gap-1 items-center">
+                {tags.map(raw => { const { name, color } = parseTag(raw); return <span key={raw} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: color }}>{name}</span> })}
+              </div>
+          }
           <button onClick={() => setShowDatePicker(p => !p)} className="elite-action-chip" style={showDatePicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Datas</button>
           <button onClick={() => setShowChecklist(p => !p)} className="elite-action-chip" style={showChecklist ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Checklist</button>
-          {!coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
-          <button onClick={() => setShowMemberPicker(p => !p)} className="elite-action-chip" style={showMemberPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>
-            <Link2 size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Vincular
-          </button>
+          {canEditDetails && !coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
+          {canAssign && (
+            <button onClick={() => setShowMemberPicker(p => !p)} className="elite-action-chip" style={showMemberPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>
+              <Link2 size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Vincular
+            </button>
+          )}
         </div>
 
         {/* ── Creation info ── */}
@@ -736,7 +748,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           <div className="elite-modal__col-center">
             <div className="grid grid-cols-2 gap-2 mb-3">
               <FieldGroup label="Prioridade">
-                <select value={priority} onChange={async e => { const next = e.target.value as Ticket['priority']; setPriority(next); await save({ priority: next }) }} className="modal-field">
+                <select value={priority} disabled={!canEditDetails} onChange={canEditDetails ? async e => { const next = e.target.value as Ticket['priority']; setPriority(next); await save({ priority: next }) } : undefined} className="modal-field">
                   <option value="low">Baixa</option>
                   <option value="medium">Media</option>
                   <option value="high">Alta</option>
@@ -816,11 +828,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               </div>
               <textarea
                 value={description}
-                onChange={e => setDescription(e.target.value)}
-                onBlur={saveOnBlur}
+                onChange={canEditDetails ? e => setDescription(e.target.value) : undefined}
+                onBlur={canEditDetails ? saveOnBlur : undefined}
+                readOnly={!canEditDetails}
                 className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 60 }}
-                placeholder="Adicione uma descrição mais detalhada..."
+                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 60, cursor: canEditDetails ? undefined : 'default' }}
+                placeholder={canEditDetails ? "Adicione uma descrição mais detalhada..." : ""}
               />
             </section>
 

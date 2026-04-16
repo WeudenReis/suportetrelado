@@ -44,15 +44,17 @@ const OrgContext = createContext<OrgContextValue | null>(null)
 const ROLE_PERMS: Record<OrgRole, Set<string>> = {
   admin: new Set([
     'tickets:create', 'tickets:read', 'tickets:update', 'tickets:delete', 'tickets:archive', 'tickets:assign',
+    'tickets:edit_details',
     'columns:manage', 'labels:manage', 'members:invite', 'members:remove', 'members:change_role',
     'departments:manage', 'announcements:manage', 'links:manage', 'settings:manage',
   ]),
   supervisor: new Set([
     'tickets:create', 'tickets:read', 'tickets:update', 'tickets:delete', 'tickets:archive', 'tickets:assign',
+    'tickets:edit_details',
     'columns:manage', 'labels:manage', 'announcements:manage', 'links:manage',
   ]),
   agent: new Set([
-    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:archive', 'links:manage',
+    'tickets:create', 'tickets:read', 'tickets:archive', 'links:manage',
   ]),
 }
 

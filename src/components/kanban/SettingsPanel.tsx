@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { X, Palette, Image, Upload, RotateCcw, Clock, Trash2, Tag, Pencil, Settings, Users } from 'lucide-react'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { useOrg } from '../../lib/org'
 
 const WALLPAPER_PRESETS = [
   { label: 'Oceano', value: 'linear-gradient(135deg, #1a3a5c 0%, #0d2137 50%, #1e4976 100%)' },
@@ -35,6 +36,8 @@ export default function SettingsPanel({
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef, true)
+  const { role } = useOrg()
+  const isAgent = role === 'agent'
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={e => e.target === e.currentTarget && onClose()}>
@@ -184,37 +187,41 @@ export default function SettingsPanel({
             </button>
           </div>
 
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
+          {!isAgent && <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />}
 
-          {/* Regras Automáticas */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <Settings size={13} style={{ color: '#25D066' }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Regras Automáticas</span>
+          {/* Regras Automáticas — visível apenas para admin e supervisor */}
+          {!isAgent && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Settings size={13} style={{ color: '#25D066' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Regras Automáticas</span>
+              </div>
+              <button onClick={onOpenAutoRules}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+                style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
+                <Settings size={12} /> Gerenciar Regras
+              </button>
             </div>
-            <button onClick={onOpenAutoRules}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
-              style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
-              <Settings size={12} /> Gerenciar Regras
-            </button>
-          </div>
+          )}
 
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
+          {!isAgent && <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />}
 
-          {/* Equipe */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <Users size={13} style={{ color: '#25D066' }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Equipe</span>
+          {/* Equipe — visível apenas para admin e supervisor */}
+          {!isAgent && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Users size={13} style={{ color: '#25D066' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Equipe</span>
+              </div>
+              <button onClick={onOpenMembersPanel}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+                style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
+                <Users size={12} /> Ver Membros e Roles
+              </button>
             </div>
-            <button onClick={onOpenMembersPanel}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
-              style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
-              <Users size={12} /> Ver Membros e Roles
-            </button>
-          </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
