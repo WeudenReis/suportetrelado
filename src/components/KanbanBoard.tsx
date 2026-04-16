@@ -10,7 +10,8 @@ import { parseTag } from '../lib/tagUtils'
 const CardDetailModal = lazy(() => import('./CardDetailModal'))
 const InstanceModal = lazy(() => import('./InstanceModal'))
 const ArchivedPanel = lazy(() => import('./ArchivedPanel').then(m => ({ default: m.ArchivedPanel })))
-import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, isDevEnvironment, fetchBoardLabels } from '../lib/supabase'
+import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, isDevEnvironment, fetchBoardLabels, uploadAttachment } from '../lib/supabase'
+import { compressAttachment } from '../lib/imageUtils'
 import { insertBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShortcuts'
 import type { Ticket, TicketStatus, BoardLabel } from '../lib/supabase'
@@ -1648,6 +1649,12 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               setCreatingTicket(true)
               try {
                 const created = await insertTicket({ department_id: departmentId, title: ticket.title.trim(), description: ticket.description || '', status: ticket.status, priority: ticket.priority, cliente: ticket.cliente || '', instancia: ticket.instancia || '', assignee: user })
+                if (ticket.pendingFiles?.length) {
+                  for (const file of ticket.pendingFiles) {
+                    const compressed = await compressAttachment(file)
+                    await uploadAttachment(created.id, compressed, user, departmentId ?? undefined)
+                  }
+                }
                 setTickets(prev => prev.some(t => t.id === created.id) ? prev : [...prev, created])
                 setShowAddModal(false)
                 showToast('Ticket criado!', 'ok')
