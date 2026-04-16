@@ -140,7 +140,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 16 }}
         transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-        className="rounded-2xl w-full max-w-md overflow-hidden"
+        className="rounded-2xl w-full max-w-lg flex flex-col"
         style={{
           background: '#1a1f23',
           border: isDragging ? '1px solid rgba(37,208,102,0.4)' : '1px solid rgba(37,208,102,0.1)',
@@ -148,6 +148,8 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
             ? '0 20px 60px rgba(0,0,0,0.5), 0 0 0 3px rgba(37,208,102,0.15)'
             : '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03)',
           transition: 'border-color 0.15s, box-shadow 0.15s',
+          maxHeight: 'calc(100dvh - 2rem)',
+          overflow: 'hidden',
         }}
         role="dialog"
         aria-modal="true"
@@ -217,38 +219,34 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-4 max-h-[calc(100vh-240px)] overflow-y-auto modal-scroll">
+        <div className="px-6 py-5 space-y-4 flex-1 overflow-y-auto modal-scroll">
           {/* Título */}
           <div>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#25D066' }}>Título <span style={{ color: '#ef4444' }}>*</span></label>
             <input autoFocus placeholder="Título do ticket..." value={newTicket.title} onChange={e => setNewTicket(p => ({ ...p, title: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdd() } }} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(37,208,102,0.15)', background: '#22272b', color: '#E5E7EB', fontSize: 14, fontWeight: 500, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.15)'; e.currentTarget.style.boxShadow = 'none' }} />
           </div>
 
-          {/* Cliente + Instância */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Cliente · Instância · Prioridade · Coluna — linha única */}
+          <div className="grid grid-cols-4 gap-2">
             <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Cliente</label>
-              <input placeholder="Nome do cliente..." value={newTicket.cliente} onChange={e => setNewTicket(p => ({ ...p, cliente: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, color: '#B6C2CF' }}>Cliente</label>
+              <input placeholder="Cliente..." value={newTicket.cliente} onChange={e => setNewTicket(p => ({ ...p, cliente: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 12, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Instância</label>
-              <input placeholder="Código da instância..." value={newTicket.instancia} onChange={e => setNewTicket(p => ({ ...p, instancia: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, color: '#B6C2CF' }}>Instância</label>
+              <input placeholder="Instância..." value={newTicket.instancia} onChange={e => setNewTicket(p => ({ ...p, instancia: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 12, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
             </div>
-          </div>
-
-          {/* Prioridade + Coluna */}
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Prioridade</label>
-              <select value={newTicket.priority} onChange={e => setNewTicket(p => ({ ...p, priority: e.target.value as Ticket['priority'] }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', cursor: 'pointer', appearance: 'none' as const, backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 32, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, color: '#B6C2CF' }}>Prioridade</label>
+              <select value={newTicket.priority} onChange={e => setNewTicket(p => ({ ...p, priority: e.target.value as Ticket['priority'] }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 12, outline: 'none', cursor: 'pointer', appearance: 'none' as const, backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', paddingRight: 24, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
                 <option value="low">Baixa</option>
                 <option value="medium">Média</option>
                 <option value="high">Alta</option>
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Coluna</label>
-              <select value={newTicket.status} onChange={e => setNewTicket(p => ({ ...p, status: e.target.value as TicketStatus }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', cursor: 'pointer', appearance: 'none' as const, backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 32, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, color: '#B6C2CF' }}>Coluna</label>
+              <select value={newTicket.status} onChange={e => setNewTicket(p => ({ ...p, status: e.target.value as TicketStatus }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 12, outline: 'none', cursor: 'pointer', appearance: 'none' as const, backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', paddingRight: 24, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
                 {columns.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
               </select>
             </div>
@@ -257,7 +255,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
           {/* Descrição */}
           <div>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>Descrição</label>
-            <textarea placeholder="Descreva o problema em detalhes..." value={newTicket.description} onChange={e => setNewTicket(p => ({ ...p, description: e.target.value }))} rows={3} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', resize: 'none' as const, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s, box-shadow 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
+            <textarea placeholder="Descreva o problema em detalhes..." value={newTicket.description} onChange={e => setNewTicket(p => ({ ...p, description: e.target.value }))} rows={2} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 13, outline: 'none', resize: 'none' as const, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s, box-shadow 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
           </div>
 
           {/* Anexos */}
