@@ -40,6 +40,17 @@ export interface OrgContextValue {
 
 const OrgContext = createContext<OrgContextValue | null>(null)
 
+// ── Prioridade de roles: admin ganha sobre supervisor, que ganha sobre agent ──
+const ROLE_PRIORITY: Record<string, number> = { admin: 3, supervisor: 2, agent: 1 }
+
+function bestRoleFrom(rows: { role: string }[], fallback: OrgRole = 'agent'): OrgRole {
+  if (!rows.length) return fallback
+  return rows.reduce<OrgRole>((best, r) => {
+    const rp = ROLE_PRIORITY[r.role] ?? 0
+    return rp > (ROLE_PRIORITY[best] ?? 0) ? (r.role as OrgRole) : best
+  }, fallback)
+}
+
 // ── Permissões por role (espelha role_permissions do banco) ──
 const ROLE_PERMS: Record<OrgRole, Set<string>> = {
   admin: new Set([
@@ -79,7 +90,12 @@ export function OrgProvider({ user, children }: { user: string; children: ReactN
           .maybeSingle()
 
         if (!error && data) {
-          setPermissions(data as OrgPermissions)
+          // Verifica role máxima entre todos os org_members do usuário
+          // (a view pode retornar role de um dept específico, que pode ser inferior)
+          const { data: memberships } = await supabase
+            .from('org_members').select('role').eq('user_email', user)
+          const effectiveRole = bestRoleFrom(memberships ?? [], (data as OrgPermissions).role)
+          setPermissions({ ...(data as OrgPermissions), role: effectiveRole })
           setActiveDeptId(data.department_id)
           resolved = true
 
@@ -99,37 +115,42 @@ export function OrgProvider({ user, children }: { user: string; children: ReactN
 
       if (!resolved) {
         // Fallback: buscar via org_members diretamente
+        // Busca TODAS as linhas do usuário e usa a role de maior prioridade
         try {
-          const { data: member } = await supabase
+          const { data: members } = await supabase
             .from('org_members')
             .select('organization_id, department_id, role')
             .eq('user_email', user)
-            .limit(1)
-            .maybeSingle()
 
-          if (member) {
+          if (members && members.length > 0) {
+            const bestRole = bestRoleFrom(members)
+            // Prefere linha com dept_id nulo (org-level) do melhor role; senão usa a primeira do melhor role
+            const bestMember =
+              members.find(m => m.role === bestRole && !m.department_id) ??
+              members.find(m => m.role === bestRole) ??
+              members[0]
+
             setPermissions({
-              organization_id: member.organization_id,
-              department_id: member.department_id,
-              role: member.role as OrgRole,
+              organization_id: bestMember.organization_id,
+              department_id: bestMember.department_id,
+              role: bestRole,
               organization_name: '',
               organization_slug: '',
               department_name: null,
               department_slug: null,
             })
-            
+
             const { data: depts } = await supabase
               .from('departments')
               .select('id, name, slug')
-              .eq('organization_id', member.organization_id)
+              .eq('organization_id', bestMember.organization_id)
               .order('name')
-            
+
             if (depts && depts.length > 0) {
               setDepartments(depts)
-              // Se o membro for admin/supervisor geral (department_id = null), seta o primeiro departamento como ativo por padrão
-              setActiveDeptId(member.department_id || depts[0].id)
+              setActiveDeptId(bestMember.department_id || depts[0].id)
             } else {
-              setActiveDeptId(member.department_id)
+              setActiveDeptId(bestMember.department_id)
             }
           }
         } catch {
