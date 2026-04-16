@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { X, Palette, Image, Upload, RotateCcw, Clock, Trash2, Tag, Pencil, Settings, Users } from 'lucide-react'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
-import { useOrg } from '../../lib/org'
+import type { OrgRole } from '../../lib/org'
 
 const WALLPAPER_PRESETS = [
   { label: 'Oceano', value: 'linear-gradient(135deg, #1a3a5c 0%, #0d2137 50%, #1e4976 100%)' },
@@ -25,6 +25,7 @@ interface SettingsPanelProps {
   onOpenAutoRules: () => void
   onOpenMembersPanel: () => void
   onClose: () => void
+  userRole: OrgRole | null
 }
 
 export default function SettingsPanel({
@@ -32,12 +33,12 @@ export default function SettingsPanel({
   onWallpaperInputChange, onApplyWallpaper, onWallpaperFileSelect,
   onRemoveRecentWallpaper, onClearRecentWallpapers, onDeleteCurrentWallpaper,
   onOpenLabelsManager, onOpenAutoRules, onOpenMembersPanel, onClose,
+  userRole,
 }: SettingsPanelProps) {
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef, true)
-  const { role } = useOrg()
-  const isAgent = role === 'agent'
+  const isAgent = userRole === 'agent'
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={e => e.target === e.currentTarget && onClose()}>

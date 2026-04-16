@@ -90,7 +90,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
   const [showAutoRules, setShowAutoRules] = useState(false)
   const [showMembersManager, setShowMembersManager] = useState(false)
-  const { departmentId } = useOrg()
+  const { departmentId, role: userRole } = useOrg()
   const { applyRulesToTicket, applyRulesToBatch } = useAutoRules(departmentId)
 
   const applyAutoRules = useCallback(async () => {
@@ -1682,6 +1682,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               onClearRecentWallpapers={clearRecentWallpapers}
               onDeleteCurrentWallpaper={deleteCurrentWallpaper}
               onOpenLabelsManager={() => { setShowLabelsManager(true); fetchBoardLabels(departmentId ?? undefined).then(setBoardLabels).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) })) }}
+              userRole={userRole}
               onOpenAutoRules={() => setShowAutoRules(true)}
               onOpenMembersPanel={() => { setShowSettings(false); setShowMembersManager(true) }}
               onClose={() => setShowSettings(false)}
