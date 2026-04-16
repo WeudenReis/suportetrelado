@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import ReactDOM from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -116,8 +116,8 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [localTickets, setLocalTickets] = useState<Ticket[]>(tickets)
 
-  // Keep local in sync when parent changes
-  useMemo(() => { setLocalTickets(tickets) }, [tickets])
+  // Mantém localTickets em sync quando o prop tickets muda (realtime do DashboardView)
+  useEffect(() => { setLocalTickets(tickets) }, [tickets])
 
   const active = useMemo(() => localTickets.filter(t => !t.is_archived), [localTickets])
 
@@ -203,6 +203,20 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     return Object.entries(m).sort(([, a], [, b]) => b - a)
   }, [filtered, resolveAssigneeName])
   const maxMember = Math.max(...memberDist.map(([, c]) => c), 1)
+
+  // Carga ATIVA: conta apenas tickets não-concluídos (workload real do momento)
+  const memberDistActive = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const t of active.filter(x => !x.is_completed)) {
+      const assignees = t.assignee ? t.assignee.split(',').map(s => s.trim()).filter(Boolean) : ['Sem responsável']
+      assignees.forEach(a => {
+        const displayName = a === 'Sem responsável' ? a : resolveAssigneeName(a)
+        m[displayName] = (m[displayName] || 0) + 1
+      })
+    }
+    return m
+  }, [active, resolveAssigneeName])
+  const maxMemberActive = Math.max(...Object.values(memberDistActive), 1)
 
   const days = dateRange === '7d' ? 7 : 14
   const trendData = useMemo(() => {
@@ -600,10 +614,10 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 <div style={cardStyle}>
                   <SectionH icon={<Users size={12} />} title="Carga por responsável" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {memberDist.slice(0, 10).map(([name, count]) => (
-                      <HBar key={name} label={name} value={count} max={maxMember} color={name === 'Sem responsável' ? '#596773' : '#25D066'} />
+                    {Object.entries(memberDistActive).sort(([,a],[,b]) => b-a).slice(0, 10).map(([name, count]) => (
+                      <HBar key={name} label={name} value={count} max={maxMemberActive} color={name === 'Sem responsável' ? '#596773' : '#25D066'} />
                     ))}
-                    {memberDist.length === 0 && <p style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Sem dados</p>}
+                    {Object.keys(memberDistActive).length === 0 && <p style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Sem dados</p>}
                   </div>
                 </div>
 
@@ -690,11 +704,14 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                   const a = t.assignee || ''
                   return a.includes(name) || (profile && (a.includes(profile.email) || a.includes(profile.name)))
                 }
-                const inProgress = active.filter(t => matchAssignee(t) && t.status === 'in_progress').length
-                const done = active.filter(t => matchAssignee(t) && t.status === 'resolved').length
+                // Em progresso = todos os não-concluídos; Resolvidos = is_completed
+                const inProgress = active.filter(t => matchAssignee(t) && !t.is_completed).length
+                const done = active.filter(t => matchAssignee(t) && !!t.is_completed).length
                 const isOnline = profile && profile.last_seen_at && (Date.now() - new Date(profile.last_seen_at).getTime()) < 300000 // eslint-disable-line react-hooks/purity -- cálculo de presença online
                 const avatarBg = name === 'Sem responsável' ? '#454F59' : (profile?.avatar_color || avatarColor(name))
-                const load = maxMember > 0 ? Math.round(count / maxMember * 100) : 0
+                // Carga baseada apenas em tickets ativos (não-concluídos) = carga real
+                const activeCount = memberDistActive[name] ?? 0
+                const load = maxMemberActive > 0 ? Math.round(activeCount / maxMemberActive * 100) : 0
                 return (
                   <div key={name} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -708,7 +725,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                           <span style={{ fontSize: 10, color: isOnline ? '#25D066' : '#596773', fontFamily: font }}>{isOnline ? 'Online' : 'Offline'}</span>
                         </div>
                       </div>
-                      <span style={{ fontSize: 26, fontWeight: 900, color: '#25D066', fontFamily: fontH }}>{count}</span>
+                      <span style={{ fontSize: 26, fontWeight: 900, color: '#25D066', fontFamily: fontH }} title="Tickets ativos (não concluídos)">{activeCount}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       {[{ label: 'Em progresso', v: inProgress, c: '#e2b203' }, { label: 'Resolvidos', v: done, c: '#4bce97' }].map(m => (
@@ -752,8 +769,8 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 {[
-                  { title: 'Mais antigos sem resolução', color: '#ef5c48', items: active.filter(t => t.status !== 'resolved').sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(0, 6) },
-                  { title: 'Resolvidos recentemente', color: '#4bce97', items: active.filter(t => t.status === 'resolved').sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6) },
+                  { title: 'Mais antigos sem resolução', color: '#ef5c48', items: active.filter(t => !t.is_completed).sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(0, 6) },
+                  { title: 'Resolvidos recentemente', color: '#4bce97', items: active.filter(t => !!t.is_completed).sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6) },
                 ].map(s => (
                   <div key={s.title} style={cardStyle}>
                     <SectionH icon={<ArrowUpRight size={12} />} title={s.title} />
