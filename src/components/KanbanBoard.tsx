@@ -399,11 +399,17 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     setRefreshing(false)
   }, [loadTickets])
 
-  const staleCount = useMemo(() => tickets.filter(t =>
-    !t.is_archived &&
-    !t.is_completed &&
-    Date.now() - new Date(t.updated_at).getTime() > 12 * 60 * 60 * 1000
-  ).length, [tickets])
+  const staleCount = useMemo(() => {
+    const validColIds = new Set(allColumns.map(c => c.id))
+    const lastColId = allColumns[allColumns.length - 1]?.id
+    return tickets.filter(t =>
+      !t.is_archived &&
+      !t.is_completed &&
+      validColIds.has(t.status) &&   // ignora status órfãos (colunas removidas)
+      t.status !== lastColId &&       // ignora última coluna (resolvida por posição)
+      Date.now() - new Date(t.updated_at).getTime() > 12 * 60 * 60 * 1000
+    ).length
+  }, [tickets, allColumns])
   const visibleUsers = useMemo(() => onlineUsers.length > 0 ? onlineUsers : [user], [onlineUsers, user])
 
   const handleCardClick = useCallback((ticket: Ticket) => {
