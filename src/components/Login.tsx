@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX, Mail, Lock, Eye, EyeOff, ArrowRight, User, CheckCircle, XCircle } from 'lucide-react'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, isSupabaseConfigured, isDevEnvironment } from '../lib/supabase'
 import { logger } from '../lib/logger'
 
 interface LoginProps {
@@ -115,8 +115,12 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const captchaRef = useRef<HTMLDivElement>(null)
   const captchaWidgetId = useRef<number | null>(null)
-  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
-  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  const recaptchaProdSiteKey = (import.meta.env.VITE_RECAPTCHA_SITE_KEY || '').trim()
+  const recaptchaDevSiteKey = (import.meta.env.VITE_RECAPTCHA_SITE_KEY_DEV || '').trim()
+  const recaptchaSiteKey = isDevEnvironment
+    ? (recaptchaDevSiteKey || recaptchaProdSiteKey)
+    : recaptchaProdSiteKey
+  const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
   const recaptchaEnabled = Boolean(recaptchaSiteKey) && !isLocalhost
 
   const passwordChecks = validatePassword(registerPassword)
