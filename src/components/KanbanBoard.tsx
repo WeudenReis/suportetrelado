@@ -1348,13 +1348,18 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                               const hasChecklist = checkTotal > 0
                               const elapsed = (() => {
                                 if (!ticket.created_at) return null
-                                const diffMs = Date.now() - new Date(ticket.created_at).getTime()
+                                // Tickets resolvidos: trava o relógio na data de conclusão (updated_at)
+                                // e nunca fica vermelho (isOverdue = false), mostrando apenas o tempo total.
+                                const endTs = ticket.is_completed && ticket.updated_at
+                                  ? new Date(ticket.updated_at).getTime()
+                                  : Date.now()
+                                const diffMs = endTs - new Date(ticket.created_at).getTime()
                                 const diffMin = Math.floor(diffMs / 60_000)
                                 const diffH = Math.floor(diffMs / 3_600_000)
                                 const diffD = Math.floor(diffMs / 86_400_000)
                                 if (diffMin < 60) return { label: `${Math.max(diffMin, 1)}m`, isOverdue: false }
-                                if (diffH < 24) return { label: `${diffH}h`, isOverdue: diffH >= 2 }
-                                return { label: `${diffD}d`, isOverdue: true }
+                                if (diffH < 24) return { label: `${diffH}h`, isOverdue: !ticket.is_completed && diffH >= 2 }
+                                return { label: `${diffD}d`, isOverdue: !ticket.is_completed }
                               })()
                               const createdDate = (() => {
                                 if (!ticket.created_at) return null
