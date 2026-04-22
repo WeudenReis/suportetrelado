@@ -50,22 +50,115 @@ function KPI({ label, value, sub, color, icon }: { label: string; value: string 
   )
 }
 
-// ── Bounded Horizontal Bar ────────────────────────────────
-function HBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+// ── Modern Horizontal Bar (label/value em cima, barra full-width em baixo) ──
+function HBar({ label, value, max, color, delay = 0 }: { label: string; value: number; max: number; color: string; delay?: number }) {
   const pct = max > 0 ? (value / max) * 100 : 0
+  const fillPct = value > 0 ? Math.max(pct, 4) : 0
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ width: 120, fontSize: 11, color: '#8C96A3', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right', flexShrink: 0 }}>{label}</span>
-      <div style={{ width: 280, flexShrink: 0, height: 20, borderRadius: 6, overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
-        <div style={{
-          height: '100%', borderRadius: 6, transition: 'width 0.6s ease',
-          width: `${Math.max(pct, 2)}%`, background: color,
-          display: 'flex', alignItems: 'center', paddingLeft: 8,
-        }}>
-          {pct > 14 && <span style={{ fontSize: 10, fontWeight: 700, color: '#000', fontFamily: font }}>{value}</span>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#E5E7EB', fontFamily: font, letterSpacing: 0.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{label}</span>
+        <span style={{ fontSize: 13, fontWeight: 800, color, fontFamily: fontH, flexShrink: 0 }}>{value}</span>
+      </div>
+      <div style={{ position: 'relative', width: '100%', height: 24, borderRadius: 12, overflow: 'hidden', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25)' }}>
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${fillPct}%` }}
+          transition={{ delay, duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            height: '100%',
+            borderRadius: 12,
+            background: `linear-gradient(90deg, ${color} 0%, ${color}CC 100%)`,
+            boxShadow: `0 0 14px ${color}66, inset 0 1px 0 rgba(255,255,255,0.25)`,
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── Stacked Priority Bar (Alta / Média / Baixa em uma única linha 100%) ──
+function StackedPriorityBar({ high, medium, low }: { high: number; medium: number; low: number }) {
+  const total = high + medium + low
+  const segments = [
+    { pct: total > 0 ? (high / total) * 100 : 0, color: PRIORITY_C.high, key: 'h' },
+    { pct: total > 0 ? (medium / total) * 100 : 0, color: PRIORITY_C.medium, key: 'm' },
+    { pct: total > 0 ? (low / total) * 100 : 0, color: PRIORITY_C.low, key: 'l' },
+  ].filter(s => s.pct > 0)
+  return (
+    <div style={{ width: '100%', height: 28, borderRadius: 14, overflow: 'hidden', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)' }}>
+      {segments.length === 0 && <div style={{ width: '100%' }} />}
+      {segments.map((s, i) => (
+        <motion.div
+          key={s.key}
+          initial={{ width: 0 }}
+          animate={{ width: `${s.pct}%` }}
+          transition={{ delay: 0.1 + i * 0.12, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            height: '100%',
+            background: `linear-gradient(90deg, ${s.color} 0%, ${s.color}DD 100%)`,
+            boxShadow: `0 0 14px ${s.color}55, inset 0 1px 0 rgba(255,255,255,0.25)`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function PriorityLegend({ high, medium, low }: { high: number; medium: number; low: number }) {
+  const total = high + medium + low
+  const pct = (v: number) => (total > 0 ? Math.round((v / total) * 100) : 0)
+  const items = [
+    { label: 'Alta',  color: PRIORITY_C.high,   value: high },
+    { label: 'Média', color: PRIORITY_C.medium, value: medium },
+    { label: 'Baixa', color: PRIORITY_C.low,    value: low },
+  ]
+  return (
+    <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+      {items.map(it => (
+        <div key={it.label} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: `1px solid ${it.color}22` }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: it.color, boxShadow: `0 0 10px ${it.color}99`, flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+            <span style={{ fontSize: 16, fontWeight: 900, color: it.color, fontFamily: fontH }}>{pct(it.value)}%</span>
+            <span style={{ fontSize: 9, color: '#6B7A8D', fontFamily: font, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>{it.label}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Member Load Card (avatar + nome/% em cima, barra robusta embaixo) ──
+function MemberLoadCard({ name, count, maxCount, index }: { name: string; count: number; maxCount: number; index: number }) {
+  const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0
+  const fillPct = count > 0 ? Math.max(pct, 4) : 0
+  const isNone = name === 'Sem responsável'
+  const isHigh = pct > 80
+  const barColor = isNone ? '#596773' : isHigh ? '#ef5c48' : '#25D066'
+  const avatarBg = isNone ? '#596773' : avatarColor(name)
+  const initials = (name || '??').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?'
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: `1px solid ${isHigh ? '#ef5c4833' : 'rgba(255,255,255,0.05)'}` }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', background: avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', fontFamily: fontH, flexShrink: 0, boxShadow: `0 0 12px ${avatarBg}55, inset 0 1px 0 rgba(255,255,255,0.25)` }}>
+        {initials}
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#E5E7EB', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: barColor, fontFamily: fontH, flexShrink: 0, display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
+            {count}
+            <span style={{ fontSize: 10, color: '#6B7A8D', fontWeight: 700 }}>({pct}%)</span>
+          </span>
+        </div>
+        <div style={{ width: '100%', height: 10, borderRadius: 8, overflow: 'hidden', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25)' }}>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${fillPct}%` }}
+            transition={{ delay: 0.1 + index * 0.07, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            style={{ height: '100%', borderRadius: 8, background: `linear-gradient(90deg, ${barColor} 0%, ${barColor}CC 100%)`, boxShadow: `0 0 10px ${barColor}66, inset 0 1px 0 rgba(255,255,255,0.25)` }}
+          />
         </div>
       </div>
-      {pct <= 14 && <span style={{ fontSize: 11, fontWeight: 700, color, fontFamily: font, minWidth: 20 }}>{value}</span>}
     </div>
   )
 }
@@ -190,7 +283,6 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     for (const t of filtered) m[t.priority] = (m[t.priority] || 0) + 1
     return m
   }, [filtered])
-  const maxPriority = Math.max(...Object.values(priorityDist), 1)
 
   const resolveAssigneeName = useCallback((raw: string): string => {
     const p = profiles.find(pr => pr.email === raw || pr.name === raw || pr.email.split('@')[0].toLowerCase() === raw.toLowerCase())
@@ -210,7 +302,6 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     }
     return Object.entries(m).sort(([, a], [, b]) => b - a)
   }, [filtered, resolveAssigneeName])
-  const maxMember = Math.max(...memberDist.map(([, c]) => c), 1)
 
   // Carga ATIVA: conta apenas tickets não-concluídos (workload real do momento)
   const memberDistActive = useMemo(() => {
@@ -589,9 +680,16 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 {/* Status */}
                 <div style={cardStyle}>
                   <SectionH icon={<Columns3 size={12} />} title="Status do pipeline" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', maxHeight: 220, paddingRight: 4 }} className="inbox-scroll">
-                    {columns.map(col => (
-                      <HBar key={col.id} label={col.title} value={statusDist[col.id] || 0} max={maxStatus} color={col.dot_color || '#579dff'} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', maxHeight: 260, paddingRight: 4 }} className="inbox-scroll">
+                    {columns.map((col, i) => (
+                      <HBar
+                        key={col.id}
+                        label={col.title}
+                        value={statusDist[col.id] || 0}
+                        max={maxStatus}
+                        color={col.dot_color || '#579dff'}
+                        delay={0.08 * i}
+                      />
                     ))}
                   </div>
                 </div>
@@ -599,31 +697,30 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 {/* Prioridade */}
                 <div style={cardStyle}>
                   <SectionH icon={<AlertTriangle size={12} />} title="Distribuição de prioridades" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                    {Object.entries(PRIORITY_L).map(([k, v]) => (
-                      <HBar key={k} label={v} value={priorityDist[k] || 0} max={maxPriority} color={PRIORITY_C[k]} />
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-around', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 12 }}>
-                    {Object.entries(PRIORITY_L).map(([k, v]) => {
-                      const count = priorityDist[k] || 0
-                      const pct = total > 0 ? Math.round(count / total * 100) : 0
-                      return (
-                        <div key={k} style={{ textAlign: 'center' }}>
-                          <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: PRIORITY_C[k], fontFamily: fontH }}>{pct}%</p>
-                          <p style={{ margin: 0, fontSize: 9, color: '#6B7A8D', fontFamily: font }}>{v}</p>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <StackedPriorityBar
+                    high={priorityDist.high || 0}
+                    medium={priorityDist.medium || 0}
+                    low={priorityDist.low || 0}
+                  />
+                  <PriorityLegend
+                    high={priorityDist.high || 0}
+                    medium={priorityDist.medium || 0}
+                    low={priorityDist.low || 0}
+                  />
                 </div>
 
                 {/* Por responsável */}
                 <div style={cardStyle}>
                   <SectionH icon={<Users size={12} />} title="Carga por responsável" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {Object.entries(memberDistActive).sort(([,a],[,b]) => b-a).slice(0, 10).map(([name, count]) => (
-                      <HBar key={name} label={name} value={count} max={maxMemberActive} color={name === 'Sem responsável' ? '#596773' : '#25D066'} />
+                    {Object.entries(memberDistActive).sort(([,a],[,b]) => b-a).slice(0, 10).map(([name, count], i) => (
+                      <MemberLoadCard
+                        key={name}
+                        name={name}
+                        count={count}
+                        maxCount={maxMemberActive}
+                        index={i}
+                      />
                     ))}
                     {Object.keys(memberDistActive).length === 0 && <p style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Sem dados</p>}
                   </div>
