@@ -541,6 +541,27 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
     setActiveTab(tab)
   }, [activeTab, setActiveTab])
 
+  // Ao abrir Avisos, remove imediatamente o toast relacionado a aviso.
+  useEffect(() => {
+    if (activeTab === 'announcements' && toastNotification?.type === 'announcement') {
+      dismissToast()
+    }
+  }, [activeTab, toastNotification, dismissToast])
+
+  // Clique na notificação nativa do navegador pode solicitar abertura da aba correta.
+  useEffect(() => {
+    const onOpenTab = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: string }>).detail
+      if (!detail?.tab) return
+      if (detail.tab !== 'inbox' && detail.tab !== 'announcements') return
+      setActiveTab(detail.tab)
+      if (detail.tab === 'announcements') dismissToast()
+    }
+
+    window.addEventListener('chatpro-open-tab', onOpenTab)
+    return () => window.removeEventListener('chatpro-open-tab', onOpenTab)
+  }, [setActiveTab, dismissToast])
+
   // Entrance animation when sidebar mounts (Framer Motion)
   useEffect(() => {
     const el = sidebarRef.current
@@ -637,7 +658,15 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
       {/* ── Toast de notificação on-screen ── */}
       <AnimatePresence>
         {toastNotification && (
-          <NotificationToast notif={toastNotification} onDismiss={dismissToast} onClickOpen={() => { dismissToast(); handleTabChange('inbox') }} />
+          <NotificationToast
+            notif={toastNotification}
+            onDismiss={dismissToast}
+            onClickOpen={() => {
+              dismissToast()
+              const targetTab = toastNotification.type === 'announcement' ? 'announcements' : 'inbox'
+              if (activeTab !== targetTab) handleTabChange(targetTab)
+            }}
+          />
         )}
       </AnimatePresence>
 

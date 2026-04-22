@@ -38,16 +38,39 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   }, []);
 
   const showBrowserNotification = useCallback((notif: Notification) => {
-    // Only show browser notification when user is not currently on the page
-    if (document.hasFocus()) return;
-    if ('Notification' in window && window.Notification.permission === 'granted') {
-      const body = notif.message || `Nova notificação em "${notif.ticket_title || 'ticket'}"`;
-      const n = new window.Notification('chatPro — Suporte', {
+    // Exibe push apenas quando o app nao esta em primeiro plano.
+    const appVisible = document.visibilityState === 'visible' && document.hasFocus();
+    if (appVisible || !('Notification' in window)) return;
+
+    const isAnnouncement = notif.type === 'announcement';
+    const title = isAnnouncement ? 'chatPro — Novo Aviso' : 'chatPro — Suporte';
+    const body = notif.message || notif.ticket_title || 'Você recebeu uma nova notificação.';
+
+    const notify = () => {
+      const n = new window.Notification(title, {
         body,
         icon: '/icon-192.png',
         tag: notif.id,
+        requireInteraction: isAnnouncement,
       });
-      n.onclick = () => { window.focus(); n.close(); };
+      n.onclick = () => {
+        window.focus();
+        window.dispatchEvent(new CustomEvent('chatpro-open-tab', {
+          detail: { tab: isAnnouncement ? 'announcements' : 'inbox' },
+        }));
+        n.close();
+      };
+    };
+
+    if (window.Notification.permission === 'granted') {
+      notify();
+      return;
+    }
+
+    if (window.Notification.permission === 'default') {
+      window.Notification.requestPermission()
+        .then(permission => { if (permission === 'granted') notify(); })
+        .catch(() => {/* ignorar */});
     }
   }, []);
 
