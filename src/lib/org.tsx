@@ -43,7 +43,7 @@ const OrgContext = createContext<OrgContextValue | null>(null)
 // ── Prioridade de roles: admin ganha sobre supervisor, que ganha sobre agent ──
 const ROLE_PRIORITY: Record<string, number> = { admin: 3, supervisor: 2, agent: 1 }
 
-function bestRoleFrom(rows: { role: string }[], fallback: OrgRole = 'agent'): OrgRole {
+export function bestRoleFrom(rows: { role: string }[], fallback: OrgRole = 'agent'): OrgRole {
   if (!rows.length) return fallback
   return rows.reduce<OrgRole>((best, r) => {
     const rp = ROLE_PRIORITY[r.role] ?? 0
