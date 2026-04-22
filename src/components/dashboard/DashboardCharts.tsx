@@ -76,6 +76,74 @@ export function HBar({ label, value, max, color, delay = 0 }: { label: string; v
   )
 }
 
+// ── Mini Stat Card (estilo Asana/Jira: número grande + barra fina + chip %) ──
+// Usado para Status e Prioridade no lugar de barras horizontais.
+export function MiniStatCard({
+  label,
+  value,
+  total,
+  color,
+  delay = 0,
+}: {
+  label: string
+  value: number
+  total: number
+  color: string
+  delay?: number
+}) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0
+  const fillPct = value > 0 ? Math.max(pct, 3) : 0
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ scale: 1.015, y: -1 }}
+      style={{
+        position: 'relative',
+        padding: '12px 14px',
+        borderRadius: 12,
+        background: SURFACE_BG,
+        border: `1px solid ${color}22`,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        overflow: 'hidden',
+        boxShadow: `0 0 0 1px ${color}0A, 0 6px 18px -12px ${color}40`,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, boxShadow: `0 0 8px ${color}AA`, flexShrink: 0 }} />
+        <span style={{
+          fontSize: 10, fontWeight: 700, color: '#8C96A3',
+          fontFamily: font, textTransform: 'uppercase', letterSpacing: 0.7,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+        }}>{label}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+        <AnimatedNumber
+          value={value}
+          style={{ fontSize: 26, fontWeight: 900, color: '#F1F0F2', fontFamily: fontH, lineHeight: 1, letterSpacing: -0.6 }}
+        />
+        <span style={{
+          fontSize: 10, fontWeight: 700, color, fontFamily: font,
+          padding: '3px 7px', borderRadius: 6,
+          background: `${color}14`, border: `1px solid ${color}33`,
+          letterSpacing: 0.3, flexShrink: 0,
+        }}>{pct}%</span>
+      </div>
+      <div style={{ position: 'relative', width: '100%', height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${fillPct}%` }}
+          transition={{ delay: delay + 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          style={{ height: '100%', borderRadius: 2, background: color, boxShadow: `0 0 6px ${color}88` }}
+        />
+      </div>
+    </motion.div>
+  )
+}
+
 // ── Stacked Priority Bar (Alta / Média / Baixa compondo 100%) ──
 export function StackedPriorityBar({ high, medium, low }: { high: number; medium: number; low: number }) {
   const total = high + medium + low
