@@ -92,6 +92,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showAutoRules, setShowAutoRules] = useState(false)
   const [showMembersManager, setShowMembersManager] = useState(false)
   const { departmentId, role: userRole } = useOrg()
+  const isAdmin = userRole === 'admin'
   const { applyRulesToTicket, applyRulesToBatch } = useAutoRules(departmentId)
 
   const applyAutoRules = useCallback(async () => {
@@ -990,6 +991,10 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                         <button
                                           className="col-menu__item col-menu__item--danger"
                                           onClick={() => {
+                                            if (!isAdmin) {
+                                              alert('Apenas administradores podem excluir listas')
+                                              return
+                                            }
                                             setColorPickerColumnId(null)
                                             if (colTickets.length > 0 && !confirm(`A lista "${col.title}" tem ${colTickets.length} cartão(s). Excluir mesmo assim?`)) return
                                             if (colTickets.length === 0 && !confirm(`Excluir a lista "${col.title}"?`)) return
@@ -999,6 +1004,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                             archiveBoardColumn(col.id).catch(() => {})
                                             showToast('Lista excluída', 'ok')
                                           }}
+                                          disabled={!isAdmin}
                                         >
                                           <Trash2 size={14} />
                                           <span>Excluir lista</span>
@@ -1535,26 +1541,28 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                       transition: 'opacity 0.15s',
                                     }}
                                   >
-                                    <button
-                                      onClick={async (e) => {
-                                        e.stopPropagation()
-                                        handleTicketArchive(ticket.id)
-                                        showToast('Cartão arquivado com sucesso', 'ok')
-                                        await supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', ticket.id)
-                                      }}
-                                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#f87171' }}
-                                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
-                                      title="Arquivar"
-                                      style={{
-                                        width: 28, height: 28, borderRadius: 8,
-                                        background: 'rgba(255,255,255,0.06)', border: 'none',
-                                        color: '#8C96A3', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        transition: 'background 0.15s, color 0.15s', padding: 0,
-                                      }}
-                                    >
-                                      <Archive size={13} />
-                                    </button>
+                                    {isAdmin && (
+                                      <button
+                                        onClick={async (e) => {
+                                          e.stopPropagation()
+                                          handleTicketArchive(ticket.id)
+                                          showToast('Cartão arquivado com sucesso', 'ok')
+                                          await supabase.from('tickets').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', ticket.id)
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#f87171' }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
+                                        title="Arquivar"
+                                        style={{
+                                          width: 28, height: 28, borderRadius: 8,
+                                          background: 'rgba(255,255,255,0.06)', border: 'none',
+                                          color: '#8C96A3', cursor: 'pointer',
+                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          transition: 'background 0.15s, color 0.15s', padding: 0,
+                                        }}
+                                      >
+                                        <Archive size={13} />
+                                      </button>
+                                    )}
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation()

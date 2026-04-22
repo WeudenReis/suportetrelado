@@ -23,7 +23,7 @@ function createSafeClient(): SupabaseClient {
 }
 
 export const supabase = createSafeClient()
-export const isDevEnvironment = Boolean(supabaseUrlDev) || !supabaseUrlProd.includes('qacrxpfoamarslxskcyb')
+export const isDevEnvironment = import.meta.env.DEV || Boolean(supabaseUrlDev) || !supabaseUrlProd.includes('qacrxpfoamarslxskcyb')
 
 // ── Types ────────────────────────────────────────────────────
 export type TicketStatus = string
