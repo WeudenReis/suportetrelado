@@ -60,12 +60,12 @@ const ROLE_PERMS: Record<OrgRole, Set<string>> = {
     'departments:manage', 'announcements:manage', 'links:manage', 'settings:manage',
   ]),
   supervisor: new Set([
-    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:delete', 'tickets:archive', 'tickets:assign',
+    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:assign',
     'tickets:edit_details',
     'columns:manage', 'labels:manage', 'announcements:manage', 'links:manage',
   ]),
   agent: new Set([
-    'tickets:create', 'tickets:read', 'tickets:archive', 'links:manage',
+    'tickets:create', 'tickets:read', 'tickets:update', 'links:manage',
   ]),
 }
 

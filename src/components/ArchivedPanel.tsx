@@ -41,7 +41,8 @@ const PRIORITY_COLOR: Record<string, { bg: string; text: string }> = {
 }
 
 export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
-  const { departmentId } = useOrg();
+  const { departmentId, hasPermission, role } = useOrg();
+  const isAdmin = role === 'admin';
   const [archivedCards, setArchivedCards] = useState<ArchivedCard[]>([]);
   const [archivedLists, setArchivedLists] = useState<ArchivedList[]>([]);
   const [tab, setTab] = useState<'cards' | 'lists'>('cards');
@@ -77,6 +78,10 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
   };
 
   const deleteCard = async (cardId: string) => {
+    if (!hasPermission('tickets:delete')) {
+      alert('Apenas administradores podem excluir cartões');
+      return;
+    }
     if (!confirm('Excluir permanentemente? Não poderá ser recuperado.')) return;
     await supabase.from('tickets').delete().eq('id', cardId);
     await fetchArchived();
@@ -91,6 +96,10 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
   };
 
   const deleteList = async (listId: string) => {
+    if (!isAdmin) {
+      alert('Apenas administradores podem excluir listas');
+      return;
+    }
     if (!confirm('Excluir lista permanentemente? Os tickets dentro dela serão perdidos.')) return;
     await supabase.from('tickets').delete().eq('column_id', listId);
     await supabase.from('board_columns').delete().eq('id', listId);
@@ -193,6 +202,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
                           className={styles.deleteBtn}
                           onClick={() => deleteCard(card.id)}
                           title="Excluir permanentemente" type="button"
+                          disabled={!hasPermission('tickets:delete')}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -227,6 +237,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
                       className={styles.deleteBtn}
                       onClick={() => deleteList(list.id)}
                       title="Excluir permanentemente" type="button"
+                      disabled={!isAdmin}
                     >
                       <Trash2 size={14} />
                     </button>

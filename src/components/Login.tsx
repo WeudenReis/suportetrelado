@@ -116,12 +116,14 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
   const captchaRef = useRef<HTMLDivElement>(null)
   const captchaWidgetId = useRef<number | null>(null)
   const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  const recaptchaEnabled = Boolean(recaptchaSiteKey) && !isLocalhost
 
   const passwordChecks = validatePassword(registerPassword)
 
   // Carregar script do reCAPTCHA
   useEffect(() => {
-    if (!recaptchaSiteKey) return
+    if (!recaptchaEnabled) return
     const existingScript = document.querySelector('script[src*="recaptcha"]')
     if (existingScript) return
 
@@ -146,11 +148,11 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
     return () => {
       delete (window as unknown as Record<string, unknown>).onRecaptchaLoad
     }
-  }, [recaptchaSiteKey])
+  }, [recaptchaEnabled, recaptchaSiteKey])
 
   // Renderizar widget quando o reCAPTCHA já estiver carregado
   useEffect(() => {
-    if (!recaptchaSiteKey || !captchaRef.current || captchaWidgetId.current !== null) return
+    if (!recaptchaEnabled || !captchaRef.current || captchaWidgetId.current !== null) return
     if (window.grecaptcha) {
       window.grecaptcha.ready(() => {
         if (captchaRef.current && window.grecaptcha && captchaWidgetId.current === null) {
@@ -164,7 +166,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
         }
       })
     }
-  }, [recaptchaSiteKey])
+  }, [recaptchaEnabled, recaptchaSiteKey])
 
   const pushToast = useCallback((type: ToastType, title: string, message: string) => {
     const id = Math.random().toString(36).slice(2)
@@ -219,7 +221,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
       pushToast('error', 'Erro de configuração', 'As variáveis de ambiente do Supabase não estão configuradas.')
       return
     }
-    if (recaptchaSiteKey && !captchaToken) {
+    if (recaptchaEnabled && !captchaToken) {
       pushToast('warning', 'Verificação necessária', 'Complete o reCAPTCHA antes de continuar.')
       return
     }
@@ -274,7 +276,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
       pushToast('error', 'Erro de configuração', 'As variáveis de ambiente do Supabase não estão configuradas.')
       return
     }
-    if (recaptchaSiteKey && !captchaToken) {
+    if (recaptchaEnabled && !captchaToken) {
       pushToast('warning', 'Verificação necessária', 'Complete o reCAPTCHA antes de continuar.')
       return
     }
@@ -496,7 +498,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                   {/* Botão Entrar */}
                   <button
                     type="submit"
-                    disabled={loadingEmail || (!!recaptchaSiteKey && !captchaToken)}
+                    disabled={loadingEmail || (recaptchaEnabled && !captchaToken)}
                     onMouseEnter={e => { if (!loadingEmail) e.currentTarget.style.background = '#1BAD53' }}
                     onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
                     style={{
@@ -650,7 +652,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                   {/* Botão Criar conta */}
                   <button
                     type="submit"
-                    disabled={loadingRegister || !isPasswordValid(registerPassword) || (!!recaptchaSiteKey && !captchaToken)}
+                    disabled={loadingRegister || !isPasswordValid(registerPassword) || (recaptchaEnabled && !captchaToken)}
                     onMouseEnter={e => { if (!loadingRegister) e.currentTarget.style.background = '#1BAD53' }}
                     onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
                     style={{
@@ -764,7 +766,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
           </AnimatePresence>
 
           {/* reCAPTCHA — fora da alternância para manter o widget montado */}
-          {recaptchaSiteKey && (
+          {recaptchaEnabled && (
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
               <div ref={captchaRef} />
             </div>
