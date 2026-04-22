@@ -1,97 +1,64 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, Download, CalendarDays, Target, Maximize2 } from 'lucide-react'
 import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../lib/supabase'
 import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
 import DashboardExpanded from './DashboardExpanded'
 import { logger } from '../lib/logger'
 import { useOrg } from '../lib/org'
+import {
+  AnimatedNumber,
+  HBar,
+  StackedPriorityBar,
+  PriorityLegend,
+  MemberLoadCard,
+} from './dashboard/DashboardCharts'
 
 interface DashboardViewProps {
   user: string
   onClose: () => void
 }
 
-/** Barra horizontal simples */
-function Bar({ value, max, color, label, count }: { value: number; max: number; color: string; label: string; count: number }) {
-  const pct = max > 0 ? (value / max) * 100 : 0
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{
-        fontSize: 11, width: 100, textAlign: 'right', color: '#8C96A3',
-        fontFamily: "'Space Grotesk', sans-serif",
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
-        {label}
-      </span>
-      <div style={{ flex: 1, height: 20, borderRadius: 6, overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
-        <div style={{
-          height: '100%', borderRadius: 6, transition: 'width 0.5s ease',
-          width: `${Math.max(pct, 2)}%`, background: color,
-          display: 'flex', alignItems: 'center', paddingLeft: 8,
-        }}>
-          {pct > 15 && (
-            <span style={{
-              fontSize: 10, fontWeight: 700, color: '#000',
-              fontFamily: "'Space Grotesk', sans-serif",
-            }}>
-              {count}
-            </span>
-          )}
-        </div>
-      </div>
-      {pct <= 15 && (
-        <span style={{
-          fontSize: 11, fontWeight: 700, color,
-          fontFamily: "'Space Grotesk', sans-serif",
-        }}>
-          {count}
-        </span>
-      )}
-    </div>
-  )
-}
-
-/** Card de métrica */
+/** Card de métrica — number anima count-up, micro-interação whileHover */
 function MetricCard({ icon, label, value, color, sub }: { icon: React.ReactNode; label: string; value: string | number; color: string; sub?: string }) {
+  const parsed = typeof value === 'number'
+    ? { num: value, suffix: '' }
+    : (() => { const m = String(value).match(/^(-?\d+(?:\.\d+)?)(.*)$/); return m ? { num: parseFloat(m[1]), suffix: m[2] } : null })()
   return (
-    <div style={{
-      borderRadius: 12, padding: 12,
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.06)',
-      display: 'flex', flexDirection: 'column', gap: 4,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color }}>{icon}</span>
+    <motion.div
+      whileHover={{ scale: 1.01, y: -1 }}
+      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+      style={{
+        borderRadius: 12, padding: '12px 14px',
+        background: 'rgba(44,51,58,0.5)',
+        border: `1px solid ${color}33`,
+        display: 'flex', flexDirection: 'column', gap: 4,
+        boxShadow: `0 0 0 1px ${color}0A, 0 8px 24px -12px ${color}33`,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color }}>
+        <span>{icon}</span>
         <span style={{
-          fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
-          letterSpacing: '0.04em', color: '#6B7A8D',
+          fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.08em',
           fontFamily: "'Space Grotesk', sans-serif",
         }}>
           {label}
         </span>
       </div>
-      <p style={{
-        fontSize: 24, fontWeight: 900, color, margin: 0,
-        fontFamily: "'Paytone One', sans-serif",
-      }}>
-        {value}
-      </p>
+      {parsed
+        ? <AnimatedNumber value={parsed.num} suffix={parsed.suffix} style={{ fontSize: 26, fontWeight: 900, color, margin: 0, fontFamily: "'Paytone One', sans-serif", lineHeight: 1, letterSpacing: -0.5 }} />
+        : <p style={{ fontSize: 26, fontWeight: 900, color, margin: 0, fontFamily: "'Paytone One', sans-serif", lineHeight: 1, letterSpacing: -0.5 }}>{value}</p>}
       {sub && (
         <p style={{
-          fontSize: 10, color: '#6B7A8D', margin: 0,
-          fontFamily: "'Space Grotesk', sans-serif",
+          fontSize: 10, color: '#8C96A3', margin: 0,
+          fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500,
         }}>
           {sub}
         </p>
       )}
-    </div>
+    </motion.div>
   )
-}
-
-const PRIORITY_LABELS: Record<string, { label: string; color: string }> = {
-  high:   { label: 'Alta',   color: '#ef5c48' },
-  medium: { label: 'Média',  color: '#e2b203' },
-  low:    { label: 'Baixa',  color: '#4bce97' },
 }
 
 export default function DashboardView({ user, onClose }: DashboardViewProps) {
@@ -484,27 +451,39 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
           }}>
             Tickets por Status
           </p>
-          <div className="inbox-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', maxHeight: 200, paddingRight: 2 }}>
-            {columns.map(col => (
-              <Bar key={col.id} value={statusCounts[col.id] || 0} max={maxStatus} color={col.dot_color || '#579dff'} label={col.title} count={statusCounts[col.id] || 0} />
+          <div className="inbox-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', maxHeight: 240, paddingRight: 2 }}>
+            {columns.map((col, i) => (
+              <HBar
+                key={col.id}
+                label={col.title}
+                value={statusCounts[col.id] || 0}
+                max={maxStatus}
+                color={col.dot_color || '#579dff'}
+                delay={0.05 * i}
+              />
             ))}
           </div>
         </div>
 
-        {/* ── Gráfico: Por Prioridade ── */}
+        {/* ── Gráfico: Por Prioridade (Stacked Bar única 100%) ── */}
         <div data-stagger-child>
           <p style={{
             fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
             letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
             fontFamily: "'Space Grotesk', sans-serif",
           }}>
-            Tickets por Prioridade
+            Distribuição de Prioridades
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {Object.entries(PRIORITY_LABELS).map(([key, { label, color }]) => (
-              <Bar key={key} value={priorityCounts[key] || 0} max={maxPriority} color={color} label={label} count={priorityCounts[key] || 0} />
-            ))}
-          </div>
+          <StackedPriorityBar
+            high={priorityCounts.high || 0}
+            medium={priorityCounts.medium || 0}
+            low={priorityCounts.low || 0}
+          />
+          <PriorityLegend
+            high={priorityCounts.high || 0}
+            medium={priorityCounts.medium || 0}
+            low={priorityCounts.low || 0}
+          />
         </div>
 
         {/* ── Gráfico: Tickets criados por dia (últimos 7 dias) ── */}
@@ -519,30 +498,41 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             Criados nos Últimos 7 Dias
           </p>
           <div style={{
-            display: 'flex', alignItems: 'flex-end', gap: 4, height: 96, padding: '0 4px',
+            display: 'flex', alignItems: 'flex-end', gap: 6, height: 110, padding: '0 4px',
+            background: 'rgba(44,51,58,0.35)',
+            borderRadius: 10,
+            border: '1px solid rgba(255,255,255,0.05)',
           }}>
             {dailyCounts.map((d, i) => {
               const h = maxDaily > 0 ? (d.count / maxDaily) * 100 : 0
+              const hasValue = d.count > 0
               return (
                 <div key={i} style={{
                   flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  height: '100%', padding: '6px 0',
                 }}>
                   <span style={{
-                    fontSize: 9, fontWeight: 700,
-                    color: d.count > 0 ? '#25D066' : '#454F59',
-                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: 10, fontWeight: 800,
+                    color: hasValue ? '#25D066' : '#596773',
+                    fontFamily: "'Paytone One', sans-serif", letterSpacing: -0.2,
                   }}>
-                    {d.count > 0 ? d.count : ''}
+                    {hasValue ? d.count : ''}
                   </span>
-                  <div style={{
-                    width: '100%', borderRadius: '4px 4px 0 0',
-                    transition: 'height 0.5s ease',
-                    height: `${Math.max(h, 4)}%`,
-                    background: d.count > 0 ? 'linear-gradient(to top, #1BAD53, #25D066)' : 'rgba(255,255,255,0.04)',
-                    minHeight: 3,
-                  }} />
+                  <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
+                    <motion.div
+                      initial={{ height: 0 }}
+                      animate={{ height: `${Math.max(h, hasValue ? 6 : 3)}%` }}
+                      transition={{ delay: 0.05 * i, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                      style={{
+                        width: '100%', borderRadius: '6px 6px 0 0',
+                        background: hasValue ? 'linear-gradient(to top, #1BAD53, #25D066)' : 'rgba(255,255,255,0.05)',
+                        boxShadow: hasValue ? '0 0 10px rgba(37,208,102,0.35), inset 0 1px 0 rgba(255,255,255,0.25)' : 'none',
+                        minHeight: 3,
+                      }}
+                    />
+                  </div>
                   <span style={{
-                    fontSize: 8, color: '#596773',
+                    fontSize: 9, color: '#8C96A3', fontWeight: 600,
                     fontFamily: "'Space Grotesk', sans-serif",
                   }}>
                     {d.label}
@@ -567,20 +557,28 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {columnCounts.map(col => (
-                <div key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div key={col.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 10px', borderRadius: 10,
+                  background: 'rgba(44,51,58,0.5)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}>
                   <span style={{
                     width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
                     background: col.color,
+                    boxShadow: `0 0 8px ${col.color}99`,
                   }} />
                   <span style={{
-                    fontSize: 12, fontWeight: 600, color: '#E5E7EB', flex: 1,
+                    fontSize: 12, fontWeight: 600, color: '#F1F0F2', flex: 1,
                     fontFamily: "'Space Grotesk', sans-serif",
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
                     {col.title}
                   </span>
                   <span style={{
-                    fontSize: 13, fontWeight: 900, color: col.count > 0 ? '#25D066' : '#454F59',
+                    fontSize: 14, fontWeight: 900, color: col.count > 0 ? '#25D066' : '#596773',
                     fontFamily: "'Paytone One', sans-serif",
+                    letterSpacing: -0.3,
                   }}>
                     {col.count}
                   </span>
@@ -616,8 +614,8 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 10px', borderRadius: 10,
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid rgba(255,255,255,0.04)',
+                    background: 'rgba(44,51,58,0.5)',
+                    border: '1px solid rgba(255,255,255,0.06)',
                     transition: 'all 0.15s',
                   }}
                 >
@@ -690,15 +688,14 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             <Users size={11} />
             Tickets por Responsável
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {memberCounts.slice(0, 8).map(([name, count]) => (
-              <Bar
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {memberCounts.slice(0, 8).map(([name, count], i) => (
+              <MemberLoadCard
                 key={name}
-                value={count}
-                max={maxMember}
-                color={name === 'Sem responsável' ? '#596773' : '#25D066'}
-                label={name.split('@')[0]}
+                name={name}
                 count={count}
+                maxCount={maxMember}
+                index={i}
               />
             ))}
           </div>
@@ -722,10 +719,10 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '5px 10px', borderRadius: 8,
-                    fontSize: 11, color: '#8C96A3',
+                    fontSize: 11, color: '#D1D1D5',
                     fontFamily: "'Space Grotesk', sans-serif",
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.04)',
+                    background: 'rgba(44,51,58,0.5)',
+                    border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
                   <span style={{

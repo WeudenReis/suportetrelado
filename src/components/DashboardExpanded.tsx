@@ -2,6 +2,13 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import ReactDOM from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
+  AnimatedNumber,
+  HBar,
+  StackedPriorityBar,
+  PriorityLegend,
+  MemberLoadCard,
+} from './dashboard/DashboardCharts'
+import {
   X, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock,
   Users, Columns3, Target, Download, Filter, SortAsc,
   ArrowUpRight, ShieldAlert, Activity, Inbox, CalendarRange,
@@ -36,37 +43,26 @@ function ticketEndDate(t: { is_completed?: boolean; updated_at: string }): strin
   return t.is_completed ? t.updated_at : new Date().toISOString()
 }
 
-// ── KPI Card ─────────────────────────────────────────────
+// ── KPI Card (Paytone One nos números, Space Grotesk nos labels) ──
 function KPI({ label, value, sub, color, icon }: { label: string; value: string | number; sub?: string; color: string; icon: React.ReactNode }) {
+  const parsed = typeof value === 'number'
+    ? { num: value, suffix: '' }
+    : (() => { const m = String(value).match(/^(-?\d+(?:\.\d+)?)(.*)$/); return m ? { num: parseFloat(m[1]), suffix: m[2] } : null })()
   return (
-    <div style={{ borderRadius: 12, padding: '14px 16px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${color}28`, display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
+    <motion.div
+      whileHover={{ scale: 1.01, y: -1 }}
+      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+      style={{ borderRadius: 12, padding: '14px 16px', background: 'rgba(44,51,58,0.5)', border: `1px solid ${color}33`, display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120, boxShadow: `0 0 0 1px ${color}0A, 0 8px 24px -12px ${color}33` }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, color }}>
         {icon}
-        <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: font }}>{label}</span>
+        <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: font }}>{label}</span>
       </div>
-      <p style={{ fontSize: 28, fontWeight: 900, color, margin: 0, fontFamily: fontH, lineHeight: 1 }}>{value}</p>
-      {sub && <p style={{ fontSize: 10, color: '#6B7A8D', margin: 0, fontFamily: font }}>{sub}</p>}
-    </div>
-  )
-}
-
-// ── Bounded Horizontal Bar ────────────────────────────────
-function HBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const pct = max > 0 ? (value / max) * 100 : 0
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ width: 120, fontSize: 11, color: '#8C96A3', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right', flexShrink: 0 }}>{label}</span>
-      <div style={{ width: 280, flexShrink: 0, height: 20, borderRadius: 6, overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
-        <div style={{
-          height: '100%', borderRadius: 6, transition: 'width 0.6s ease',
-          width: `${Math.max(pct, 2)}%`, background: color,
-          display: 'flex', alignItems: 'center', paddingLeft: 8,
-        }}>
-          {pct > 14 && <span style={{ fontSize: 10, fontWeight: 700, color: '#000', fontFamily: font }}>{value}</span>}
-        </div>
-      </div>
-      {pct <= 14 && <span style={{ fontSize: 11, fontWeight: 700, color, fontFamily: font, minWidth: 20 }}>{value}</span>}
-    </div>
+      {parsed
+        ? <AnimatedNumber value={parsed.num} suffix={parsed.suffix} style={{ fontSize: 30, fontWeight: 900, color, margin: 0, fontFamily: fontH, lineHeight: 1, letterSpacing: -0.5 }} />
+        : <p style={{ fontSize: 30, fontWeight: 900, color, margin: 0, fontFamily: fontH, lineHeight: 1, letterSpacing: -0.5 }}>{value}</p>}
+      {sub && <p style={{ fontSize: 10, color: '#8C96A3', margin: 0, fontFamily: font, fontWeight: 500 }}>{sub}</p>}
+    </motion.div>
   )
 }
 
@@ -190,7 +186,6 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     for (const t of filtered) m[t.priority] = (m[t.priority] || 0) + 1
     return m
   }, [filtered])
-  const maxPriority = Math.max(...Object.values(priorityDist), 1)
 
   const resolveAssigneeName = useCallback((raw: string): string => {
     const p = profiles.find(pr => pr.email === raw || pr.name === raw || pr.email.split('@')[0].toLowerCase() === raw.toLowerCase())
@@ -210,7 +205,6 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     }
     return Object.entries(m).sort(([, a], [, b]) => b - a)
   }, [filtered, resolveAssigneeName])
-  const maxMember = Math.max(...memberDist.map(([, c]) => c), 1)
 
   // Carga ATIVA: conta apenas tickets não-concluídos (workload real do momento)
   const memberDistActive = useMemo(() => {
@@ -589,9 +583,16 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 {/* Status */}
                 <div style={cardStyle}>
                   <SectionH icon={<Columns3 size={12} />} title="Status do pipeline" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', maxHeight: 220, paddingRight: 4 }} className="inbox-scroll">
-                    {columns.map(col => (
-                      <HBar key={col.id} label={col.title} value={statusDist[col.id] || 0} max={maxStatus} color={col.dot_color || '#579dff'} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', maxHeight: 260, paddingRight: 4 }} className="inbox-scroll">
+                    {columns.map((col, i) => (
+                      <HBar
+                        key={col.id}
+                        label={col.title}
+                        value={statusDist[col.id] || 0}
+                        max={maxStatus}
+                        color={col.dot_color || '#579dff'}
+                        delay={0.05 * i}
+                      />
                     ))}
                   </div>
                 </div>
@@ -599,31 +600,30 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 {/* Prioridade */}
                 <div style={cardStyle}>
                   <SectionH icon={<AlertTriangle size={12} />} title="Distribuição de prioridades" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                    {Object.entries(PRIORITY_L).map(([k, v]) => (
-                      <HBar key={k} label={v} value={priorityDist[k] || 0} max={maxPriority} color={PRIORITY_C[k]} />
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-around', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 12 }}>
-                    {Object.entries(PRIORITY_L).map(([k, v]) => {
-                      const count = priorityDist[k] || 0
-                      const pct = total > 0 ? Math.round(count / total * 100) : 0
-                      return (
-                        <div key={k} style={{ textAlign: 'center' }}>
-                          <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: PRIORITY_C[k], fontFamily: fontH }}>{pct}%</p>
-                          <p style={{ margin: 0, fontSize: 9, color: '#6B7A8D', fontFamily: font }}>{v}</p>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <StackedPriorityBar
+                    high={priorityDist.high || 0}
+                    medium={priorityDist.medium || 0}
+                    low={priorityDist.low || 0}
+                  />
+                  <PriorityLegend
+                    high={priorityDist.high || 0}
+                    medium={priorityDist.medium || 0}
+                    low={priorityDist.low || 0}
+                  />
                 </div>
 
                 {/* Por responsável */}
                 <div style={cardStyle}>
                   <SectionH icon={<Users size={12} />} title="Carga por responsável" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {Object.entries(memberDistActive).sort(([,a],[,b]) => b-a).slice(0, 10).map(([name, count]) => (
-                      <HBar key={name} label={name} value={count} max={maxMemberActive} color={name === 'Sem responsável' ? '#596773' : '#25D066'} />
+                    {Object.entries(memberDistActive).sort(([,a],[,b]) => b-a).slice(0, 10).map(([name, count], i) => (
+                      <MemberLoadCard
+                        key={name}
+                        name={name}
+                        count={count}
+                        maxCount={maxMemberActive}
+                        index={i}
+                      />
                     ))}
                     {Object.keys(memberDistActive).length === 0 && <p style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Sem dados</p>}
                   </div>
