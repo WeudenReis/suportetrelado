@@ -119,7 +119,10 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
   // Mantém localTickets em sync quando o prop tickets muda (realtime do DashboardView)
   useEffect(() => { setLocalTickets(tickets) }, [tickets])
 
-  const active = useMemo(() => localTickets.filter(t => !t.is_archived), [localTickets])
+  const active = useMemo(() => {
+    const validColIds = new Set(columns.map(c => c.id))
+    return localTickets.filter(t => !t.is_archived && validColIds.has(t.status))
+  }, [localTickets, columns])
 
   const cutoff = useMemo(() => {
     if (dateRange === 'all') return null

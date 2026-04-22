@@ -138,7 +138,18 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     return () => { supabase.removeChannel(channel) }
   }, [departmentId])
 
-  const active = useMemo(() => tickets.filter(t => !t.is_archived), [tickets])
+  // Painel compacto = "Raio-X de Hoje": apenas tickets ativos, em coluna existente
+  // e com movimentação no dia (criados ou atualizados hoje). Histórico completo
+  // segue disponível no DashboardExpanded, que recebe `tickets` integralmente.
+  const active = useMemo(() => {
+    const validColIds = new Set(columns.map(c => c.id))
+    const todayStr = new Date().toISOString().slice(0, 10)
+    return tickets.filter(t =>
+      !t.is_archived &&
+      validColIds.has(t.status) &&
+      (t.created_at.startsWith(todayStr) || t.updated_at.startsWith(todayStr))
+    )
+  }, [tickets, columns])
 
   // ── Métricas ──
   const totalActive = active.length
