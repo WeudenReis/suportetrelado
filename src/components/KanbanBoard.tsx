@@ -91,8 +91,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
   const [showAutoRules, setShowAutoRules] = useState(false)
   const [showMembersManager, setShowMembersManager] = useState(false)
-  const { departmentId, role: userRole } = useOrg()
+  const { departmentId, role: userRole, hasPermission } = useOrg()
   const isAdmin = userRole === 'admin'
+  const canManageColumns = hasPermission('columns:manage')
   const { applyRulesToTicket, applyRulesToBatch } = useAutoRules(departmentId)
 
   const applyAutoRules = useCallback(async () => {
@@ -935,7 +936,12 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                             ) : (
                               <span
                                 className="flex-1 truncate"
-                                onDoubleClick={e => { e.stopPropagation(); setEditingColumnId(col.id); setEditingColumnTitle(col.title) }}
+                                onDoubleClick={e => {
+                                  if (!canManageColumns) return
+                                  e.stopPropagation()
+                                  setEditingColumnId(col.id)
+                                  setEditingColumnTitle(col.title)
+                                }}
                               >{col.title}</span>
                             )}
                             <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.12)', color: '#ffffff' }}>{colTickets.length}</span>
@@ -991,8 +997,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                         <button
                                           className="col-menu__item col-menu__item--danger"
                                           onClick={() => {
-                                            if (!isAdmin) {
-                                              alert('Apenas administradores podem excluir listas')
+                                            if (!canManageColumns) {
+                                              alert('Você não tem permissão para excluir listas')
                                               return
                                             }
                                             setColorPickerColumnId(null)
@@ -1004,7 +1010,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                             archiveBoardColumn(col.id).catch(() => {})
                                             showToast('Lista excluída', 'ok')
                                           }}
-                                          disabled={!isAdmin}
+                                          disabled={!canManageColumns}
                                         >
                                           <Trash2 size={14} />
                                           <span>Excluir lista</span>
@@ -1126,7 +1132,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               })}
             </SortableContext>
             {/* Add another list */}
-            {addingList ? (
+            {!canManageColumns ? null : addingList ? (
               <div className="add-list-form">
                 <input
                   autoFocus

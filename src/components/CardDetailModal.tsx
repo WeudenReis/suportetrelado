@@ -79,6 +79,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const canEditDetails = hasPermission('tickets:edit_details')
   const canDelete      = hasPermission('tickets:delete')
   const canAssign      = hasPermission('tickets:assign')
+  const canManageLabels = hasPermission('labels:manage')
   const statusLabel = useCallback((id: string) => {
     const col = boardColumns.find(c => c.id === id)
     return col?.title || LEGACY_STATUS_MAP[id] || id
@@ -563,7 +564,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
         {/* ── Action quick bar ── */}
         <div className="flex items-center gap-1.5 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          {canEditDetails
+          {canManageLabels
             ? <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
             : tags.length > 0 && <div className="flex flex-wrap gap-1 items-center">
                 {tags.map(raw => { const { name, color } = parseTag(raw); return <span key={raw} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: color }}>{name}</span> })}
@@ -603,7 +604,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           {/* ═══ LEFT: Identification ═══ */}
           <div className="elite-modal__col-left">
             {/* Labels picker */}
-            {showLabelPicker && (
+            {showLabelPicker && canManageLabels && (
               <div className="rounded-lg p-2.5 space-y-2 mb-3" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)', maxHeight: 260, overflowY: 'auto' }}>
                 <div className="text-[11px] font-semibold" style={{ color: '#596773' }}>Etiquetas</div>
 
@@ -717,14 +718,14 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
             <div className="grid grid-cols-2 gap-2">
               <FieldGroup label="Cliente" icon={<User size={13} />}>
-                <input value={cliente} onChange={e => setCliente(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Nome do cliente" />
+                <input value={cliente} onChange={canEditDetails ? e => setCliente(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder="Nome do cliente" />
               </FieldGroup>
               <FieldGroup label="Instância" icon={<CreditCard size={13} />}>
-                <input value={instancia} onChange={e => setInstancia(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Código da instância" />
+                <input value={instancia} onChange={canEditDetails ? e => setInstancia(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder="Código da instância" />
               </FieldGroup>
               <FieldGroup label="Link Retaguarda" icon={<Link2 size={13} />}>
                 <div className="flex gap-1">
-                  <input value={linkRetaguarda} onChange={e => setLinkRetaguarda(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
+                  <input value={linkRetaguarda} onChange={canEditDetails ? e => setLinkRetaguarda(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
                   {linkRetaguarda && (
                     <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
                   )}
@@ -732,7 +733,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               </FieldGroup>
               <FieldGroup label="Link Sessão" icon={<Link2 size={13} />}>
                 <div className="flex gap-1">
-                  <input value={linkSessao} onChange={e => setLinkSessao(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
+                  <input value={linkSessao} onChange={canEditDetails ? e => setLinkSessao(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
                   {linkSessao && (
                     <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
                   )}
@@ -848,6 +849,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
 
               const toggleItem = (lineIdx: number) => {
+                if (!canEditDetails) return
                 const updated = lines.map((line, i) => {
                   if (i !== lineIdx) return line
                   return line.startsWith('☐') ? line.replace('☐', '☑') : line.replace('☑', '☐')
@@ -857,12 +859,14 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               }
 
               const removeItem = (lineIdx: number) => {
+                if (!canEditDetails) return
                 const updated = lines.filter((_, i) => i !== lineIdx).join('\n')
                 setObservacao(updated)
                 save({ observacao: updated })
               }
 
               const addItem = () => {
+                if (!canEditDetails) return
                 if (!newChecklistItem.trim()) return
                 const item = '☐ ' + newChecklistItem.trim()
                 const updated = observacao ? observacao + '\n' + item : item
@@ -886,30 +890,34 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   )}
                   <div className="space-y-1 mb-2">
                     {checkItems.map(item => (
-                      <div key={item.idx} className="flex items-center gap-2 group rounded-md px-2 py-1.5 transition-colors hover:bg-white/5" style={{ cursor: 'pointer' }}>
-                        <button onClick={() => toggleItem(item.idx)} className="flex-shrink-0" style={{ color: item.checked ? '#22c55e' : '#596773' }}>
+                      <div key={item.idx} className="flex items-center gap-2 group rounded-md px-2 py-1.5 transition-colors hover:bg-white/5" style={{ cursor: canEditDetails ? 'pointer' : 'default' }}>
+                        <button onClick={() => toggleItem(item.idx)} disabled={!canEditDetails} className="flex-shrink-0" style={{ color: item.checked ? '#22c55e' : '#596773', cursor: canEditDetails ? 'pointer' : 'default' }}>
                           {item.checked ? <CheckSquare size={16} /> : <Square size={16} />}
                         </button>
                         <span className="flex-1 text-sm" style={{ color: item.checked ? '#596773' : '#b6c2cf', textDecoration: item.checked ? 'line-through' : 'none' }}>{item.text}</span>
-                        <button onClick={() => removeItem(item.idx)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-500/20">
-                          <Trash2 size={12} className="text-red-400" />
-                        </button>
+                        {canEditDetails && (
+                          <button onClick={() => removeItem(item.idx)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-500/20">
+                            <Trash2 size={12} className="text-red-400" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
-                  <div className="flex gap-1.5">
-                    <input
-                      ref={checklistInputRef}
-                      value={newChecklistItem}
-                      onChange={e => setNewChecklistItem(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') addItem() }}
-                      placeholder="Adicionar item..."
-                      className="modal-field flex-1 text-xs"
-                    />
-                    <button onClick={addItem} className="px-2 py-1 rounded-md transition-colors hover:bg-white/10" style={{ color: '#579dff' }}>
-                      <Plus size={16} />
-                    </button>
-                  </div>
+                  {canEditDetails && (
+                    <div className="flex gap-1.5">
+                      <input
+                        ref={checklistInputRef}
+                        value={newChecklistItem}
+                        onChange={e => setNewChecklistItem(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addItem() }}
+                        placeholder="Adicionar item..."
+                        className="modal-field flex-1 text-xs"
+                      />
+                      <button onClick={addItem} className="px-2 py-1 rounded-md transition-colors hover:bg-white/10" style={{ color: '#579dff' }}>
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  )}
                 </section>
               )
             })()}
@@ -921,17 +929,18 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               </div>
               <textarea
                 value={observacao.split('\n').filter(l => !l.startsWith('☐') && !l.startsWith('☑')).join('\n')}
-                onChange={e => {
+                onChange={canEditDetails ? e => {
                   const checkLines = observacao.split('\n').filter(l => l.startsWith('☐') || l.startsWith('☑'))
                   const newNotes = e.target.value
                   const merged = [...(newNotes ? [newNotes] : []), ...checkLines].join('\n')
                   setObservacao(merged)
-                }}
-                onBlur={saveOnBlur}
+                } : undefined}
+                onBlur={canEditDetails ? saveOnBlur : undefined}
+                readOnly={!canEditDetails}
                 className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 80 }}
+                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 80, cursor: canEditDetails ? undefined : 'default' }}
                 rows={4}
-                placeholder="Notas adicionais"
+                placeholder={canEditDetails ? 'Notas adicionais' : ''}
               />
             </section>
           </div>
