@@ -203,10 +203,12 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     return Object.entries(m).sort(([, a], [, b]) => b - a)
   }, [filtered, resolveAssigneeName])
 
-  // Carga ATIVA: conta apenas tickets não-concluídos (workload real do momento)
+  // Carga ATIVA: conta apenas tickets não-concluídos (workload real do momento).
+  // Respeita os filtros (data/status/prioridade/responsável) para consistência
+  // com os demais gráficos da aba Visão Geral.
   const memberDistActive = useMemo(() => {
     const m: Record<string, number> = {}
-    for (const t of active.filter(x => !x.is_completed)) {
+    for (const t of filtered.filter(x => !x.is_completed)) {
       const assignees = t.assignee ? t.assignee.split(',').map(s => s.trim()).filter(Boolean) : ['Sem responsável']
       assignees.forEach(a => {
         const displayName = a === 'Sem responsável' ? a : resolveAssigneeName(a)
@@ -214,7 +216,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
       })
     }
     return m
-  }, [active, resolveAssigneeName])
+  }, [filtered, resolveAssigneeName])
   const maxMemberActive = Math.max(...Object.values(memberDistActive), 1)
 
   const days = dateRange === '7d' ? 7 : 14
@@ -568,7 +570,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* KPIs */}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <KPI icon={<Activity size={13} />}    label="Total ativos"   value={active.length}        color="#25D066" sub={`${backlogCount} em ${columns[0]?.title ?? 'backlog'}`} />
+                <KPI icon={<Activity size={13} />}    label="Total ativos"   value={filtered.length}      color="#25D066" sub={`${backlogCount} em ${columns[0]?.title ?? 'backlog'}`} />
                 <KPI icon={<ShieldAlert size={13} />} label="Alta prioridade" value={highCount}            color="#ef5c48" sub="tickets urgentes" />
                 <KPI icon={<CheckCircle2 size={13} />} label="Taxa resolução" value={`${resolutionRate}%`} color="#4bce97" sub={`${completedCount} concluídos`} />
                 <KPI icon={<Clock size={13} />}        label="Tempo médio"    value={`${avgHours}h`}        color="#e2b203" sub="para concluir" />
@@ -586,7 +588,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                         key={col.id}
                         label={col.title}
                         value={statusDist[col.id] || 0}
-                        total={active.length}
+                        total={filtered.length}
                         color={col.dot_color || '#579dff'}
                         delay={0.04 * i}
                         showDivider={i < columns.length - 1}
@@ -639,8 +641,8 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                   <SectionH icon={<Columns3 size={12} />} title="Tickets por coluna" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                     {columns.map(col => {
-                      const count = active.filter(t => t.status === col.id).length
-                      const pct = active.length > 0 ? Math.round(count / active.length * 100) : 0
+                      const count = filtered.filter(t => t.status === col.id).length
+                      const pct = filtered.length > 0 ? Math.round(count / filtered.length * 100) : 0
                       return (
                         <div key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: col.dot_color || '#579dff' }} />
