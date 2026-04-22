@@ -47,12 +47,11 @@ export async function deleteAllNotifications(email: string): Promise<void> {
   if (error) logger.warn('Notifications', 'deleteAllNotifications falhou', { error: error.message })
 }
 
-export async function deleteNotificationsByTicket(ticketId: string, email: string): Promise<void> {
+export async function deleteNotificationsByTicket(ticketId: string): Promise<void> {
   const { error } = await supabase
     .from('notifications')
     .delete()
     .eq('ticket_id', ticketId)
-    .eq('recipient_email', email)
   if (error) logger.warn('Notifications', 'deleteNotificationsByTicket falhou', { error: error.message })
 }
 

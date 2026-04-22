@@ -2,6 +2,7 @@ import { useState, useRef, useMemo } from 'react'
 import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone, ShieldAlert, TrendingUp, Clock } from 'lucide-react'
 import { useAnnouncementContext } from './AnnouncementContext'
 import { fetchUserProfiles, insertNotification, type AnnouncementSeverity } from '../lib/supabase'
+import { useOrg } from '../lib/org'
 
 interface AnnouncementsViewProps {
   user: string
@@ -36,6 +37,7 @@ function formatDate(dateStr: string): string {
 
 export default function AnnouncementsView({ user, onClose }: AnnouncementsViewProps) {
   const { announcements, loading, addAnnouncement, togglePin, removeAnnouncement } = useAnnouncementContext()
+  const { departmentId } = useOrg()
 
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
@@ -61,11 +63,19 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       const profiles = await fetchUserProfiles()
       const authorName = user.includes('@') ? user.split('@')[0] : user
       const sevLabel = SEVERITY[severity].label
-      for (const p of profiles) {
-        if (p.email === user) continue
+      const targetDepartmentId = ann.department_id || departmentId
+      if (!targetDepartmentId) return
+
+      const recipients = Array.from(new Set(
+        profiles
+          .map(p => p.email?.trim().toLowerCase())
+          .filter((email): email is string => Boolean(email))
+      ))
+
+      for (const recipientEmail of recipients) {
         await insertNotification({
-          department_id: '',
-          recipient_email: p.email,
+          department_id: targetDepartmentId,
+          recipient_email: recipientEmail,
           sender_name: authorName,
           type: 'announcement',
           ticket_id: null,
