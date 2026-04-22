@@ -69,14 +69,12 @@ export default function InboxSidebar({ user: _user, onClose, onOpenTicket }: Inb
 
   const handleOpen = useCallback(async (e: React.MouseEvent, notif: Notification) => {
     e.stopPropagation()
-    if (!notif.is_read) await markRead(notif.id)
     if (notif.ticket_id && onOpenTicket) onOpenTicket(notif.ticket_id)
-  }, [markRead, onOpenTicket])
+  }, [onOpenTicket])
 
   const handleItemClick = useCallback(async (notif: Notification) => {
-    if (!notif.is_read) await markRead(notif.id)
     if (notif.ticket_id && onOpenTicket) onOpenTicket(notif.ticket_id)
-  }, [markRead, onOpenTicket])
+  }, [onOpenTicket])
 
   const handleMarkAll = useCallback(async () => {
     await markAllRead()

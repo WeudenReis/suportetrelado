@@ -319,7 +319,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   }, [refreshNotifications]);
 
   // Quando o ticket vinculado a uma notificacao for concluido, arquivado ou
-  // excluido, removemos as notificacoes correspondentes deste usuario.
+  // excluido, removemos as notificacoes correspondentes de todos os usuarios.
   useEffect(() => {
     const channel = supabase
       .channel('notifications-ticket-cleanup')
@@ -331,7 +331,7 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
         if (!becameResolved && !becameArchived) return;
         // Otimismo local + persistencia
         setNotifications(curr => curr.filter(n => n.ticket_id !== next.id));
-        deleteNotificationsByTicket(next.id, user).catch(err =>
+        deleteNotificationsByTicket(next.id).catch(err =>
           logger.warn('Notifications', 'cleanup ticket update falhou', { error: String(err) })
         );
       })
@@ -339,13 +339,13 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
         const removed = payload.old as { id?: string };
         if (!removed?.id) return;
         setNotifications(curr => curr.filter(n => n.ticket_id !== removed.id));
-        deleteNotificationsByTicket(removed.id, user).catch(err =>
+        deleteNotificationsByTicket(removed.id).catch(err =>
           logger.warn('Notifications', 'cleanup ticket delete falhou', { error: String(err) })
         );
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
