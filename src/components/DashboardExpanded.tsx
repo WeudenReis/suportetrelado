@@ -3,9 +3,7 @@ import ReactDOM from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   AnimatedNumber,
-  HBar,
-  StackedPriorityBar,
-  PriorityLegend,
+  MiniStatLine,
   MemberLoadCard,
 } from './dashboard/DashboardCharts'
 import {
@@ -179,7 +177,6 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     for (const t of filtered) m[t.status] = (m[t.status] || 0) + 1
     return m
   }, [filtered])
-  const maxStatus = Math.max(...Object.values(statusDist), 1)
 
   const priorityDist = useMemo(() => {
     const m: Record<string, number> = {}
@@ -583,15 +580,16 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 {/* Status */}
                 <div style={cardStyle}>
                   <SectionH icon={<Columns3 size={12} />} title="Status do pipeline" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', maxHeight: 260, paddingRight: 4 }} className="inbox-scroll">
+                  <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', maxHeight: 360, paddingRight: 4 }} className="inbox-scroll">
                     {columns.map((col, i) => (
-                      <HBar
+                      <MiniStatLine
                         key={col.id}
                         label={col.title}
                         value={statusDist[col.id] || 0}
-                        max={maxStatus}
+                        total={active.length}
                         color={col.dot_color || '#579dff'}
-                        delay={0.05 * i}
+                        delay={0.04 * i}
+                        showDivider={i < columns.length - 1}
                       />
                     ))}
                   </div>
@@ -600,16 +598,23 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 {/* Prioridade */}
                 <div style={cardStyle}>
                   <SectionH icon={<AlertTriangle size={12} />} title="Distribuição de prioridades" />
-                  <StackedPriorityBar
-                    high={priorityDist.high || 0}
-                    medium={priorityDist.medium || 0}
-                    low={priorityDist.low || 0}
-                  />
-                  <PriorityLegend
-                    high={priorityDist.high || 0}
-                    medium={priorityDist.medium || 0}
-                    low={priorityDist.low || 0}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {([
+                      { key: 'high',   label: 'Alta',  value: priorityDist.high   || 0, color: PRIORITY_C.high   },
+                      { key: 'medium', label: 'Média', value: priorityDist.medium || 0, color: PRIORITY_C.medium },
+                      { key: 'low',    label: 'Baixa', value: priorityDist.low    || 0, color: PRIORITY_C.low    },
+                    ] as const).map((p, i, arr) => (
+                      <MiniStatLine
+                        key={p.key}
+                        label={p.label}
+                        value={p.value}
+                        total={(priorityDist.high || 0) + (priorityDist.medium || 0) + (priorityDist.low || 0)}
+                        color={p.color}
+                        delay={0.04 * i}
+                        showDivider={i < arr.length - 1}
+                      />
+                    ))}
+                  </div>
                 </div>
 
                 {/* Por responsável */}

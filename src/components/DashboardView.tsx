@@ -8,9 +8,8 @@ import { logger } from '../lib/logger'
 import { useOrg } from '../lib/org'
 import {
   AnimatedNumber,
-  HBar,
-  StackedPriorityBar,
-  PriorityLegend,
+  MiniStatLine,
+  PRIORITY_C,
   MemberLoadCard,
 } from './dashboard/DashboardCharts'
 
@@ -179,8 +178,6 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     }
     return counts
   }, [active])
-
-  const maxStatus = Math.max(...Object.values(statusCounts), 1)
 
   // ── Contagens por prioridade ──
   const priorityCounts = useMemo(() => {
@@ -451,21 +448,22 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
           }}>
             Tickets por Status
           </p>
-          <div className="inbox-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', maxHeight: 240, paddingRight: 2 }}>
+          <div className="inbox-scroll" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', maxHeight: 320, paddingRight: 2 }}>
             {columns.map((col, i) => (
-              <HBar
+              <MiniStatLine
                 key={col.id}
                 label={col.title}
                 value={statusCounts[col.id] || 0}
-                max={maxStatus}
+                total={active.length}
                 color={col.dot_color || '#579dff'}
-                delay={0.05 * i}
+                delay={0.04 * i}
+                showDivider={i < columns.length - 1}
               />
             ))}
           </div>
         </div>
 
-        {/* ── Gráfico: Por Prioridade (Stacked Bar única 100%) ── */}
+        {/* ── Gráfico: Por Prioridade (linhas minimalistas tipo report) ── */}
         <div data-stagger-child>
           <p style={{
             fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
@@ -474,16 +472,23 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
           }}>
             Distribuição de Prioridades
           </p>
-          <StackedPriorityBar
-            high={priorityCounts.high || 0}
-            medium={priorityCounts.medium || 0}
-            low={priorityCounts.low || 0}
-          />
-          <PriorityLegend
-            high={priorityCounts.high || 0}
-            medium={priorityCounts.medium || 0}
-            low={priorityCounts.low || 0}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {([
+              { key: 'high',   label: 'Alta',  value: priorityCounts.high   || 0, color: PRIORITY_C.high   },
+              { key: 'medium', label: 'Média', value: priorityCounts.medium || 0, color: PRIORITY_C.medium },
+              { key: 'low',    label: 'Baixa', value: priorityCounts.low    || 0, color: PRIORITY_C.low    },
+            ] as const).map((p, i, arr) => (
+              <MiniStatLine
+                key={p.key}
+                label={p.label}
+                value={p.value}
+                total={(priorityCounts.high || 0) + (priorityCounts.medium || 0) + (priorityCounts.low || 0)}
+                color={p.color}
+                delay={0.04 * i}
+                showDivider={i < arr.length - 1}
+              />
+            ))}
+          </div>
         </div>
 
         {/* ── Gráfico: Tickets criados por dia (últimos 7 dias) ── */}
