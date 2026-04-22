@@ -30,6 +30,11 @@ function avatarColor(n: string) {
 function daysBetween(a: string, b: string) {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000)
 }
+// Tickets resolvidos travam a contagem na data de conclusão (updated_at);
+// abertos seguem contando até agora.
+function ticketEndDate(t: { is_completed?: boolean; updated_at: string }): string {
+  return t.is_completed ? t.updated_at : new Date().toISOString()
+}
 
 // ── KPI Card ─────────────────────────────────────────────
 function KPI({ label, value, sub, color, icon }: { label: string; value: string | number; sub?: string; color: string; icon: React.ReactNode }) {
@@ -245,7 +250,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
   const handleExport = useCallback(() => {
     const h = ['ID', 'Título', 'Status', 'Concluído', 'Prioridade', 'Responsável', 'Cliente', 'Criado em', 'Atualizado em', 'Dias aberto']
-    const rows = sorted.map(t => [t.id, `"${(t.title || '').replace(/"/g, '""')}"`, colLabelMap[t.status] || t.status, t.is_completed ? 'Sim' : 'Não', PRIORITY_L[t.priority] || t.priority, t.assignee || '', t.cliente || '', t.created_at, t.updated_at, daysBetween(t.created_at, t.updated_at)])
+    const rows = sorted.map(t => [t.id, `"${(t.title || '').replace(/"/g, '""')}"`, colLabelMap[t.status] || t.status, t.is_completed ? 'Sim' : 'Não', PRIORITY_L[t.priority] || t.priority, t.assignee || '', t.cliente || '', t.created_at, t.updated_at, daysBetween(t.created_at, ticketEndDate(t))])
     const csv = [h.join(','), ...rows.map(r => r.join(','))].join('\n')
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })), download: `dashboard-${new Date().toISOString().slice(0, 10)}.csv` })
     a.click()
@@ -418,7 +423,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     sorted.slice(0, 60).forEach((t, idx) => {
       checkPage(8)
       if (idx % 2 === 0) { setFill('#141c26'); doc.rect(margin, y - 1, contentW, 7, 'F') }
-      const dias = daysBetween(t.created_at, new Date().toISOString())
+      const dias = daysBetween(t.created_at, ticketEndDate(t))
       const rowData = [
         (t.title || '').slice(0, 38),
         (colLabelMap[t.status] || t.status).slice(0, 16),
@@ -675,7 +680,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
               {sorted.length === 0 ? (
                 <p style={{ textAlign: 'center', color: '#596773', padding: '32px 0', fontFamily: font }}>Nenhum ticket com esses filtros.</p>
               ) : sorted.map(t => {
-                const dias = daysBetween(t.created_at, new Date().toISOString())
+                const dias = daysBetween(t.created_at, ticketEndDate(t))
                 return (
                   <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 100px 160px 96px 60px 36px', padding: '10px 12px', borderRadius: 10, gap: 8, alignItems: 'center', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.12s', cursor: 'pointer' }}
                     onClick={() => setSelectedTicket(t)}
@@ -782,7 +787,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                         onClick={() => setSelectedTicket(t)}>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: s.color }} />
                         <span style={{ flex: 1, fontSize: 12, fontWeight: 500, color: '#B6C2CF', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: s.color, fontFamily: fontH }}>{daysBetween(t.created_at, new Date().toISOString())}d</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: s.color, fontFamily: fontH }}>{daysBetween(t.created_at, ticketEndDate(t))}d</span>
                       </div>
                     ))}
                   </div>
