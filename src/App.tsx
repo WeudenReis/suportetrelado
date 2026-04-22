@@ -608,8 +608,6 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
                     onClose={() => handleTabChange('board')}
                     onOpenTicket={(ticketId) => {
                       setOpenTicketId(ticketId)
-                      // Navigate to board so the modal is not hidden behind the sidebar
-                      handleTabChange('board')
                     }}
                   />
                 )}
