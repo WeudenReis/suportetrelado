@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   AnimatedNumber,
-  MiniStatCard,
+  MiniStatLine,
   MemberLoadCard,
 } from './dashboard/DashboardCharts'
 import {
@@ -580,15 +580,16 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 {/* Status */}
                 <div style={cardStyle}>
                   <SectionH icon={<Columns3 size={12} />} title="Status do pipeline" />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, overflowY: 'auto', maxHeight: 320, paddingRight: 4 }} className="inbox-scroll">
+                  <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', maxHeight: 360, paddingRight: 4 }} className="inbox-scroll">
                     {columns.map((col, i) => (
-                      <MiniStatCard
+                      <MiniStatLine
                         key={col.id}
                         label={col.title}
                         value={statusDist[col.id] || 0}
                         total={active.length}
                         color={col.dot_color || '#579dff'}
-                        delay={0.05 * i}
+                        delay={0.04 * i}
+                        showDivider={i < columns.length - 1}
                       />
                     ))}
                   </div>
@@ -597,19 +598,20 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 {/* Prioridade */}
                 <div style={cardStyle}>
                   <SectionH icon={<AlertTriangle size={12} />} title="Distribuição de prioridades" />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {([
                       { key: 'high',   label: 'Alta',  value: priorityDist.high   || 0, color: PRIORITY_C.high   },
                       { key: 'medium', label: 'Média', value: priorityDist.medium || 0, color: PRIORITY_C.medium },
                       { key: 'low',    label: 'Baixa', value: priorityDist.low    || 0, color: PRIORITY_C.low    },
-                    ] as const).map((p, i) => (
-                      <MiniStatCard
+                    ] as const).map((p, i, arr) => (
+                      <MiniStatLine
                         key={p.key}
                         label={p.label}
                         value={p.value}
                         total={(priorityDist.high || 0) + (priorityDist.medium || 0) + (priorityDist.low || 0)}
                         color={p.color}
-                        delay={0.05 * i}
+                        delay={0.04 * i}
+                        showDivider={i < arr.length - 1}
                       />
                     ))}
                   </div>

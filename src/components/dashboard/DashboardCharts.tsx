@@ -17,6 +17,21 @@ export const PRIORITY_C: Record<string, string> = {
 const TRACK_BG = 'rgba(44,51,58,0.55)'
 const SURFACE_BG = 'rgba(44,51,58,0.5)'
 
+// Garante que nenhuma cor vinda de config (ex.: dot_color da coluna) chegue
+// quase preta na UI — substitui por azul neutro quando a luminância for baixa.
+export function safeAccent(hex: string, fallback = '#579dff'): string {
+  if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) return fallback
+  const h = hex.replace('#', '')
+  const s = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  if (s.length < 6) return fallback
+  const r = parseInt(s.slice(0, 2), 16)
+  const g = parseInt(s.slice(2, 4), 16)
+  const b = parseInt(s.slice(4, 6), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return fallback
+  const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return l < 0.28 ? fallback : hex
+}
+
 function avatarColor(n: string): string {
   const colors = ['#579dff', '#4bce97', '#f5a623', '#ef5c48', '#a259ff', '#20c997', '#6366f1', '#ec4899']
   return colors[(n.charCodeAt(0) || 0) % colors.length]
@@ -138,6 +153,75 @@ export function MiniStatCard({
           animate={{ width: `${fillPct}%` }}
           transition={{ delay: delay + 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           style={{ height: '100%', borderRadius: 2, background: color, boxShadow: `0 0 6px ${color}88` }}
+        />
+      </div>
+    </motion.div>
+  )
+}
+
+// ── Mini Stat Line (estilo Stripe/Notion: linha minimalista de report) ──
+// Número em destaque à direita (Paytone One), barra fina de 6px,
+// separador sutil entre linhas. Foco em legibilidade, não em cor.
+export function MiniStatLine({
+  label,
+  value,
+  total,
+  color,
+  delay = 0,
+  showDivider = true,
+}: {
+  label: string
+  value: number
+  total: number
+  color: string
+  delay?: number
+  showDivider?: boolean
+}) {
+  const accent = safeAccent(color)
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0
+  const fillPct = value > 0 ? Math.max(pct, 2) : 0
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -4 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 7,
+        padding: '10px 2px 12px',
+        borderBottom: showDivider ? '1px solid rgba(255,255,255,0.05)' : 'none',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: 2,
+            background: accent, boxShadow: `0 0 6px ${accent}66`, flexShrink: 0,
+          }} />
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: '#D1D1D5',
+            fontFamily: font, letterSpacing: 0.15,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+          }}>{label}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexShrink: 0 }}>
+          <AnimatedNumber
+            value={value}
+            style={{ fontSize: 22, fontWeight: 900, color: '#F1F0F2', fontFamily: fontH, letterSpacing: -0.5, lineHeight: 1 }}
+          />
+          <span style={{
+            fontSize: 10, fontWeight: 700, color: '#8C96A3',
+            fontFamily: font, letterSpacing: 0.3, minWidth: 28, textAlign: 'right',
+          }}>{pct}%</span>
+        </div>
+      </div>
+      <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${fillPct}%` }}
+          transition={{ delay: delay + 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          style={{ height: '100%', borderRadius: 3, background: accent }}
         />
       </div>
     </motion.div>
