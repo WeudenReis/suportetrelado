@@ -91,7 +91,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
   const [showAutoRules, setShowAutoRules] = useState(false)
   const [showMembersManager, setShowMembersManager] = useState(false)
-  const { departmentId, role: userRole, hasPermission } = useOrg()
+  const { departmentId, organizationId, role: userRole, hasPermission } = useOrg()
   const isAdmin = userRole === 'admin'
   const canManageColumns = hasPermission('columns:manage')
   const { applyRulesToTicket, applyRulesToBatch } = useAutoRules(departmentId)
@@ -135,7 +135,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
 
   // Hooks extraídos
   const { onlineUsers } = useKanbanPresence(user)
-  const { allMembers } = useKanbanMembers()
+  const { allMembers, memberRoles } = useKanbanMembers(organizationId)
   const { scrollerRef, handleBoardMouseDown, handleBoardMouseMove, stopBoardDrag } = useBoardScrollDrag()
   const {
     columns, setColumns,
@@ -797,7 +797,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                     <span className="members-panel__name">{m.name}</span>
                                     <span className="members-panel__seen">online</span>
                                   </div>
-                                  {m.role === 'admin' && <span className="members-panel__badge">Admin</span>}
+                                  {memberRoles.get(m.email) === 'admin' && <span className="members-panel__badge">Admin</span>}
                                 </div>
                               ))}
                             </div>
@@ -820,7 +820,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                                     <span className="members-panel__name" style={{ opacity: 0.7 }}>{m.name}</span>
                                     <span className="members-panel__seen">{formatLastSeen(m.last_seen_at)}</span>
                                   </div>
-                                  {m.role === 'admin' && <span className="members-panel__badge">Admin</span>}
+                                  {memberRoles.get(m.email) === 'admin' && <span className="members-panel__badge">Admin</span>}
                                 </div>
                               ))}
                             </div>
