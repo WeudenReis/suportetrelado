@@ -65,11 +65,17 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       const sevLabel = SEVERITY[severity].label
       const targetDepartmentId = ann.department_id || departmentId
       if (!targetDepartmentId) return
-      for (const p of profiles) {
-        if (p.email === user) continue
+
+      const recipients = Array.from(new Set(
+        profiles
+          .map(p => p.email?.trim().toLowerCase())
+          .filter((email): email is string => Boolean(email))
+      ))
+
+      for (const recipientEmail of recipients) {
         await insertNotification({
           department_id: targetDepartmentId,
-          recipient_email: p.email,
+          recipient_email: recipientEmail,
           sender_name: authorName,
           type: 'announcement',
           ticket_id: null,

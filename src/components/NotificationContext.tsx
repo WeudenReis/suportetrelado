@@ -29,6 +29,8 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   const [loading, setLoading] = useState(true);
   const [toastNotification, setToastNotification] = useState<Notification | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialSyncDoneRef = React.useRef(false);
+  const browserDeliveredIdsRef = React.useRef<Set<string>>(new Set());
 
   // Solicitar permissão de notificação push nativa
   useEffect(() => {
@@ -38,28 +40,40 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   }, []);
 
   const showBrowserNotification = useCallback((notif: Notification) => {
+    if (browserDeliveredIdsRef.current.has(notif.id)) return;
+
     // Exibe push apenas quando o app nao esta em primeiro plano.
     const appVisible = document.visibilityState === 'visible' && document.hasFocus();
-    if (appVisible || !('Notification' in window)) return;
+    const createdAt = new Date(notif.created_at).getTime();
+    const ageMs = Number.isFinite(createdAt) ? Date.now() - createdAt : 0;
+
+    // Para avisos, se o evento chegou atrasado (aba em background), ainda notifica.
+    const shouldSuppress = appVisible && (notif.type !== 'announcement' || ageMs < 5000);
+    if (shouldSuppress || !('Notification' in window)) return;
 
     const isAnnouncement = notif.type === 'announcement';
     const title = isAnnouncement ? 'chatPro — Novo Aviso' : 'chatPro — Suporte';
     const body = notif.message || notif.ticket_title || 'Você recebeu uma nova notificação.';
 
     const notify = () => {
-      const n = new window.Notification(title, {
-        body,
-        icon: '/icon-192.png',
-        tag: notif.id,
-        requireInteraction: isAnnouncement,
-      });
-      n.onclick = () => {
-        window.focus();
-        window.dispatchEvent(new CustomEvent('chatpro-open-tab', {
-          detail: { tab: isAnnouncement ? 'announcements' : 'inbox' },
-        }));
-        n.close();
-      };
+      try {
+        const n = new window.Notification(title, {
+          body,
+          icon: '/icon-192.png',
+          tag: notif.id,
+          requireInteraction: isAnnouncement,
+        });
+        browserDeliveredIdsRef.current.add(notif.id);
+        n.onclick = () => {
+          window.focus();
+          window.dispatchEvent(new CustomEvent('chatpro-open-tab', {
+            detail: { tab: isAnnouncement ? 'announcements' : 'inbox' },
+          }));
+          n.close();
+        };
+      } catch (error) {
+        logger.warn('Notifications', 'Falha ao disparar notificação do navegador', { error: String(error) });
+      }
     };
 
     if (window.Notification.permission === 'granted') {
@@ -88,13 +102,28 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
   const refreshNotifications = useCallback(async () => {
     try {
       const data = await fetchNotifications(user);
-      setNotifications(data);
+      setNotifications(prev => {
+        const prevIds = new Set(prev.map(n => n.id));
+        const fresh = data.filter(n => !prevIds.has(n.id));
+
+        if (initialSyncDoneRef.current) {
+          // Realtime pode falhar em background; polling garante push/browser para novos itens.
+          for (const n of fresh) showBrowserNotification(n);
+          if (fresh.length > 0 && document.visibilityState === 'visible') {
+            showToast(fresh[0]);
+          }
+        } else {
+          initialSyncDoneRef.current = true;
+        }
+
+        return data;
+      });
     } catch (err) {
       logger.warn('Notifications', 'Falha ao carregar notificações', { error: String(err) });
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [showBrowserNotification, showToast, user]);
 
   // Marcar como lida ao mesmo tempo remove da caixa de entrada — comportamento
   // alinhado com a expectativa do usuario: ao reconhecer a notificacao, ela some.
@@ -280,6 +309,14 @@ export const NotificationProvider: React.FC<{ user: string; children: React.Reac
       });
     return () => { supabase.removeChannel(channel); };
   }, [refreshNotifications, user, showBrowserNotification, showToast]);
+
+  // Fallback de sincronização para casos em que o realtime atrasa/falha em background.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshNotifications();
+    }, 20_000);
+    return () => clearInterval(interval);
+  }, [refreshNotifications]);
 
   // Quando o ticket vinculado a uma notificacao for concluido, arquivado ou
   // excluido, removemos as notificacoes correspondentes deste usuario.
