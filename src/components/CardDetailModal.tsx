@@ -306,6 +306,16 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       })
     : []
 
+  const mentionableUsers = allUsers.filter(u => u.email.toLowerCase() !== user.toLowerCase())
+
+  type MentionOption =
+    | { type: 'all' }
+    | { type: 'user'; profile: UserProfile }
+
+  const mentionOptions: MentionOption[] = mentionQuery !== null
+    ? [{ type: 'all' }, ...filteredMentionUsers.map(profile => ({ type: 'user' as const, profile }))]
+    : []
+
   const applyMention = (profile: UserProfile) => {
     const before = newComment.slice(0, mentionStartPos.current)
     const after = newComment.slice(commentRef.current?.selectionStart ?? mentionStartPos.current + (mentionQuery?.length ?? 0) + 1)
@@ -320,6 +330,31 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         commentRef.current.focus()
       }
     }, 0)
+  }
+
+  const applyMentionAll = () => {
+    if (mentionableUsers.length === 0) return
+    const before = newComment.slice(0, mentionStartPos.current)
+    const after = newComment.slice(commentRef.current?.selectionStart ?? mentionStartPos.current + (mentionQuery?.length ?? 0) + 1)
+    const inserted = `${mentionableUsers.map(u => `@${u.name}`).join(' ')} `
+    setNewComment(before + inserted + after)
+    setMentionQuery(null)
+    setTimeout(() => {
+      if (commentRef.current) {
+        const pos = before.length + inserted.length
+        commentRef.current.selectionStart = pos
+        commentRef.current.selectionEnd = pos
+        commentRef.current.focus()
+      }
+    }, 0)
+  }
+
+  const applyMentionOption = (option: MentionOption) => {
+    if (option.type === 'all') {
+      applyMentionAll()
+      return
+    }
+    applyMention(option.profile)
   }
 
   const handleSendComment = async () => {
@@ -1007,34 +1042,56 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   rows={commentFocused ? 3 : 1}
                   className="modal-field resize-none transition-all text-[13px]"
                   onKeyDown={e => {
-                    if (mentionQuery !== null && filteredMentionUsers.length > 0) {
-                      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, filteredMentionUsers.length - 1)); return }
+                    if (mentionQuery !== null && mentionOptions.length > 0) {
+                      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, mentionOptions.length - 1)); return }
                       if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); return }
-                      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); applyMention(filteredMentionUsers[mentionIndex]); return }
+                      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); applyMentionOption(mentionOptions[mentionIndex]); return }
                       if (e.key === 'Escape') { setMentionQuery(null); return }
                     }
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment() }
                   }}
                 />
                 {/* Mention autocomplete dropdown */}
-                {mentionQuery !== null && filteredMentionUsers.length > 0 && (
+                {mentionQuery !== null && mentionOptions.length > 0 && (
                   <div className="mention-dropdown">
-                    {filteredMentionUsers.map((u, i) => (
-                      <div
-                        key={u.email}
-                        className={`mention-dropdown__item ${i === mentionIndex ? 'mention-dropdown__item--active' : ''}`}
-                        onMouseDown={e => { e.preventDefault(); applyMention(u) }}
-                        onMouseEnter={() => setMentionIndex(i)}
-                      >
-                        <div className="mention-dropdown__avatar" style={{ background: u.avatar_color }}>
-                          {u.name.charAt(0).toUpperCase()}
+                    {mentionOptions.map((option, i) => {
+                      if (option.type === 'all') {
+                        return (
+                          <div
+                            key="mention-all"
+                            className={`mention-dropdown__item ${i === mentionIndex ? 'mention-dropdown__item--active' : ''}`}
+                            onMouseDown={e => { e.preventDefault(); applyMentionAll() }}
+                            onMouseEnter={() => setMentionIndex(i)}
+                          >
+                            <div className="mention-dropdown__avatar" style={{ background: '#25D066' }}>
+                              @
+                            </div>
+                            <div className="mention-dropdown__info">
+                              <span className="mention-dropdown__name">Mencionar todos</span>
+                              <span className="mention-dropdown__email">Inclui toda a equipe no comentário</span>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      const u = option.profile
+                      return (
+                        <div
+                          key={u.email}
+                          className={`mention-dropdown__item ${i === mentionIndex ? 'mention-dropdown__item--active' : ''}`}
+                          onMouseDown={e => { e.preventDefault(); applyMention(u) }}
+                          onMouseEnter={() => setMentionIndex(i)}
+                        >
+                          <div className="mention-dropdown__avatar" style={{ background: u.avatar_color }}>
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="mention-dropdown__info">
+                            <span className="mention-dropdown__name">{u.name}</span>
+                            <span className="mention-dropdown__email">{u.email}</span>
+                          </div>
                         </div>
-                        <div className="mention-dropdown__info">
-                          <span className="mention-dropdown__name">{u.name}</span>
-                          <span className="mention-dropdown__email">{u.email}</span>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
                 <AnimatePresence>
