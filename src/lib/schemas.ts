@@ -21,9 +21,15 @@ export const priorityEnum = z.enum(['low', 'medium', 'high'])
 export const uuidSchema = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, 'UUID inválido')
 
 // ── Ticket ─────────────────────────────────────────────────────
-export const TicketInsertSchema = z.object({
+// IMPORTANTE: defaults NUNCA podem viver no Base, porque .partial() preserva
+// `.default(...)` e qualquer update parcial (ex.: drag de card enviando apenas
+// { status }) acaba reidratando o campo com o default — sobrescrevendo dados
+// no banco. Incidente já ocorrido com `description: ''` apagando descrições.
+// Regra: Base = forma e validações; Insert adiciona defaults; Update = partial
+// do Base (sem defaults).
+const TicketBaseSchema = z.object({
   title: z.string().trim().min(1, 'Título obrigatório').max(MAX_TITLE),
-  description: z.string().max(MAX_DESCRIPTION).default(''),
+  description: z.string().max(MAX_DESCRIPTION),
   status: z.string().min(1).max(64),
   priority: priorityEnum,
   department_id: uuidSchema,
@@ -34,7 +40,11 @@ export const TicketInsertSchema = z.object({
   tags: z.array(z.string().max(40)).max(20).nullish(),
 }).passthrough()
 
-export const TicketUpdateSchema = TicketInsertSchema.partial().extend({
+export const TicketInsertSchema = TicketBaseSchema.extend({
+  description: z.string().max(MAX_DESCRIPTION).default(''),
+})
+
+export const TicketUpdateSchema = TicketBaseSchema.partial().extend({
   id: uuidSchema.optional(),
 })
 
