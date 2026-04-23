@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Calendar, Clock, Disc, Edit3 } from 'lucide-react'
 import type { PlannerEvent } from '../lib/supabase'
-import { useOrg } from '../lib/org'
+import { useOrg } from '../lib/orgContext'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface PlannerEventModalProps {

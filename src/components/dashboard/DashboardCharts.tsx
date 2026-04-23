@@ -1,15 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 
-// ── Tipografia e paleta (alinhadas ao Manual de Marca chatPro / CLAUDE.md) ──
-export const font = "'Space Grotesk', sans-serif"
-export const fontH = "'Paytone One', sans-serif"
+import { PRIORITY_C } from './dashboardConstants'
 
-export const PRIORITY_C: Record<string, string> = {
-  high:   '#ef5c48',
-  medium: '#e2b203',
-  low:    '#4bce97',
-}
+const font = "'Space Grotesk', sans-serif"
+const fontH = "'Paytone One', sans-serif"
 
 // Superfícies elevadas usadas nos trilhos e cards — deriva do Dark Kanban
 // (#1d2125 / #22272b / #2c333a). Evitamos qualquer #000 puro para manter
@@ -19,7 +14,7 @@ const SURFACE_BG = 'rgba(44,51,58,0.5)'
 
 // Garante que nenhuma cor vinda de config (ex.: dot_color da coluna) chegue
 // quase preta na UI — substitui por azul neutro quando a luminância for baixa.
-export function safeAccent(hex: string, fallback = '#579dff'): string {
+function safeAccent(hex: string, fallback = '#579dff'): string {
   if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) return fallback
   const h = hex.replace('#', '')
   const s = h.length === 3 ? h.split('').map(c => c + c).join('') : h
@@ -38,7 +33,7 @@ function avatarColor(n: string): string {
 }
 
 // ── Count-up animado (rAF + easeOutCubic, ~650 ms) ────────
-export function useCountUp(target: number, duration = 650): number {
+function useCountUp(target: number, duration = 650): number {
   const [val, setVal] = useState(0)
   const startTs = useRef<number | null>(null)
   useEffect(() => {

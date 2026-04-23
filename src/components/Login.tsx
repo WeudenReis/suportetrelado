@@ -1,34 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX, Mail, Lock, Eye, EyeOff, ArrowRight, User, CheckCircle, XCircle } from 'lucide-react'
+import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { supabase, isSupabaseConfigured, isDevEnvironment } from '../lib/supabase'
-import { logger } from '../lib/logger'
 
 interface LoginProps {
   onLogin: (email: string) => void
   unauthorizedEmail: string | null
 }
 
-type AuthMode = 'login' | 'register' | 'forgot'
+type AuthMode = 'login' | 'forgot'
 type ToastType = 'error' | 'success' | 'warning'
 interface Toast { id: string; type: ToastType; title: string; message: string }
-
-interface PasswordCheck {
-  label: string
-  valid: boolean
-}
-
-function validatePassword(pw: string): PasswordCheck[] {
-  return [
-    { label: 'Mínimo 8 caracteres', valid: pw.length >= 8 },
-    { label: 'Uma letra maiúscula', valid: /[A-Z]/.test(pw) },
-    { label: 'Um caractere especial (!@#$...)', valid: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(pw) },
-  ]
-}
-
-function isPasswordValid(pw: string): boolean {
-  return validatePassword(pw).every(c => c.valid)
-}
 
 const toastCfg = {
   error:   { icon: AlertTriangle, bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',   iconColor: '#f87171', titleColor: '#fca5a5' },
@@ -62,55 +44,13 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   )
 }
 
-/** Shows a match/no-match icon next to the confirm-password field.
- * Reads values directly from refs to avoid any state holding the password. */
-function ConfirmPasswordMatch({
-  pwRef, confirmRef,
-}: {
-  pwRef: React.RefObject<HTMLInputElement | null>
-  confirmRef: React.RefObject<HTMLInputElement | null>
-}) {
-  const [match, setMatch] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    const el = confirmRef.current
-    if (!el) return
-    const handler = () => {
-      const confirmVal = el.value
-      const pwVal = pwRef.current?.value ?? ''
-      setMatch(confirmVal.length > 0 ? confirmVal === pwVal : null)
-    }
-    el.addEventListener('input', handler)
-    return () => el.removeEventListener('input', handler)
-  }, [pwRef, confirmRef])
-
-  if (match === null) return null
-  return (
-    <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
-      {match ? (
-        <CheckCircle size={16} style={{ color: '#25D066' }} />
-      ) : (
-        <XCircle size={16} style={{ color: '#f87171' }} />
-      )}
-    </div>
-  )
-}
-
 export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginProps) {
   const [mode, setMode] = useState<AuthMode>('login')
   const [loadingEmail, setLoadingEmail] = useState(false)
-  const [loadingRegister, setLoadingRegister] = useState(false)
   const [loadingReset, setLoadingReset] = useState(false)
   const [email, setEmail] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [registerName, setRegisterName] = useState('')
-  const [registerEmail, setRegisterEmail] = useState('')
-  // Password fields are uncontrolled (refs) so the value never appears in the DOM HTML attribute
-  const [registerPassword, setRegisterPassword] = useState('') // only for strength indicator display
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false)
   const passwordRef = useRef<HTMLInputElement>(null)
-  const registerPasswordRef = useRef<HTMLInputElement>(null)
-  const registerConfirmPasswordRef = useRef<HTMLInputElement>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const captchaRef = useRef<HTMLDivElement>(null)
@@ -122,8 +62,6 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
     : recaptchaProdSiteKey
   const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
   const recaptchaEnabled = Boolean(recaptchaSiteKey) && !isLocalhost
-
-  const passwordChecks = validatePassword(registerPassword)
 
   // Carregar script do reCAPTCHA
   useEffect(() => {
@@ -256,82 +194,6 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
     }
   }
 
-  async function handleRegister(e: React.FormEvent) {
-    e.preventDefault()
-    const pw = registerPasswordRef.current?.value ?? ''
-    const pwConfirm = registerConfirmPasswordRef.current?.value ?? ''
-    if (!registerName.trim()) {
-      pushToast('error', 'Nome obrigatório', 'Informe seu nome de usuário.')
-      return
-    }
-    if (!registerEmail.trim()) {
-      pushToast('error', 'E-mail obrigatório', 'Informe seu e-mail.')
-      return
-    }
-    if (!isPasswordValid(pw)) {
-      pushToast('error', 'Senha fraca', 'A senha deve ter 8+ caracteres, 1 maiúscula e 1 caractere especial.')
-      return
-    }
-    if (pw !== pwConfirm) {
-      pushToast('error', 'Senhas diferentes', 'A confirmação de senha não confere.')
-      return
-    }
-    if (!isSupabaseConfigured) {
-      pushToast('error', 'Erro de configuração', 'As variáveis de ambiente do Supabase não estão configuradas.')
-      return
-    }
-    if (recaptchaEnabled && !captchaToken) {
-      pushToast('warning', 'Verificação necessária', 'Complete o reCAPTCHA antes de continuar.')
-      return
-    }
-    setLoadingRegister(true)
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: registerEmail.trim(),
-        password: pw,
-        options: {
-          data: {
-            full_name: registerName.trim(),
-            name: registerName.trim(),
-          },
-          emailRedirectTo: window.location.origin,
-        },
-      })
-      logger.debug('Login', 'signUp response', { hasData: !!data, error: error?.message })
-      if (error) {
-        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
-          pushToast('error', 'E-mail já cadastrado', 'Este e-mail já possui uma conta. Faça login.')
-        } else {
-          pushToast('error', 'Erro ao criar conta', error.message)
-        }
-        resetCaptcha()
-      } else if (data?.user?.identities?.length === 0) {
-        // Supabase retorna user sem identities quando o e-mail já existe
-        pushToast('error', 'E-mail já cadastrado', 'Este e-mail já possui uma conta. Faça login.')
-        resetCaptcha()
-      } else if (data?.session) {
-        // Login automático (confirmação de e-mail desabilitada)
-        pushToast('success', 'Conta criada!', 'Você foi conectado automaticamente.')
-      } else {
-        // Confirmação de e-mail necessária
-        pushToast('success', 'Conta criada!', 'Verifique seu e-mail para confirmar o cadastro e depois faça login.')
-        setMode('login')
-        setEmail(registerEmail.trim())
-        setRegisterName('')
-        setRegisterEmail('')
-        setRegisterPassword('')
-        if (registerPasswordRef.current) registerPasswordRef.current.value = ''
-        if (registerConfirmPasswordRef.current) registerConfirmPasswordRef.current.value = ''
-        resetCaptcha()
-      }
-    } catch {
-      pushToast('error', 'Erro de rede', 'Verifique sua conexão e tente novamente.')
-      resetCaptcha()
-    } finally {
-      setLoadingRegister(false)
-    }
-  }
-
   function switchMode(newMode: AuthMode) {
     setMode(newMode)
     resetCaptcha()
@@ -421,13 +283,13 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
               fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700,
               color: '#E5E7EB', margin: 0,
             }}>
-              {mode === 'login' ? 'Acessar sua conta' : mode === 'register' ? 'Criar sua conta' : 'Redefinir senha'}
+              {mode === 'login' ? 'Acessar sua conta' : 'Redefinir senha'}
             </h2>
             <p style={{
               fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: '#6B7685',
               margin: '6px 0 0',
             }}>
-              {mode === 'login' ? 'Entre com seu e-mail e senha' : mode === 'register' ? 'Preencha os dados abaixo para se cadastrar' : 'Informe seu e-mail para receber o link de redefinição'}
+              {mode === 'login' ? 'Entre com seu e-mail e senha' : 'Informe seu e-mail para receber o link de redefinição'}
             </p>
           </div>
 
@@ -542,162 +404,6 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                 </div>
 
 
-              </motion.div>
-            )}
-
-            {/* Registro removido — somente admins criam usuários via painel */}
-            {false && (
-              <motion.div key="register" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
-                {/* Formulário de cadastro */}
-                <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {/* Nome */}
-                  <div style={{ position: 'relative' }}>
-                    <User size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
-                    <input
-                      type="text"
-                      placeholder="Nome de usuário"
-                      value={registerName}
-                      onChange={e => setRegisterName(e.target.value)}
-                      onFocus={e => inputFocusStyle(e.currentTarget)}
-                      onBlur={e => inputBlurStyle(e.currentTarget)}
-                      style={inputStyle}
-                      autoComplete="name"
-                    />
-                  </div>
-
-                  {/* E-mail */}
-                  <div style={{ position: 'relative' }}>
-                    <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
-                    <input
-                      type="email"
-                      placeholder="Seu e-mail"
-                      value={registerEmail}
-                      onChange={e => setRegisterEmail(e.target.value)}
-                      onFocus={e => inputFocusStyle(e.currentTarget)}
-                      onBlur={e => inputBlurStyle(e.currentTarget)}
-                      style={inputStyle}
-                      autoComplete="email"
-                    />
-                  </div>
-
-                  {/* Senha */}
-                  <div style={{ position: 'relative' }}>
-                    <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
-                    <input
-                      ref={registerPasswordRef}
-                      type={showRegisterPassword ? 'text' : 'password'}
-                      placeholder="Criar senha"
-                      onChange={e => setRegisterPassword(e.target.value)}
-                      onFocus={e => inputFocusStyle(e.currentTarget)}
-                      onBlur={e => inputBlurStyle(e.currentTarget)}
-                      style={{ ...inputStyle, paddingRight: 42 }}
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegisterPassword(p => !p)}
-                      style={{
-                        position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                        background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'color 0.15s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#9fadbc' }}
-                      onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
-                      tabIndex={-1}
-                    >
-                      {showRegisterPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-
-                  {/* Indicadores de força da senha */}
-                  {registerPassword.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 2px' }}>
-                      {passwordChecks.map((check, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {check.valid ? (
-                            <CheckCircle size={13} style={{ color: '#25D066', flexShrink: 0 }} />
-                          ) : (
-                            <XCircle size={13} style={{ color: '#596773', flexShrink: 0 }} />
-                          )}
-                          <span style={{
-                            fontSize: 11, fontFamily: "'Space Grotesk', sans-serif",
-                            color: check.valid ? '#25D066' : '#596773',
-                            transition: 'color 0.2s',
-                          }}>
-                            {check.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Confirmar senha */}
-                  <div style={{ position: 'relative' }}>
-                    <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
-                    <input
-                      ref={registerConfirmPasswordRef}
-                      type={showRegisterPassword ? 'text' : 'password'}
-                      placeholder="Confirmar senha"
-                      onChange={e => {
-                        const pw = registerPasswordRef.current?.value ?? ''
-                        // update match indicator only — value lives in the DOM, not state
-                        ;(e.target as HTMLInputElement).dataset.match = String(e.target.value === pw)
-                      }}
-                      onFocus={e => inputFocusStyle(e.currentTarget)}
-                      onBlur={e => inputBlurStyle(e.currentTarget)}
-                      style={inputStyle}
-                      autoComplete="new-password"
-                    />
-                    {/* Match indicator driven by DOM comparison */}
-                    <ConfirmPasswordMatch pwRef={registerPasswordRef} confirmRef={registerConfirmPasswordRef} />
-                  </div>
-
-                  {/* Botão Criar conta */}
-                  <button
-                    type="submit"
-                    disabled={loadingRegister || !isPasswordValid(registerPassword) || (recaptchaEnabled && !captchaToken)}
-                    onMouseEnter={e => { if (!loadingRegister) e.currentTarget.style.background = '#1BAD53' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
-                      fontFamily: "'Space Grotesk', sans-serif", cursor: loadingRegister ? 'not-allowed' : 'pointer',
-                      background: '#25D066', border: 'none', color: '#fff',
-                      opacity: (loadingRegister || !isPasswordValid(registerPassword)) ? 0.5 : 1,
-                      transition: 'background 0.15s, opacity 0.15s',
-                      boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
-                      marginTop: 4,
-                    }}
-                  >
-                    {loadingRegister ? (
-                      <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
-                    ) : (
-                      <ArrowRight size={17} />
-                    )}
-                    {loadingRegister ? 'Criando conta...' : 'Criar conta'}
-                  </button>
-                </form>
-
-                {/* Link para login */}
-                <p style={{
-                  textAlign: 'center', marginTop: 20, marginBottom: 0, fontSize: 13, color: '#6B7685',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                }}>
-                  Já tem uma conta?{' '}
-                  <button
-                    onClick={() => switchMode('login')}
-                    style={{
-                      background: 'none', border: 'none', color: '#25D066', cursor: 'pointer',
-                      fontWeight: 600, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
-                      textDecoration: 'none', padding: 0,
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
-                    onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
-                  >
-                    Fazer login
-                  </button>
-                </p>
               </motion.div>
             )}
 

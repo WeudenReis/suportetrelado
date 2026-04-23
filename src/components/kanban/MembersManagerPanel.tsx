@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check, KeyRound, Eye, EyeOff, Copy, CheckCircle2, UserMinus, Pencil } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { useOrg, type OrgRole } from '../../lib/org'
+import { useOrg, type OrgRole } from '../../lib/orgContext'
 import { logger } from '../../lib/logger'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 

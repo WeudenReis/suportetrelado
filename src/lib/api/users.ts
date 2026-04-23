@@ -80,7 +80,7 @@ export async function upsertUserProfile(email: string): Promise<void> {
 
   if (existingProfile) {
     // Atualiza apenas dados sistêmicos
-    const updatePayload: Record<string, any> = {
+    const updatePayload: { organization_id: string; last_seen_at: string; role?: string } = {
       organization_id: organizationId,
       last_seen_at: new Date().toISOString()
     }

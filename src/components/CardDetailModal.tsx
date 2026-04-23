@@ -17,12 +17,11 @@ import {
 } from '../lib/supabase'
 import { compressCover, compressThumbnail } from '../lib/imageUtils'
 import CardAttachments from './card/CardAttachments'
-import { useOrg } from '../lib/org'
+import { useOrg } from '../lib/orgContext'
 import { logger } from '../lib/logger'
 import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel, CommentReaction } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import { parseTag } from '../lib/tagUtils'
-export { parseTag }
 
 interface CardDetailModalProps {
   ticket: Ticket

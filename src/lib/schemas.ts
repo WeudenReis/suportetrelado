@@ -20,13 +20,21 @@ export const priorityEnum = z.enum(['low', 'medium', 'high'])
 // Zod v4.uuid() exige version bits estritos; regex simples cobre melhor o caso real.
 export const uuidSchema = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, 'UUID inválido')
 
+// ── REGRA GERAL (NÃO QUEBRAR) ──────────────────────────────────
+// `.default(...)` NUNCA pode viver no schema Base, porque `.partial()`
+// preserva o default, e qualquer update parcial (ex.: drag de card enviando
+// apenas { status }) acaba reidratando o campo com o default — sobrescrevendo
+// dados no banco. Incidente em 22-23/04/2026 zerou `description` em todos os
+// tickets exatamente assim.
+//
+// Padrão obrigatório para qualquer entidade que precise de defaults:
+//   const XBaseSchema = z.object({ ...sem defaults... })
+//   export const XInsertSchema = XBaseSchema.extend({ campo: ....default(...) })
+//   export const XUpdateSchema = XBaseSchema.partial()
+//
+// Regressão automatizada: src/lib/__tests__/schemas-regression.test.ts
+
 // ── Ticket ─────────────────────────────────────────────────────
-// IMPORTANTE: defaults NUNCA podem viver no Base, porque .partial() preserva
-// `.default(...)` e qualquer update parcial (ex.: drag de card enviando apenas
-// { status }) acaba reidratando o campo com o default — sobrescrevendo dados
-// no banco. Incidente já ocorrido com `description: ''` apagando descrições.
-// Regra: Base = forma e validações; Insert adiciona defaults; Update = partial
-// do Base (sem defaults).
 const TicketBaseSchema = z.object({
   title: z.string().trim().min(1, 'Título obrigatório').max(MAX_TITLE),
   description: z.string().max(MAX_DESCRIPTION),
@@ -64,13 +72,22 @@ export const CommentReactionUpsertSchema = z.object({
 })
 
 // ── Template ───────────────────────────────────────────────────
-export const TemplateInsertSchema = z.object({
+// Mesmo padrão do Ticket: Base sem defaults, Insert adiciona defaults,
+// Update = partial(Base). Evita o bug do `.partial()` herdar `.default()`
+// e zerar campos em updates parciais (incidente 22-23/04/2026 com `description`).
+const TemplateBaseSchema = z.object({
   name: z.string().trim().min(1).max(MAX_NAME),
   title: z.string().trim().min(1).max(MAX_TITLE),
-  description: z.string().max(MAX_DESCRIPTION).default(''),
+  description: z.string().max(MAX_DESCRIPTION),
   priority: priorityEnum,
   status: z.string().min(1).max(64),
 })
+
+export const TemplateInsertSchema = TemplateBaseSchema.extend({
+  description: z.string().max(MAX_DESCRIPTION).default(''),
+})
+
+export const TemplateUpdateSchema = TemplateBaseSchema.partial()
 
 // ── AutoRule ───────────────────────────────────────────────────
 export const AutoRuleInsertSchema = z.object({

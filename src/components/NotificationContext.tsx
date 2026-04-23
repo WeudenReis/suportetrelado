@@ -1,27 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase, fetchNotifications, deleteNotification, deleteAllNotifications, deleteNotificationsByTicket, fetchTickets, fetchPlannerSettings, fetchPlannerEvents, insertNotification } from '../lib/supabase';
 import type { Notification, Ticket } from '../lib/supabase';
-import { useOrg } from '../lib/org';
+import { useOrg } from '../lib/orgContext';
 import { logger } from '../lib/logger';
-
-interface NotificationContextProps {
-  notifications: Notification[];
-  unreadCount: number;
-  loading: boolean;
-  refreshNotifications: () => void;
-  markRead: (id: string) => Promise<void>;
-  markAllRead: () => Promise<void>;
-  toastNotification: Notification | null;
-  dismissToast: () => void;
-}
-
-const NotificationContext = createContext<NotificationContextProps | undefined>(undefined);
-
-export const useNotificationContext = () => {
-  const ctx = useContext(NotificationContext);
-  if (!ctx) throw new Error('useNotificationContext must be used within NotificationProvider');
-  return ctx;
-};
+import { NotificationContext } from './useNotificationContext';
 
 export const NotificationProvider: React.FC<{ user: string; children: React.ReactNode }> = ({ user, children }) => {
   const { departmentId } = useOrg();

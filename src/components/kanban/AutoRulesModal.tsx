@@ -5,7 +5,7 @@ import type { BoardColumn } from '../../lib/boardColumns'
 import { fetchAutoRules, insertAutoRule, updateAutoRule, deleteAutoRule, loadAutoRulesCache, saveLocalRules } from '../../lib/api/templates'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 
-export interface AutoRule {
+interface AutoRule {
   id: string
   name: string
   condition: 'priority_high' | 'priority_medium' | 'priority_low' | 'no_assignee' | 'overdue_12h' | 'overdue_24h'
@@ -14,7 +14,7 @@ export interface AutoRule {
   enabled: boolean
 }
 
-export const AUTO_RULE_CONDITIONS: Record<string, string> = {
+const AUTO_RULE_CONDITIONS: Record<string, string> = {
   priority_high: 'Prioridade Alta',
   priority_medium: 'Prioridade Média',
   priority_low: 'Prioridade Baixa',
@@ -24,7 +24,7 @@ export const AUTO_RULE_CONDITIONS: Record<string, string> = {
 }
 
 // Leitor síncrono do cache local (mantido para compatibilidade com consumidores antigos)
-export function loadAutoRules(departmentId?: string | null): AutoRule[] {
+function loadAutoRules(departmentId?: string | null): AutoRule[] {
   return loadAutoRulesCache(departmentId) as AutoRule[]
 }
 

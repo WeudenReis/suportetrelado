@@ -4,7 +4,7 @@ import { Plus, X, FileText, ChevronDown, Copy, Trash2, Loader2, Paperclip, Image
 import type { Ticket, TicketStatus } from '../../lib/supabase'
 import type { BoardColumn } from '../../lib/boardColumns'
 import { fetchTemplates, insertTemplate, deleteTemplate, type TicketTemplate } from '../../lib/api/templates'
-import { useOrg } from '../../lib/org'
+import { useOrg } from '../../lib/orgContext'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 // Re-export para compatibilidade

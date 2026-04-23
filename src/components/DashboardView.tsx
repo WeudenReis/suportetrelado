@@ -5,13 +5,13 @@ import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfil
 import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
 import DashboardExpanded from './DashboardExpanded'
 import { logger } from '../lib/logger'
-import { useOrg } from '../lib/org'
+import { useOrg } from '../lib/orgContext'
 import {
   AnimatedNumber,
   MiniStatLine,
-  PRIORITY_C,
   MemberLoadCard,
 } from './dashboard/DashboardCharts'
+import { PRIORITY_C } from './dashboard/dashboardConstants'
 
 interface DashboardViewProps {
   user: string
@@ -187,8 +187,6 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     }
     return counts
   }, [active])
-
-  const maxPriority = Math.max(...Object.values(priorityCounts), 1)
 
   // ── Tickets por membro ──
   const memberCounts = useMemo(() => {

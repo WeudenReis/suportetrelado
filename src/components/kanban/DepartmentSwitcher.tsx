@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Building2, ChevronDown, Check } from 'lucide-react'
-import { useOrg } from '../../lib/org'
+import { useOrg } from '../../lib/orgContext'
 
 /**
  * Seletor de departamento no header do Kanban.

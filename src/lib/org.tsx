@@ -1,75 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { supabase } from './supabase'
 import { logger } from './logger'
 import { SUPER_ADMIN_EMAILS } from './superAdmins'
-
-// ── Types ──
-
-export type OrgRole = 'admin' | 'supervisor' | 'agent'
-
-export interface OrgPermissions {
-  organization_id: string
-  department_id: string | null
-  role: OrgRole
-  organization_name: string
-  organization_slug: string
-  department_name: string | null
-  department_slug: string | null
-}
-
-export interface OrgContextValue {
-  /** Permissões do usuário logado (org, dept, role) */
-  permissions: OrgPermissions | null
-  /** Department ID ativo (o dept selecionado pelo usuário) */
-  departmentId: string | null
-  /** Organization ID do usuário */
-  organizationId: string | null
-  /** Role do usuário na org */
-  role: OrgRole | null
-  /** Carregando dados de permissão */
-  loading: boolean
-  /** Lista de departamentos visíveis */
-  departments: { id: string; name: string; slug: string }[]
-  /** Trocar departamento ativo (admin/supervisor podem trocar) */
-  switchDepartment: (deptId: string) => void
-  /** Verificar se o usuário tem uma permissão específica */
-  hasPermission: (perm: string) => boolean
-  /** Recarregar permissões */
-  refresh: () => Promise<void>
-}
-
-const OrgContext = createContext<OrgContextValue | null>(null)
-
-// ── Prioridade de roles: admin ganha sobre supervisor, que ganha sobre agent ──
-const ROLE_PRIORITY: Record<string, number> = { admin: 3, supervisor: 2, agent: 1 }
-
-export function bestRoleFrom(rows: { role: string }[], fallback: OrgRole = 'agent'): OrgRole {
-  if (!rows.length) return fallback
-  return rows.reduce<OrgRole>((best, r) => {
-    const rp = ROLE_PRIORITY[r.role] ?? 0
-    return rp > (ROLE_PRIORITY[best] ?? 0) ? (r.role as OrgRole) : best
-  }, fallback)
-}
-
-// ── Permissões por role (espelha role_permissions do banco) ──
-const ROLE_PERMS: Record<OrgRole, Set<string>> = {
-  admin: new Set([
-    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:delete', 'tickets:archive', 'tickets:assign',
-    'tickets:edit_details',
-    'columns:manage', 'labels:manage', 'members:invite', 'members:remove', 'members:change_role',
-    'departments:manage', 'announcements:manage', 'links:manage', 'settings:manage',
-  ]),
-  supervisor: new Set([
-    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:assign',
-    'tickets:edit_details',
-    'columns:manage', 'labels:manage', 'announcements:manage', 'links:manage',
-  ]),
-  agent: new Set([
-    'tickets:create', 'tickets:read', 'tickets:update', 'links:manage',
-  ]),
-}
-
-// ── Provider ──
+import { OrgContext, bestRoleFrom, ROLE_PERMS, type OrgContextValue, type OrgPermissions } from './orgContext'
 
 export function OrgProvider({ user, children }: { user: string; children: ReactNode }) {
   const [permissions, setPermissions] = useState<OrgPermissions | null>(null)
@@ -240,10 +173,4 @@ export function OrgProvider({ user, children }: { user: string; children: ReactN
   }
 
   return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>
-}
-
-export function useOrg(): OrgContextValue {
-  const ctx = useContext(OrgContext)
-  if (!ctx) throw new Error('useOrg deve ser usado dentro de <OrgProvider>')
-  return ctx
 }

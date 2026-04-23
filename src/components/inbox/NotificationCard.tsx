@@ -51,7 +51,7 @@ const TYPE_CONFIG: Record<string, { icon: React.ReactNode; borderColor: string; 
 
 /* ── Animation ── */
 
-export const cardVariants = {
+const cardVariants = {
   hidden: { opacity: 0, y: 8 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] } },
   exit: { opacity: 0, x: -20, height: 0, marginBottom: 0, transition: { duration: 0.2, ease: 'easeIn' } },

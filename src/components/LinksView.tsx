@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Plus, Trash2, X, ExternalLink, Search, Link2, FolderOpen } from 'lucide-react'
 import { fetchUsefulLinks, insertUsefulLink, deleteUsefulLink, type UsefulLink } from '../lib/supabase'
-import { useOrg } from '../lib/org'
+import { useOrg } from '../lib/orgContext'
 import { logger } from '../lib/logger'
 
 interface LinksViewProps {
