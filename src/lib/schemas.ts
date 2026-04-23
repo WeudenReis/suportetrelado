@@ -56,6 +56,13 @@ export const CommentInsertSchema = z.object({
   department_id: uuidSchema.nullish(),
 })
 
+export const CommentReactionUpsertSchema = z.object({
+  comment_id: uuidSchema,
+  department_id: uuidSchema,
+  user_email: z.string().trim().email(),
+  emoji: z.string().trim().min(1).max(16),
+})
+
 // ── Template ───────────────────────────────────────────────────
 export const TemplateInsertSchema = z.object({
   name: z.string().trim().min(1).max(MAX_NAME),

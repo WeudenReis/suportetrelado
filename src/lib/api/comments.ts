@@ -1,7 +1,7 @@
 import { supabase } from '../supabase'
 import { logger } from '../logger'
-import type { Comment } from '../supabase'
-import { CommentInsertSchema } from '../schemas'
+import type { Comment, CommentReaction } from '../supabase'
+import { CommentInsertSchema, CommentReactionUpsertSchema } from '../schemas'
 import { withOfflineFallback } from '../offlineQueue'
 
 export async function fetchComments(ticketId: string): Promise<Comment[]> {
@@ -40,4 +40,74 @@ export async function insertComment(ticketId: string, userName: string, content:
 
 export async function deleteComment(id: string): Promise<void> {
   await supabase.from('comments').delete().eq('id', id)
+}
+
+export async function fetchCommentReactions(commentIds: string[]): Promise<CommentReaction[]> {
+  if (commentIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('comment_reactions')
+    .select('*')
+    .in('comment_id', commentIds)
+  if (error) {
+    logger.warn('Comments', 'Falha ao buscar reações de comentários', { error: error.message })
+    return []
+  }
+  return (data ?? []) as CommentReaction[]
+}
+
+export async function toggleCommentReaction(input: {
+  commentId: string
+  departmentId: string
+  userEmail: string
+  emoji: string
+}): Promise<void> {
+  const parsed = CommentReactionUpsertSchema.safeParse({
+    comment_id: input.commentId,
+    department_id: input.departmentId,
+    user_email: input.userEmail,
+    emoji: input.emoji,
+  })
+
+  if (!parsed.success) {
+    logger.warn('Comments', 'Payload inválido para reação', { issues: parsed.error.issues })
+    return
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('comment_reactions')
+    .select('id, emoji')
+    .eq('comment_id', parsed.data.comment_id)
+    .eq('user_email', parsed.data.user_email)
+    .maybeSingle()
+
+  if (existingError) {
+    logger.warn('Comments', 'Falha ao verificar reação existente', { error: existingError.message })
+    return
+  }
+
+  if (existing && existing.emoji === parsed.data.emoji) {
+    const { error } = await supabase
+      .from('comment_reactions')
+      .delete()
+      .eq('id', existing.id)
+    if (error) logger.warn('Comments', 'Falha ao remover reação', { error: error.message })
+    return
+  }
+
+  if (existing) {
+    const { error } = await supabase
+      .from('comment_reactions')
+      .update({ emoji: parsed.data.emoji })
+      .eq('id', existing.id)
+    if (error) logger.warn('Comments', 'Falha ao atualizar reação', { error: error.message })
+    return
+  }
+
+  const { error } = await supabase.from('comment_reactions').insert({
+    comment_id: parsed.data.comment_id,
+    department_id: parsed.data.department_id,
+    user_email: parsed.data.user_email,
+    emoji: parsed.data.emoji,
+  })
+  if (error) logger.warn('Comments', 'Falha ao inserir reação', { error: error.message })
 }

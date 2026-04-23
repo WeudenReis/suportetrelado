@@ -67,6 +67,15 @@ export interface Comment {
   created_at: string
 }
 
+export interface CommentReaction {
+  id: string
+  comment_id: string
+  department_id: string
+  user_email: string
+  emoji: string
+  created_at: string
+}
+
 export interface Attachment {
   id: string
   department_id: string | null
@@ -191,7 +200,7 @@ export interface PlannerNotificationSettings {
 // Manter compatibilidade com imports existentes de './lib/supabase'
 export {
   fetchTickets, fetchTicketsCount, insertTicket, updateTicket, deleteTicket,
-  fetchComments, insertComment, deleteComment,
+  fetchComments, insertComment, deleteComment, fetchCommentReactions, toggleCommentReaction,
   fetchAttachmentCounts, fetchAttachments, uploadAttachment, getSignedAttachmentUrl, deleteAttachment,
   fetchActivityLog, insertActivityLog,
   checkAuthorizedUser, upsertUserProfile, updateLastSeen, fetchUserProfiles,
