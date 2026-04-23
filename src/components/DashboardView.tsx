@@ -188,8 +188,6 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     return counts
   }, [active])
 
-  const maxPriority = Math.max(...Object.values(priorityCounts), 1)
-
   // ── Tickets por membro ──
   const memberCounts = useMemo(() => {
     const counts: Record<string, number> = {}

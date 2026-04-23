@@ -713,7 +713,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
           {/* ═══ TEAM ═══ */}
           {activeTab === 'team' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 14 }}>
-              {memberDist.map(([name, count]) => {
+              {memberDist.map(([name]) => {
                 const profile = profiles.find(p => p.name === name || p.email.split('@')[0] === name)
                 const matchAssignee = (t: Ticket) => {
                   const a = t.assignee || ''
