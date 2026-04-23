@@ -1,8 +1,21 @@
-import { useState, useRef, useMemo } from 'react'
-import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone, ShieldAlert, TrendingUp, Clock } from 'lucide-react'
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
+import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone, ShieldAlert, TrendingUp, Clock, Paperclip, Image as ImageIcon, Video as VideoIcon, FileText, Download, Loader2 } from 'lucide-react'
 import { useAnnouncementContext } from './useAnnouncementContext'
-import { fetchUserProfiles, insertNotification, type AnnouncementSeverity } from '../lib/supabase'
+import {
+  fetchUserProfiles, insertNotification,
+  uploadAnnouncementAttachment, deleteAnnouncementAttachmentObject,
+  type AnnouncementAttachment, type AnnouncementSeverity,
+} from '../lib/supabase'
+import { compressAttachment } from '../lib/imageUtils'
 import { useOrg } from '../lib/orgContext'
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024 // 10 MB por arquivo
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
 
 interface AnnouncementsViewProps {
   user: string
@@ -46,19 +59,126 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
   const [isPinned, setIsPinned] = useState(false)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [pendingAttachments, setPendingAttachments] = useState<AnnouncementAttachment[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dragCounter = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  const showToast = useCallback((msg: string, type: 'ok' | 'err') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }, [])
+
+  // ── Upload central: usado por botão, drop e paste ──
+  const processFiles = useCallback(async (files: File[]) => {
+    if (!files.length || !departmentId) {
+      if (!departmentId) showToast('Selecione um departamento antes de anexar.', 'err')
+      return
+    }
+    const valid: File[] = []
+    for (const f of files) {
+      if (f.size > MAX_FILE_BYTES) {
+        showToast(`"${f.name}" excede o limite de ${formatBytes(MAX_FILE_BYTES)}.`, 'err')
+        continue
+      }
+      valid.push(f)
+    }
+    if (!valid.length) return
+    setUploading(true)
+    try {
+      for (const file of valid) {
+        const compressed = await compressAttachment(file)
+        const att = await uploadAnnouncementAttachment(compressed, departmentId)
+        if (att) setPendingAttachments(prev => [...prev, att])
+        else showToast(`Falha ao enviar "${file.name}".`, 'err')
+      }
+    } finally {
+      setUploading(false)
+    }
+  }, [departmentId, showToast])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    processFiles(files)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleRemovePending = async (att: AnnouncementAttachment) => {
+    setPendingAttachments(prev => prev.filter(a => a.storage_path !== att.storage_path))
+    await deleteAnnouncementAttachmentObject(att.storage_path)
+  }
+
+  // ── Paste (Ctrl+V) — só ativo quando o formulário está aberto ──
+  useEffect(() => {
+    if (!showForm) return
+    const handlePaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+      const items = Array.from(e.clipboardData?.items ?? [])
+      const imageFiles = items
+        .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+        .map(item => item.getAsFile())
+        .filter((f): f is File => f !== null)
+      if (!imageFiles.length) return
+      e.preventDefault()
+      processFiles(imageFiles)
+    }
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [showForm, processFiles])
+
+  // ── Drag & Drop handlers ──
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current++
+    if (e.dataTransfer.items.length > 0) setIsDragging(true)
+  }
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current--
+    if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragging(false) }
+  }
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current = 0
+    setIsDragging(false)
+    processFiles(Array.from(e.dataTransfer.files))
+  }
+
+  const resetForm = () => {
+    setTitle(''); setContent(''); setSeverity('info'); setIsPinned(false)
+    setPendingAttachments([]); setShowForm(false)
+  }
+
+  // Limpa anexos órfãos no Storage caso usuário clique em Cancelar com uploads pendentes
+  const handleCancel = async () => {
+    const orphans = pendingAttachments
+    setPendingAttachments([])
+    setShowForm(false)
+    if (orphans.length) {
+      await Promise.all(orphans.map(a => deleteAnnouncementAttachmentObject(a.storage_path)))
+    }
+  }
+
   const handleSubmit = async () => {
-    if (!title.trim()) return
+    if (!title.trim() || submitting || uploading) return
+    setSubmitting(true)
     const ann = await addAnnouncement({
       title: title.trim(),
       content: content.trim(),
       severity,
       author: user,
       is_pinned: isPinned,
+      attachments: pendingAttachments,
     })
+    setSubmitting(false)
     if (ann) {
-      setTitle(''); setContent(''); setSeverity('info'); setIsPinned(false); setShowForm(false)
+      resetForm()
 
       const profiles = await fetchUserProfiles()
       const authorName = user.includes('@') ? user.split('@')[0] : user
@@ -99,7 +219,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
     const c = announcements.filter(a => a.severity === 'critical').length
     const w = announcements.filter(a => a.severity === 'warning').length
     const i = announcements.filter(a => a.severity === 'info').length
-    const now = Date.now() // eslint-disable-line react-hooks/purity -- estável dentro de useMemo com deps
+    const now = Date.now()
     const recent24h = announcements.filter(a => {
       const ms = now - new Date(a.created_at).getTime()
       return ms < 86400000
@@ -219,7 +339,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       {/* BOTAO NOVO */}
       <div data-stagger-child style={{ padding: '0 20px 14px' }}>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => showForm ? handleCancel() : setShowForm(true)}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
             gap: 7, padding: '10px 0', borderRadius: 10, cursor: 'pointer',
@@ -244,7 +364,14 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
 
       {/* FORMULARIO */}
       {showForm && (
-        <div data-stagger-child style={{ padding: '0 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div
+          data-stagger-child
+          style={{ padding: '0 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input
               value={title}
@@ -298,6 +425,102 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                 )
               })}
             </div>
+            {/* ── Anexos ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Paperclip size={12} style={{ color: isDragging ? '#25D066' : '#596773', transition: 'color 0.15s' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#8C96A3', fontFamily: font }}>
+                  Anexos {pendingAttachments.length > 0 && <span style={{ color: '#25D066' }}>({pendingAttachments.length})</span>}
+                </span>
+                {isDragging && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#25D066', fontFamily: font, animation: 'pulse 1s infinite' }}>
+                    Solte para anexar
+                  </span>
+                )}
+              </div>
+
+              {(pendingAttachments.length > 0 || uploading) && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+                  {pendingAttachments.map(att => (
+                    <div
+                      key={att.storage_path}
+                      style={{
+                        position: 'relative', borderRadius: 8, overflow: 'hidden',
+                        background: '#22272b', border: '1px solid rgba(166,197,226,0.10)',
+                      }}
+                    >
+                      {att.type === 'image' ? (
+                        <img src={att.url} alt={att.name} style={{ width: '100%', height: 64, objectFit: 'cover', display: 'block' }} />
+                      ) : att.type === 'video' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 64, background: 'rgba(87,157,255,0.06)' }}>
+                          <VideoIcon size={20} style={{ color: '#579dff' }} />
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 64, background: 'rgba(245,166,35,0.06)' }}>
+                          <FileText size={20} style={{ color: '#F5A623' }} />
+                        </div>
+                      )}
+                      <div style={{ padding: '4px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                        <span style={{ fontSize: 9, color: '#8C96A3', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                          {att.name}
+                        </span>
+                        <button
+                          onClick={() => handleRemovePending(att)}
+                          title="Remover"
+                          style={{
+                            width: 18, height: 18, borderRadius: 4, border: 'none',
+                            background: 'rgba(239,92,72,0.15)', color: '#ef5c48',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                          }}
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {uploading && (
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      gap: 4, height: 88, borderRadius: 8,
+                      background: '#22272b', border: '2px dashed rgba(37,208,102,0.25)',
+                    }}>
+                      <Loader2 size={16} className="animate-spin" style={{ color: '#25D066' }} />
+                      <span style={{ fontSize: 9, color: '#596773', fontFamily: font }}>Enviando...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || !departmentId}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: 6, padding: '8px 0', borderRadius: 8,
+                  fontSize: 11, fontWeight: 600, fontFamily: font,
+                  background: isDragging ? 'rgba(37,208,102,0.08)' : 'rgba(255,255,255,0.03)',
+                  border: isDragging ? '1px dashed rgba(37,208,102,0.5)' : '1px dashed rgba(166,197,226,0.12)',
+                  color: isDragging ? '#25D066' : '#8C96A3',
+                  cursor: uploading || !departmentId ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <ImageIcon size={12} />
+                {isDragging ? 'Solte os arquivos aqui' : uploading ? 'Enviando...' : 'Adicionar arquivo'}
+              </button>
+              <p style={{ fontSize: 9, textAlign: 'center', color: '#3b4755', fontFamily: font, margin: 0 }}>
+                Ctrl+V para colar · Arraste arquivos · Máx {formatBytes(MAX_FILE_BYTES)}
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
                 onClick={() => setIsPinned(!isPinned)}>
@@ -314,17 +537,19 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
               </label>
               <button
                 onClick={handleSubmit}
-                disabled={!title.trim()}
+                disabled={!title.trim() || uploading || submitting}
                 style={{
                   padding: '8px 20px', borderRadius: 8, border: 'none',
                   fontSize: 12, fontWeight: 700, fontFamily: font,
-                  cursor: title.trim() ? 'pointer' : 'default',
-                  background: title.trim() ? '#25D066' : '#2A3038',
-                  color: title.trim() ? '#000' : '#596773',
+                  cursor: !title.trim() || uploading || submitting ? 'not-allowed' : 'pointer',
+                  background: title.trim() && !uploading && !submitting ? '#25D066' : '#2A3038',
+                  color: title.trim() && !uploading && !submitting ? '#000' : '#596773',
+                  display: 'flex', alignItems: 'center', gap: 6,
                   transition: 'all 0.15s',
                 }}
               >
-                Publicar
+                {submitting && <Loader2 size={12} className="animate-spin" />}
+                {submitting ? 'Publicando...' : uploading ? 'Aguarde upload...' : 'Publicar'}
               </button>
             </div>
           </div>
@@ -423,6 +648,77 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                     {expanded ? 'ver menos ▲' : 'ver mais ▼'}
                   </span>
                 )}
+
+                {/* ── Anexos ── */}
+                {ann.attachments && ann.attachments.length > 0 && (
+                  <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }} onClick={e => e.stopPropagation()}>
+                    {ann.attachments.filter(a => a.type === 'image').length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 6 }}>
+                        {ann.attachments.filter(a => a.type === 'image').map(att => (
+                          <a
+                            key={att.storage_path}
+                            href={att.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'block', borderRadius: 8, overflow: 'hidden',
+                              border: '1px solid rgba(255,255,255,0.06)',
+                              transition: 'transform 0.2s ease, border-color 0.2s ease',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.borderColor = cfg.border }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
+                          >
+                            <img src={att.url} alt={att.name} style={{ width: '100%', height: 80, objectFit: 'cover', display: 'block' }} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    {ann.attachments.filter(a => a.type === 'video').map(att => (
+                      <video
+                        key={att.storage_path}
+                        src={att.url}
+                        controls
+                        preload="metadata"
+                        style={{ width: '100%', maxHeight: 240, borderRadius: 8, background: '#000', border: '1px solid rgba(255,255,255,0.06)' }}
+                      />
+                    ))}
+                    {ann.attachments.filter(a => a.type === 'file').map(att => (
+                      <a
+                        key={att.storage_path}
+                        href={att.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={att.name}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 10px', borderRadius: 8,
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                          color: '#B6C2CF', fontFamily: font, textDecoration: 'none',
+                          transition: 'background 0.15s, border-color 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = cfg.bg; e.currentTarget.style.borderColor = cfg.border }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
+                      >
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+                          background: cfg.bg, color: cfg.color,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <FileText size={14} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#E5E7EB', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {att.name}
+                          </div>
+                          <div style={{ fontSize: 9, color: '#596773' }}>{formatBytes(att.size)}</div>
+                        </div>
+                        <Download size={12} style={{ color: '#596773', flexShrink: 0 }} />
+                      </a>
+                    ))}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', alignItems: 'center', marginTop: 8, gap: 6 }}>
                   <span style={{ fontSize: 10, color: '#596773', fontFamily: font }}>
                     por {ann.author.split('@')[0]}
@@ -471,6 +767,22 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
           })
         )}
       </div>
+
+      {/* TOAST */}
+      {toast && (
+        <div style={{
+          position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+          padding: '10px 16px', borderRadius: 10, fontFamily: font,
+          fontSize: 12, fontWeight: 700, zIndex: 100,
+          background: toast.type === 'ok' ? 'rgba(37,208,102,0.95)' : 'rgba(239,92,72,0.95)',
+          color: toast.type === 'ok' ? '#000' : '#fff',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.06)',
+          backdropFilter: 'blur(8px)',
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          {toast.msg}
+        </div>
+      )}
     </div>
   )
 }

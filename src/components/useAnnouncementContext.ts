@@ -1,10 +1,17 @@
 import { createContext, useContext } from 'react'
-import type { Announcement, AnnouncementSeverity } from '../lib/supabase'
+import type { Announcement, AnnouncementAttachment, AnnouncementSeverity } from '../lib/supabase'
 
 export interface AnnouncementContextProps {
   announcements: Announcement[]
   loading: boolean
-  addAnnouncement: (data: { title: string; content: string; severity: AnnouncementSeverity; author: string; is_pinned: boolean }) => Promise<Announcement | null>
+  addAnnouncement: (data: {
+    title: string
+    content: string
+    severity: AnnouncementSeverity
+    author: string
+    is_pinned: boolean
+    attachments?: AnnouncementAttachment[]
+  }) => Promise<Announcement | null>
   togglePin: (ann: Announcement) => Promise<void>
   removeAnnouncement: (id: string) => Promise<void>
 }
