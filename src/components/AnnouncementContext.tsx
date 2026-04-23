@@ -1,27 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   supabase,
   fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
   type Announcement, type AnnouncementSeverity,
 } from '../lib/supabase'
 import { logger } from '../lib/logger'
-import { useOrg } from '../lib/org'
-
-interface AnnouncementContextProps {
-  announcements: Announcement[]
-  loading: boolean
-  addAnnouncement: (data: { title: string; content: string; severity: AnnouncementSeverity; author: string; is_pinned: boolean }) => Promise<Announcement | null>
-  togglePin: (ann: Announcement) => Promise<void>
-  removeAnnouncement: (id: string) => Promise<void>
-}
-
-const AnnouncementContext = createContext<AnnouncementContextProps | undefined>(undefined)
-
-export const useAnnouncementContext = () => {
-  const ctx = useContext(AnnouncementContext)
-  if (!ctx) throw new Error('useAnnouncementContext must be used within AnnouncementProvider')
-  return ctx
-}
+import { useOrg } from '../lib/orgContext'
+import { AnnouncementContext } from './useAnnouncementContext'
 
 export const AnnouncementProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])

@@ -5,7 +5,7 @@ import { animate, useReducedMotion } from 'framer-motion';
 import clsx from 'clsx';
 import { updateTicket, type Ticket } from '../lib/supabase';
 import { logger } from '../lib/logger';
-import { parseTag } from './CardDetailModal';
+import { parseTag } from '../lib/tagUtils';
 import styles from './Card.module.css';
 
 interface CardProps {

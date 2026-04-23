@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CalendarDays, X, Settings, Plus, AlignLeft } from 'lucide-react'
 import type { Ticket, PlannerEvent } from '../lib/supabase'
 import { fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent, insertNotification } from '../lib/supabase'
-import { useOrg } from '../lib/org'
+import { useOrg } from '../lib/orgContext'
 import PlannerEventModal from './PlannerEventModal'
 import PlannerSettingsPanel from './PlannerSettingsPanel'
 

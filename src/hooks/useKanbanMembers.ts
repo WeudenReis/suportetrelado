@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, fetchUserProfiles } from '../lib/supabase'
 import type { UserProfile } from '../lib/supabase'
-import { bestRoleFrom, type OrgRole } from '../lib/org'
+import { bestRoleFrom, type OrgRole } from '../lib/orgContext'
 
 /**
  * Carrega a lista de membros (user_profiles) e seus roles efetivos por email,
@@ -34,10 +34,13 @@ export function useKanbanMembers(organizationId?: string | null): {
   }, [])
 
   useEffect(() => {
-    if (!organizationId) { setMemberRoles(new Map()); return }
     let cancelled = false
 
     const loadRoles = async () => {
+      if (!organizationId) {
+        if (!cancelled) setMemberRoles(new Map())
+        return
+      }
       const { data } = await supabase
         .from('org_members')
         .select('user_email, role')
@@ -55,6 +58,8 @@ export function useKanbanMembers(organizationId?: string | null): {
     }
 
     loadRoles()
+    if (!organizationId) return () => { cancelled = true }
+
     const ch = supabase
       .channel(`org_members_roles_${organizationId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'org_members', filter: `organization_id=eq.${organizationId}` }, loadRoles)

@@ -1,7 +1,7 @@
 import { Inbox, Calendar, Megaphone, Link2, BarChart3 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNotificationContext } from './NotificationContext'
-import { useAnnouncementContext } from './AnnouncementContext'
+import { useNotificationContext } from './useNotificationContext'
+import { useAnnouncementContext } from './useAnnouncementContext'
 
 type NavTab = 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'
 

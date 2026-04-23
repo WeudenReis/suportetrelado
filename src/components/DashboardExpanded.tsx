@@ -159,7 +159,6 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
   const total = filtered.length
   const completedCount = filtered.filter(t => !!t.is_completed).length
-  const resolvedCount = completedCount  // "resolvido" = is_completed (checkbox)
   const highCount = filtered.filter(t => t.priority === 'high').length
   const resolutionRate = total > 0 ? Math.round((completedCount / total) * 100) : 0
   const firstColId = columns[0]?.id ?? 'backlog'
@@ -302,7 +301,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     const kpis = [
       { label: 'Total de Tickets', value: String(total), sub: `${backlogCount} em backlog`, color: '#25D066' },
       { label: 'Alta Prioridade', value: String(highCount), sub: 'tickets urgentes', color: '#ef5c48' },
-      { label: 'Taxa de Resolução', value: `${resolutionRate}%`, sub: `${resolvedCount} resolvidos`, color: '#4bce97' },
+      { label: 'Taxa de Resolução', value: `${resolutionRate}%`, sub: `${completedCount} resolvidos`, color: '#4bce97' },
       { label: 'Tempo Médio', value: `${avgHours}h`, sub: 'para resolver', color: '#e2b203' },
     ]
     const kpiW = (contentW - 6) / 2
@@ -722,7 +721,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 // Em progresso = todos os não-concluídos; Resolvidos = is_completed
                 const inProgress = active.filter(t => matchAssignee(t) && !t.is_completed).length
                 const done = active.filter(t => matchAssignee(t) && !!t.is_completed).length
-                const isOnline = profile && profile.last_seen_at && (Date.now() - new Date(profile.last_seen_at).getTime()) < 300000 // eslint-disable-line react-hooks/purity -- cálculo de presença online
+                const isOnline = profile && profile.last_seen_at && (Date.now() - new Date(profile.last_seen_at).getTime()) < 300000
                 const avatarBg = name === 'Sem responsável' ? '#454F59' : (profile?.avatar_color || avatarColor(name))
                 // Carga baseada apenas em tickets ativos (não-concluídos) = carga real
                 const activeCount = memberDistActive[name] ?? 0

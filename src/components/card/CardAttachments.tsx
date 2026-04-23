@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Paperclip, Download, Trash2, Loader2, Video, FileText, Image as ImageIcon } from 'lucide-react'
 import { fetchAttachments, uploadAttachment, deleteAttachment } from '../../lib/supabase'
 import { compressAttachment } from '../../lib/imageUtils'
-import { useOrg } from '../../lib/org'
+import { useOrg } from '../../lib/orgContext'
 import type { Attachment, Ticket } from '../../lib/supabase'
 
 interface CardAttachmentsProps {

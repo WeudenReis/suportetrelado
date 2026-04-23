@@ -20,7 +20,7 @@ function timeAgo(dateStr: string): string {
 }
 
 const avatarPalette = ['#579dff', '#6366f1', '#f5a623', '#ef5c48', '#06b6d4', '#8b5cf6', '#ec4899']
-export function avatarColor(name: string) {
+function avatarColor(name: string) {
   return avatarPalette[name.charCodeAt(0) % avatarPalette.length]
 }
 

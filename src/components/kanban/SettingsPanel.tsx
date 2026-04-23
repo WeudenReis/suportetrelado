@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { X, Palette, Image, Upload, RotateCcw, Clock, Trash2, Tag, Pencil, Settings, Users } from 'lucide-react'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
-import type { OrgRole } from '../../lib/org'
+import type { OrgRole } from '../../lib/orgContext'
 
 const WALLPAPER_PRESETS = [
   { label: 'Oceano', value: 'linear-gradient(135deg, #1a3a5c 0%, #0d2137 50%, #1e4976 100%)' },

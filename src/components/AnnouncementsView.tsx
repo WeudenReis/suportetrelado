@@ -1,8 +1,8 @@
 import { useState, useRef, useMemo } from 'react'
 import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone, ShieldAlert, TrendingUp, Clock } from 'lucide-react'
-import { useAnnouncementContext } from './AnnouncementContext'
+import { useAnnouncementContext } from './useAnnouncementContext'
 import { fetchUserProfiles, insertNotification, type AnnouncementSeverity } from '../lib/supabase'
-import { useOrg } from '../lib/org'
+import { useOrg } from '../lib/orgContext'
 
 interface AnnouncementsViewProps {
   user: string

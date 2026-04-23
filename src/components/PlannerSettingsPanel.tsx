@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Settings, Bell, Loader2 } from 'lucide-react'
 import { fetchPlannerSettings, upsertPlannerSettings } from '../lib/supabase'
-import { useOrg } from '../lib/org'
+import { useOrg } from '../lib/orgContext'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface PlannerSettingsPanelProps {

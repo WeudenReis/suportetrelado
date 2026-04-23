@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { ArchiveRestore, Trash2, X, Search } from 'lucide-react';
 import clsx from 'clsx';
 import styles from './ArchivedPanel.module.css';
-import { useOrg } from '../lib/org';
+import { useOrg } from '../lib/orgContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ArchivedCard {

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Inbox, CheckCheck, Clock, X } from 'lucide-react'
-import { useNotificationContext } from './NotificationContext'
+import { useNotificationContext } from './useNotificationContext'
 import type { Notification } from '../lib/supabase'
 import InboxTabs from './inbox/InboxTabs'
 import type { TabFilter } from './inbox/InboxTabs'
