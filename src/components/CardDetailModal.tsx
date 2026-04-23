@@ -107,7 +107,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
-  const [timelineFilter, setTimelineFilter] = useState<'all' | 'comments' | 'activity'>('all')
+  const [timelineFilter, setTimelineFilter] = useState<'all' | 'comments' | 'activity'>('comments')
   const [showLabelPicker, setShowLabelPicker] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [dueDate, setDueDate] = useState(ticket.due_date || '')
@@ -168,6 +168,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   }, [ticket])
 
   useEffect(() => {
+    setTimelineFilter('comments')
     fetchComments(ticket.id).then(setComments)
     fetchActivityLog(ticket.id).then(setActivities)
   }, [ticket.id])
@@ -958,7 +959,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 </span>
               </div>
               <div className="flex gap-1" style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 3 }}>
-                {(['all', 'comments', 'activity'] as const).map(f => (
+                {(['comments', 'activity', 'all'] as const).map(f => (
                   <button
                     key={f}
                     onClick={() => setTimelineFilter(f)}
