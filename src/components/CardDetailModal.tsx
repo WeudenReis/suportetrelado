@@ -4,12 +4,12 @@ import { AnimatePresence } from 'framer-motion'
 import {
   X, MessageSquare, Trash2, Send, Loader2,
   ArrowRight, ExternalLink, MoreHorizontal,
-  AlignLeft, CreditCard, Paperclip, Check, User, Calendar,
+  AlignLeft, CreditCard, Paperclip, Check, User, Calendar, Smile,
   CheckSquare, Square, Plus, Link2, Pencil, Lock
 } from 'lucide-react'
 import {
   supabase, updateTicket, deleteTicket,
-  fetchComments, insertComment, deleteComment,
+  fetchComments, insertComment, deleteComment, fetchCommentReactions, toggleCommentReaction,
   fetchActivityLog, insertActivityLog,
   extractMentionNames, resolveMentionsToEmails, insertNotification,
   fetchUserProfiles,
@@ -19,7 +19,7 @@ import { compressCover, compressThumbnail } from '../lib/imageUtils'
 import CardAttachments from './card/CardAttachments'
 import { useOrg } from '../lib/org'
 import { logger } from '../lib/logger'
-import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
+import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel, CommentReaction } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import { parseTag } from '../lib/tagUtils'
 export { parseTag }
@@ -73,6 +73,7 @@ function renderCommentText(text: string): React.ReactNode {
 }
 
 const TAG_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
+const REACTION_EMOJIS = ['✅', '👀', '🚀', '👏', '🔥', '🧠', '⚠️', '❤️'] as const
 
 export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete, boardColumns = [] }: CardDetailModalProps) {
   const { departmentId: userDeptId, hasPermission } = useOrg()
@@ -99,6 +100,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const savingRef = useRef(false)
 
   const [comments, setComments] = useState<Comment[]>([])
+  const [commentReactions, setCommentReactions] = useState<CommentReaction[]>([])
+  const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null)
   const [newComment, setNewComment] = useState('')
   const [sendingComment, setSendingComment] = useState(false)
   const [commentFocused, setCommentFocused] = useState(false)
@@ -172,6 +175,10 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     fetchComments(ticket.id).then(setComments)
     fetchActivityLog(ticket.id).then(setActivities)
   }, [ticket.id])
+
+  useEffect(() => {
+    fetchCommentReactions(comments.map(c => c.id)).then(setCommentReactions)
+  }, [comments])
 
   // Load user profiles for mention autocomplete
   useEffect(() => {
@@ -404,6 +411,29 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     await deleteComment(id)
   }
 
+  const getCommentReactions = (commentId: string) => {
+    const grouped = new Map<string, { emoji: string; count: number; reactedByMe: boolean }>()
+    for (const reaction of commentReactions) {
+      if (reaction.comment_id !== commentId) continue
+      const current = grouped.get(reaction.emoji)
+      const reactedByMe = reaction.user_email.toLowerCase() === user.toLowerCase()
+      if (!current) {
+        grouped.set(reaction.emoji, { emoji: reaction.emoji, count: 1, reactedByMe })
+      } else {
+        current.count += 1
+        current.reactedByMe = current.reactedByMe || reactedByMe
+      }
+    }
+    return [...grouped.values()]
+  }
+
+  const handleToggleReaction = async (commentId: string, departmentId: string, emoji: string) => {
+    await toggleCommentReaction({ commentId, departmentId, userEmail: user, emoji })
+    const reactions = await fetchCommentReactions(comments.map(c => c.id))
+    setCommentReactions(reactions)
+    setReactionPickerFor(null)
+  }
+
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -498,7 +528,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   }
 
   const feedItems = useMemo(() => {
-    const commentItems = comments.map(c => ({ type: 'comment' as const, id: c.id, user: c.user_name, text: c.content, time: c.created_at }))
+    const commentItems = comments.map(c => ({ type: 'comment' as const, id: c.id, departmentId: c.department_id, user: c.user_name, text: c.content, time: c.created_at }))
     const activityItems = activities.map(a => ({ type: 'activity' as const, id: a.id, user: a.user_name, text: a.action_text, time: a.created_at }))
     const all = timelineFilter === 'comments'
       ? commentItems
@@ -1144,7 +1174,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 feedItems.map(item => (
                   <div key={item.id} className="flex gap-2 group" style={{ marginBottom: 12 }}>
                     <Avatar name={item.user} size={24} />
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 relative">
                       <div className="flex items-center gap-2">
                         <span className="text-[12px] font-semibold" style={{ color: '#b6c2cf' }}>
                           {item.user.includes('@') ? item.user.split('@')[0] : item.user}
@@ -1173,6 +1203,53 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                           }}>
                             {renderCommentText(item.text.startsWith('[INTERNO] ') ? item.text.slice(10) : item.text)}
                           </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            {getCommentReactions(item.id).map(r => (
+                              <button
+                                key={`${item.id}-${r.emoji}`}
+                                onClick={() => handleToggleReaction(item.id, item.departmentId || ticket.department_id, r.emoji)}
+                                className="px-2 py-0.5 rounded-full text-[11px] transition-colors"
+                                style={{
+                                  background: r.reactedByMe ? 'rgba(37,208,102,0.18)' : 'rgba(255,255,255,0.06)',
+                                  border: r.reactedByMe ? '1px solid rgba(37,208,102,0.35)' : '1px solid rgba(166,197,226,0.1)',
+                                  color: '#b6c2cf',
+                                }}
+                              >
+                                {r.emoji} {r.count}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setReactionPickerFor(prev => prev === item.id ? null : item.id)}
+                              className="px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1"
+                              style={{
+                                background: 'rgba(255,255,255,0.04)',
+                                border: '1px solid rgba(166,197,226,0.1)',
+                                color: '#8da2b5',
+                              }}
+                            >
+                              <Smile size={11} /> Reagir
+                            </button>
+                          </div>
+                          {reactionPickerFor === item.id && (
+                            <div className="absolute z-20 mt-1 p-2 rounded-lg flex flex-wrap gap-1.5" style={{
+                              background: '#1d2125',
+                              border: '1px solid rgba(166,197,226,0.12)',
+                              boxShadow: '0 12px 24px rgba(0,0,0,0.35)',
+                              width: 220,
+                            }}>
+                              {REACTION_EMOJIS.map(emoji => (
+                                <button
+                                  key={`${item.id}-pick-${emoji}`}
+                                  onClick={() => handleToggleReaction(item.id, item.departmentId || ticket.department_id, emoji)}
+                                  className="w-8 h-8 rounded-md text-base"
+                                  style={{ background: 'rgba(255,255,255,0.06)' }}
+                                  title={`Reagir com ${emoji}`}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#596773' }}>
                             <Trash2 size={9} /> Excluir
                           </button>
