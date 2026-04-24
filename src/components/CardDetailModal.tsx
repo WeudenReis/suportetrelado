@@ -342,7 +342,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     if (mentionableUsers.length === 0) return
     const before = newComment.slice(0, mentionStartPos.current)
     const after = newComment.slice(commentRef.current?.selectionStart ?? mentionStartPos.current + (mentionQuery?.length ?? 0) + 1)
-    const inserted = `${mentionableUsers.map(u => `@${u.name}`).join(' ')} `
+    const inserted = '@todos '
     setNewComment(before + inserted + after)
     setMentionQuery(null)
     setTimeout(() => {
@@ -384,7 +384,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
         const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
 
-        const emails = await resolveMentionsToEmails(mentionNames)
+        const mentionTodos = mentionNames.includes('todos')
+        const emailsFromMentions = await resolveMentionsToEmails(mentionNames.filter(n => n !== 'todos'))
+        const emails = mentionTodos
+          ? [...new Set([...emailsFromMentions, ...mentionableUsers.map(u => u.email)])]
+          : emailsFromMentions
+
         for (const email of emails) {
           if (email.toLowerCase() !== user.toLowerCase()) {
             await insertNotification({
@@ -426,11 +431,47 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     return [...grouped.values()]
   }
 
-  const handleToggleReaction = async (commentId: string, departmentId: string, emoji: string) => {
+  const getReactionTooltip = (commentId: string, emoji: string) => {
+    const names = commentReactions
+      .filter(r => r.comment_id === commentId && r.emoji === emoji)
+      .map(r => {
+        const profile = allUsers.find(u => u.email.toLowerCase() === r.user_email.toLowerCase())
+        if (profile?.name) return profile.name
+        return r.user_email.includes('@') ? r.user_email.split('@')[0] : r.user_email
+      })
+    return names.length > 0 ? names.join(', ') : 'Sem reações'
+  }
+
+  const handleToggleReaction = async (commentId: string, departmentId: string, emoji: string, commentUser: string) => {
+    const previousReaction = commentReactions.find(r => r.comment_id === commentId && r.user_email.toLowerCase() === user.toLowerCase())
+
     await toggleCommentReaction({ commentId, departmentId, userEmail: user, emoji })
     const reactions = await fetchCommentReactions(comments.map(c => c.id))
     setCommentReactions(reactions)
     setReactionPickerFor(null)
+
+    const nextReaction = reactions.find(r => r.comment_id === commentId && r.user_email.toLowerCase() === user.toLowerCase())
+    if (!nextReaction || nextReaction.emoji === previousReaction?.emoji) return
+
+    const authorCandidates = await resolveMentionsToEmails([commentUser])
+    const fallbackEmail = commentUser.includes('@') ? commentUser : ''
+    const commentAuthorEmail = authorCandidates[0] || fallbackEmail
+    if (!commentAuthorEmail || commentAuthorEmail.toLowerCase() === user.toLowerCase()) return
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
+    const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
+    const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+
+    await insertNotification({
+      department_id: departmentId || ticket.department_id || '',
+      recipient_email: commentAuthorEmail,
+      sender_name: senderDisplayName,
+      type: 'comment',
+      ticket_id: ticket.id,
+      ticket_title: ticket.title,
+      message: `reagiu com ${nextReaction.emoji} ao seu comentário`,
+    })
   }
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1206,8 +1247,9 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                             {getCommentReactions(item.id).map(r => (
                               <button
                                 key={`${item.id}-${r.emoji}`}
-                                onClick={() => handleToggleReaction(item.id, item.departmentId || ticket.department_id, r.emoji)}
+                                onClick={() => handleToggleReaction(item.id, item.departmentId || ticket.department_id, r.emoji, item.user)}
                                 className="px-2 py-0.5 rounded-full text-[11px] transition-colors"
+                                title={getReactionTooltip(item.id, r.emoji)}
                                 style={{
                                   background: r.reactedByMe ? 'rgba(37,208,102,0.18)' : 'rgba(255,255,255,0.06)',
                                   border: r.reactedByMe ? '1px solid rgba(37,208,102,0.35)' : '1px solid rgba(166,197,226,0.1)',
@@ -1239,7 +1281,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                               {REACTION_EMOJIS.map(emoji => (
                                 <button
                                   key={`${item.id}-pick-${emoji}`}
-                                  onClick={() => handleToggleReaction(item.id, item.departmentId || ticket.department_id, emoji)}
+                                  onClick={() => handleToggleReaction(item.id, item.departmentId || ticket.department_id, emoji, item.user)}
                                   className="w-8 h-8 rounded-md text-base"
                                   style={{ background: 'rgba(255,255,255,0.06)' }}
                                   title={`Reagir com ${emoji}`}
