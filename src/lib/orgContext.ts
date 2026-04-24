@@ -52,7 +52,7 @@ export const ROLE_PERMS: Record<OrgRole, Set<string>> = {
   ]),
   agent: new Set([
     'tickets:create', 'tickets:read', 'tickets:update', 'tickets:archive',
-    'links:manage',
+    'tickets:edit_details', 'links:manage',
   ]),
 }
 
