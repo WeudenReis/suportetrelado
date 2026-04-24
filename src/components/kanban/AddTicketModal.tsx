@@ -6,6 +6,7 @@ import type { BoardColumn } from '../../lib/boardColumns'
 import { fetchTemplates, insertTemplate, deleteTemplate, type TicketTemplate } from '../../lib/api/templates'
 import { useOrg } from '../../lib/orgContext'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { useDepartmentSettings } from '../../hooks/useDepartmentSettings'
 
 // Re-export para compatibilidade
 export type { TicketTemplate }
@@ -61,6 +62,11 @@ function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
 
 export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, initialStatus, isCreating, user }: AddTicketModalProps) {
   const { departmentId } = useOrg()
+  const { settings } = useDepartmentSettings()
+  const showCliente = settings.fields.cliente.visible
+  const showInstancia = settings.fields.instancia.visible
+  const visibleExtraCount = (showCliente ? 1 : 0) + (showInstancia ? 1 : 0)
+  const gridCols = visibleExtraCount === 2 ? 'grid-cols-4' : visibleExtraCount === 1 ? 'grid-cols-3' : 'grid-cols-2'
   const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' as Ticket['priority'], status: initialStatus, cliente: '', instancia: '' })
   const [showTemplates, setShowTemplates] = useState(false)
   const [templates, setTemplates] = useState<TicketTemplate[]>([])
@@ -165,7 +171,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
             <Plus size={18} style={{ color: '#25D066' }} />
           </div>
           <div style={{ flex: 1 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Novo Ticket</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Novo {settings.terminology.ticket_singular}</h2>
             <p style={{ fontSize: 11, color: isDragging ? '#25D066' : '#596773', margin: 0, marginTop: 1, transition: 'color 0.15s' }}>
               {isDragging ? 'Solte os arquivos para anexar' : 'Preencha os dados do chamado'}
             </p>
@@ -226,16 +232,20 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
             <input autoFocus placeholder="Título do ticket..." value={newTicket.title} onChange={e => setNewTicket(p => ({ ...p, title: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdd() } }} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(37,208,102,0.15)', background: '#22272b', color: '#E5E7EB', fontSize: 14, fontWeight: 500, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(37,208,102,0.15)'; e.currentTarget.style.boxShadow = 'none' }} />
           </div>
 
-          {/* Cliente · Instância · Prioridade · Coluna — linha única */}
-          <div className="grid grid-cols-4 gap-2">
-            <div>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, color: '#B6C2CF' }}>Cliente</label>
-              <input placeholder="Cliente..." value={newTicket.cliente} onChange={e => setNewTicket(p => ({ ...p, cliente: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 12, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, color: '#B6C2CF' }}>Instância</label>
-              <input placeholder="Instância..." value={newTicket.instancia} onChange={e => setNewTicket(p => ({ ...p, instancia: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 12, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
-            </div>
+          {/* Campos extras · Prioridade · Coluna — linha única */}
+          <div className={`grid ${gridCols} gap-2`}>
+            {showCliente && (
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, color: '#B6C2CF' }}>{settings.fields.cliente.label ?? 'Cliente'}</label>
+                <input placeholder={`${settings.fields.cliente.label ?? 'Cliente'}...`} value={newTicket.cliente} onChange={e => setNewTicket(p => ({ ...p, cliente: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 12, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
+              </div>
+            )}
+            {showInstancia && (
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, color: '#B6C2CF' }}>{settings.fields.instancia.label ?? 'Instância'}</label>
+                <input placeholder={`${settings.fields.instancia.label ?? 'Instância'}...`} value={newTicket.instancia} onChange={e => setNewTicket(p => ({ ...p, instancia: e.target.value }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 12, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', fontFamily: "'Space Grotesk', sans-serif" }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(37,208,102,0.1)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }} />
+              </div>
+            )}
             <div>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, color: '#B6C2CF' }}>Prioridade</label>
               <select value={newTicket.priority} onChange={e => setNewTicket(p => ({ ...p, priority: e.target.value as Ticket['priority'] }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', background: '#22272b', color: '#E5E7EB', fontSize: 12, outline: 'none', cursor: 'pointer', appearance: 'none' as const, backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2325D066' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', paddingRight: 24, fontFamily: "'Space Grotesk', sans-serif", transition: 'border-color 0.15s' }} onFocus={e => { e.currentTarget.style.borderColor = '#25D066' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>

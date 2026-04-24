@@ -18,6 +18,7 @@ import {
 import { compressCover, compressThumbnail } from '../lib/imageUtils'
 import CardAttachments from './card/CardAttachments'
 import { useOrg } from '../lib/orgContext'
+import { useDepartmentSettings } from '../hooks/useDepartmentSettings'
 import { logger } from '../lib/logger'
 import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel, CommentReaction } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
@@ -76,6 +77,8 @@ const REACTION_EMOJIS = ['✅', '👀', '🚀', '👏', '🔥', '🧠', '⚠️'
 
 export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete, boardColumns = [] }: CardDetailModalProps) {
   const { departmentId: userDeptId, hasPermission } = useOrg()
+  const { settings: deptSettings } = useDepartmentSettings()
+  const fieldCfg = deptSettings.fields
   const canEditDetails = hasPermission('tickets:edit_details')
   const canDelete      = hasPermission('tickets:delete')
   const canAssign      = hasPermission('tickets:assign')
@@ -822,30 +825,40 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <FieldGroup label="Cliente" icon={<User size={13} />}>
-                <input value={cliente} onChange={canEditDetails ? e => setCliente(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder="Nome do cliente" />
-              </FieldGroup>
-              <FieldGroup label="Instância" icon={<CreditCard size={13} />}>
-                <input value={instancia} onChange={canEditDetails ? e => setInstancia(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder="Código da instância" />
-              </FieldGroup>
-              <FieldGroup label="Link Retaguarda" icon={<Link2 size={13} />}>
-                <div className="flex gap-1">
-                  <input value={linkRetaguarda} onChange={canEditDetails ? e => setLinkRetaguarda(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
-                  {linkRetaguarda && (
-                    <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
-                  )}
-                </div>
-              </FieldGroup>
-              <FieldGroup label="Link Sessão" icon={<Link2 size={13} />}>
-                <div className="flex gap-1">
-                  <input value={linkSessao} onChange={canEditDetails ? e => setLinkSessao(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
-                  {linkSessao && (
-                    <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
-                  )}
-                </div>
-              </FieldGroup>
-            </div>
+            {(fieldCfg.cliente.visible || fieldCfg.instancia.visible || fieldCfg.link_retaguarda.visible || fieldCfg.link_sessao.visible) && (
+              <div className="grid grid-cols-2 gap-2">
+                {fieldCfg.cliente.visible && (
+                  <FieldGroup label={fieldCfg.cliente.label ?? 'Cliente'} icon={<User size={13} />}>
+                    <input value={cliente} onChange={canEditDetails ? e => setCliente(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder={fieldCfg.cliente.label ?? 'Nome do cliente'} />
+                  </FieldGroup>
+                )}
+                {fieldCfg.instancia.visible && (
+                  <FieldGroup label={fieldCfg.instancia.label ?? 'Instância'} icon={<CreditCard size={13} />}>
+                    <input value={instancia} onChange={canEditDetails ? e => setInstancia(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder={fieldCfg.instancia.label ?? 'Código da instância'} />
+                  </FieldGroup>
+                )}
+                {fieldCfg.link_retaguarda.visible && (
+                  <FieldGroup label={fieldCfg.link_retaguarda.label ?? 'Link Retaguarda'} icon={<Link2 size={13} />}>
+                    <div className="flex gap-1">
+                      <input value={linkRetaguarda} onChange={canEditDetails ? e => setLinkRetaguarda(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
+                      {linkRetaguarda && (
+                        <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
+                      )}
+                    </div>
+                  </FieldGroup>
+                )}
+                {fieldCfg.link_sessao.visible && (
+                  <FieldGroup label={fieldCfg.link_sessao.label ?? 'Link Sessão'} icon={<Link2 size={13} />}>
+                    <div className="flex gap-1">
+                      <input value={linkSessao} onChange={canEditDetails ? e => setLinkSessao(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
+                      {linkSessao && (
+                        <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
+                      )}
+                    </div>
+                  </FieldGroup>
+                )}
+              </div>
+            )}
 
             {/* Attachments */}
             <CardAttachments ticketId={ticket.id} ticketDepartmentId={ticket.department_id} user={user} />
@@ -1028,10 +1041,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               )
             })()}
 
+            {fieldCfg.observacao.visible && (
             <section className="mt-3">
               <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
                 <Paperclip size={14} style={{ color: '#25D066' }} />
-                Observação
+                {fieldCfg.observacao.label ?? 'Observação'}
               </div>
               <textarea
                 value={observacao.split('\n').filter(l => !l.startsWith('☐') && !l.startsWith('☑')).join('\n')}
@@ -1049,6 +1063,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 placeholder={canEditDetails ? 'Notas adicionais' : ''}
               />
             </section>
+            )}
           </div>
 
           {/* ═══ RIGHT: Timeline / Activity ═══ */}

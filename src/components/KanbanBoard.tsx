@@ -20,6 +20,7 @@ import BulkActionsBar from './kanban/BulkActionsBar'
 const AutoRulesModal = lazy(() => import('./kanban/AutoRulesModal'))
 const LabelsManagerModal = lazy(() => import('./kanban/LabelsManagerModal'))
 const SettingsPanel = lazy(() => import('./kanban/SettingsPanel'))
+const DepartmentSettingsModal = lazy(() => import('./kanban/DepartmentSettingsModal'))
 const MembersManagerPanel = lazy(() => import('./kanban/MembersManagerPanel'))
 const MyProfilePanel = lazy(() => import('./kanban/MyProfilePanel'))
 import AddTicketModal from './kanban/AddTicketModal'
@@ -90,6 +91,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
   const [showAutoRules, setShowAutoRules] = useState(false)
   const [showMembersManager, setShowMembersManager] = useState(false)
+  const [showDeptSettings, setShowDeptSettings] = useState(false)
   const { departmentId, organizationId, role: userRole, hasPermission } = useOrg()
   const isAdmin = userRole === 'admin'
   const canManageColumns = hasPermission('columns:manage')
@@ -1693,7 +1695,20 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               userRole={userRole}
               onOpenAutoRules={() => setShowAutoRules(true)}
               onOpenMembersPanel={() => { setShowSettings(false); setShowMembersManager(true) }}
+              onOpenDeptSettings={() => { setShowSettings(false); setShowDeptSettings(true) }}
               onClose={() => setShowSettings(false)}
+            />
+          </Suspense>
+        )}
+      </AnimatePresence>
+
+      {/* Department Settings Modal */}
+      <AnimatePresence>
+        {showDeptSettings && (
+          <Suspense fallback={null}>
+            <DepartmentSettingsModal
+              onClose={() => setShowDeptSettings(false)}
+              onShowToast={showToast}
             />
           </Suspense>
         )}
