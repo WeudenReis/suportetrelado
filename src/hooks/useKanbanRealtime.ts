@@ -4,7 +4,6 @@ import type { Ticket } from '../lib/supabase'
 
 interface UseKanbanRealtimeOptions {
   departmentId: string | null
-  applyRulesToTicket: (ticket: Ticket) => Ticket
   setTickets: React.Dispatch<React.SetStateAction<Ticket[]>>
   loadTickets: () => Promise<void>
   setLoading: (loading: boolean) => void
@@ -18,7 +17,6 @@ interface UseKanbanRealtimeOptions {
  */
 export function useKanbanRealtime({
   departmentId,
-  applyRulesToTicket,
   setTickets,
   loadTickets,
   setLoading,
@@ -41,8 +39,7 @@ export function useKanbanRealtime({
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
           setTickets(prev => {
             if (prev.some(t => t.id === (payload.new as Ticket).id)) return prev
-            const newTicket = applyRulesToTicket({ ...(payload.new as Ticket), attachment_count: 0 } as Ticket)
-            return [...prev, newTicket]
+            return [...prev, { ...(payload.new as Ticket), attachment_count: 0 } as Ticket]
           })
         })
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets', ...realtimeFilter }, payload => {
@@ -71,7 +68,7 @@ export function useKanbanRealtime({
       clearTimeout(timer)
       if (channel) supabase.removeChannel(channel)
     }
-  }, [loadTickets, departmentId, applyRulesToTicket, setTickets, setLoading])
+  }, [loadTickets, departmentId, setTickets, setLoading])
 
   return { isConnected, channelRef }
 }
