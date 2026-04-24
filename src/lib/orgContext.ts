@@ -38,18 +38,21 @@ export function bestRoleFrom(rows: { role: string }[], fallback: OrgRole = 'agen
 
 export const ROLE_PERMS: Record<OrgRole, Set<string>> = {
   admin: new Set([
-    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:delete', 'tickets:archive', 'tickets:assign',
-    'tickets:edit_details',
-    'columns:manage', 'labels:manage', 'members:invite', 'members:remove', 'members:change_role',
-    'departments:manage', 'announcements:manage', 'links:manage', 'settings:manage',
+    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:assign',
+    'tickets:edit_details', 'tickets:archive', 'tickets:delete',
+    'columns:manage', 'labels:manage', 'announcements:manage', 'links:manage',
+    'members:invite', 'members:remove', 'members:change_role',
+    'departments:manage', 'settings:manage',
   ]),
   supervisor: new Set([
     'tickets:create', 'tickets:read', 'tickets:update', 'tickets:assign',
-    'tickets:edit_details',
+    'tickets:edit_details', 'tickets:archive',
     'columns:manage', 'labels:manage', 'announcements:manage', 'links:manage',
+    'settings:manage',
   ]),
   agent: new Set([
-    'tickets:create', 'tickets:read', 'tickets:update', 'links:manage',
+    'tickets:create', 'tickets:read', 'tickets:update', 'tickets:archive',
+    'links:manage',
   ]),
 }
 
