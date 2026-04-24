@@ -28,7 +28,6 @@ import DepartmentSwitcher from './kanban/DepartmentSwitcher'
 import { DroppableColumn, SortableCard, SortableBoardColumn } from './kanban/DndComponents'
 import { useOrg } from '../lib/orgContext'
 import { logger } from '../lib/logger'
-import { useAutoRules } from '../hooks/useAutoRules'
 import { fetchAutoRules } from '../lib/api/templates'
 import { useKanbanFilters } from '../hooks/useKanbanFilters'
 import { useKanbanWallpaper } from '../hooks/useKanbanWallpaper'
@@ -94,7 +93,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const { departmentId, organizationId, role: userRole, hasPermission } = useOrg()
   const isAdmin = userRole === 'admin'
   const canManageColumns = hasPermission('columns:manage')
-  const { applyRulesToTicket, applyRulesToBatch } = useAutoRules(departmentId)
 
   const applyAutoRules = useCallback(async () => {
     try {
@@ -191,31 +189,15 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
         fetchAttachmentCounts(departmentId ?? undefined),
       ])
       const loaded = data.map(t => ({ ...t, attachment_count: attCounts[t.id] || 0 }))
-
-      // Processar regras automáticas antes de setar os tickets
-      const { processed: finalTickets, updates } = applyRulesToBatch(loaded)
-      setTickets(finalTickets)
-
-      // Persistir no banco
-      if (updates.length > 0) {
-        for (const upd of updates) {
-          updateTicket(upd.id, { status: upd.newStatus as TicketStatus }).catch(err => logger.error('KanbanBoard', 'Operação falhou', { error: String(err) }))
-        }
-        showToast(`Regra automática: ${updates.length} ticket(s) movido(s)`, 'ok')
-      }
+      setTickets(loaded)
     } catch (err) {
       logger.error('KanbanBoard', 'Falha ao carregar tickets', { error: String(err) })
       showToast('Erro ao carregar tickets', 'err')
     }
-  }, [applyRulesToBatch, departmentId, showToast])
-
-
-  // Helper: aplica regras automáticas a um ticket individual (via hook)
-  // Funções 'applyRulesToTicket' e 'applyRulesToBatch' agora vêm de useAutoRules()
+  }, [departmentId, showToast])
 
   const { isConnected } = useKanbanRealtime({
     departmentId,
-    applyRulesToTicket,
     setTickets,
     loadTickets,
     setLoading,
