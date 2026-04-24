@@ -50,7 +50,8 @@ function formatDate(dateStr: string): string {
 
 export default function AnnouncementsView({ user, onClose }: AnnouncementsViewProps) {
   const { announcements, loading, addAnnouncement, togglePin, removeAnnouncement } = useAnnouncementContext()
-  const { departmentId } = useOrg()
+  const { departmentId, hasPermission } = useOrg()
+  const canManage = hasPermission('announcements:manage')
 
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
@@ -167,6 +168,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
 
   const handleSubmit = async () => {
     if (!title.trim() || submitting || uploading) return
+    if (!canManage) { showToast('Voce nao tem permissao para criar avisos.', 'err'); return }
     setSubmitting(true)
     const ann = await addAnnouncement({
       title: title.trim(),
@@ -337,6 +339,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
       )}
 
       {/* BOTAO NOVO */}
+      {canManage && (
       <div data-stagger-child style={{ padding: '0 20px 14px' }}>
         <button
           onClick={() => showForm ? handleCancel() : setShowForm(true)}
@@ -361,9 +364,10 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
           {showForm ? 'Cancelar' : 'Novo Aviso'}
         </button>
       </div>
+      )}
 
       {/* FORMULARIO */}
-      {showForm && (
+      {showForm && canManage && (
         <div
           data-stagger-child
           style={{ padding: '0 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
@@ -727,6 +731,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                     · {formatDate(ann.created_at)}
                   </span>
                   <span style={{ flex: 1 }} />
+                  {canManage && (
                   <div style={{
                     display: 'flex', gap: 4,
                     opacity: hovered ? 1 : 0,
@@ -761,6 +766,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                       <Trash2 size={12} />
                     </button>
                   </div>
+                  )}
                 </div>
               </div>
             )
