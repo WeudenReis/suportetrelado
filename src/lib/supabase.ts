@@ -147,6 +147,17 @@ export interface Notification {
 
 export type AnnouncementSeverity = 'info' | 'warning' | 'critical'
 
+export type AnnouncementAttachmentType = 'image' | 'video' | 'file'
+
+export interface AnnouncementAttachment {
+  name: string
+  url: string
+  storage_path: string
+  type: AnnouncementAttachmentType
+  mime: string
+  size: number
+}
+
 export interface Announcement {
   id: string
   department_id: string
@@ -156,6 +167,7 @@ export interface Announcement {
   author: string
   is_pinned: boolean
   is_active: boolean
+  attachments: AnnouncementAttachment[]
   created_at: string
   updated_at: string
 }
@@ -206,6 +218,7 @@ export {
   checkAuthorizedUser, upsertUserProfile, updateLastSeen, fetchUserProfiles,
   fetchNotifications, insertNotification, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications, deleteNotificationsByTicket, extractMentionNames, resolveMentionsToEmails,
   fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
+  uploadAnnouncementAttachment, deleteAnnouncementAttachmentObject,
   fetchUsefulLinks, insertUsefulLink, updateUsefulLink, deleteUsefulLink,
   fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel,
   fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent, fetchPlannerSettings, upsertPlannerSettings,

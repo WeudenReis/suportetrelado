@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   supabase,
   fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
-  type Announcement, type AnnouncementSeverity,
+  deleteAnnouncementAttachmentObject,
+  type Announcement, type AnnouncementAttachment, type AnnouncementSeverity,
 } from '../lib/supabase'
 import { logger } from '../lib/logger'
 import { useOrg } from '../lib/orgContext'
@@ -65,6 +66,7 @@ export const AnnouncementProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const addAnnouncement = useCallback(async (data: {
     title: string; content: string; severity: AnnouncementSeverity; author: string; is_pinned: boolean
+    attachments?: AnnouncementAttachment[]
   }): Promise<Announcement | null> => {
     if (!departmentId) return null
     const ann = await insertAnnouncement({ ...data, department_id: departmentId })
@@ -84,9 +86,14 @@ export const AnnouncementProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [])
 
   const removeAnnouncement = useCallback(async (id: string) => {
+    const target = announcements.find(a => a.id === id)
     setAnnouncements(prev => prev.filter(a => a.id !== id))
     await deleteAnnouncement(id)
-  }, [])
+    // Limpa objetos do Storage para evitar arquivos órfãos no bucket
+    if (target?.attachments?.length) {
+      await Promise.all(target.attachments.map(a => deleteAnnouncementAttachmentObject(a.storage_path)))
+    }
+  }, [announcements])
 
   return (
     <AnnouncementContext.Provider value={{ announcements, loading, addAnnouncement, togglePin, removeAnnouncement }}>
