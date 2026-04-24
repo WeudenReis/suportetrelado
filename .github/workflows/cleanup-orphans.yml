@@ -1,0 +1,49 @@
+name: Cleanup Orphan Attachments
+
+# Remove anexos de avisos que foram enviados ao Storage mas nunca foram publicados
+# (usuario fechou o modal antes de clicar em "Publicar").
+#
+# Requer os seguintes secrets no repositorio:
+#   - SUPABASE_URL (producao)
+#   - SUPABASE_SERVICE_ROLE_KEY (producao)
+#
+# Workflow desabilitado por padrao — habilite descomentando o schedule abaixo.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Apenas listar orfaos sem deletar'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+      hours:
+        description: 'Considerar orfaos com mais de N horas'
+        required: false
+        default: '24'
+  # schedule:
+  #   - cron: '0 3 * * *'  # diariamente as 03:00 UTC
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Cleanup orphan announcement attachments
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ -n "${{ inputs.hours }}" ]; then ARGS="$ARGS --hours=${{ inputs.hours }}"; fi
+          node scripts/cleanup-orphan-attachments.mjs $ARGS
