@@ -10,6 +10,12 @@ describe('extractMentionNames', () => {
     expect(result).toEqual(['joao', 'maria'])
   })
 
+  it('deve extrair nome completo quando a menção usa NBSP', () => {
+    const nbsp = '\u00A0'
+    const result = extractMentionNames(`Ainda está comigo o cliente @Maria${nbsp}Sousa`)
+    expect(result).toEqual(['maria sousa'])
+  })
+
   it('deve retornar array vazio quando não há menções', () => {
     const result = extractMentionNames('Sem menções aqui')
     expect(result).toEqual([])

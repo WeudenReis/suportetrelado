@@ -61,9 +61,11 @@ function avatarColor(name: string) {
 function renderCommentText(text: string): React.ReactNode {
   if (!text) return text
   try {
-    const parts = text.split(/(@[\w\u00C0-\u024F]+)/g)
+    // Menções podem conter NBSP (\u00A0) quando inseridas via autocomplete
+    // para manter nome completo como um único token visual.
+    const parts = text.split(/(@[\w\u00C0-\u024F]+(?:\u00A0[\w\u00C0-\u024F]+)*)/g)
     return parts.map((part, i) =>
-      /^@[\w\u00C0-\u024F]+$/.test(part)
+      /^@[\w\u00C0-\u024F]+(?:\u00A0[\w\u00C0-\u024F]+)*$/.test(part)
         ? <span key={i} className="mention-highlight">{part}</span>
         : part
     )
@@ -328,7 +330,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const applyMention = (profile: UserProfile) => {
     const before = newComment.slice(0, mentionStartPos.current)
     const after = newComment.slice(commentRef.current?.selectionStart ?? mentionStartPos.current + (mentionQuery?.length ?? 0) + 1)
-    const inserted = `@${profile.name} `
+    const insertedName = profile.name.trim().replace(/\s+/g, '\u00A0')
+    const inserted = `@${insertedName} `
     setNewComment(before + inserted + after)
     setMentionQuery(null)
     setTimeout(() => {

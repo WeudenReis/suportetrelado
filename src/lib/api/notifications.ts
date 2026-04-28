@@ -56,11 +56,14 @@ export async function deleteNotificationsByTicket(ticketId: string): Promise<voi
 }
 
 export function extractMentionNames(text: string): string[] {
-  const regex = /@([\w\u00C0-\u024F]+)/g
+  // Suporta nomes completos quando a menção usa NBSP (\u00A0) entre palavras.
+  // NBSP é inserido pelo autocomplete para evitar capturar falsos positivos
+  // como "@joao e" em frases comuns.
+  const regex = /@([\w\u00C0-\u024F]+(?:\u00A0[\w\u00C0-\u024F]+)*)/g
   const names: string[] = []
   let match: RegExpExecArray | null
   while ((match = regex.exec(text)) !== null) {
-    names.push(match[1].toLowerCase())
+    names.push(match[1].replace(/\u00A0/g, ' ').toLowerCase())
   }
   return [...new Set(names)]
 }
@@ -69,7 +72,7 @@ export async function resolveMentionsToEmails(names: string[]): Promise<string[]
   if (names.length === 0) return []
   const profiles = await fetchUserProfiles()
   const emails: string[] = []
-  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const normalize = (s: string) => s.replace(/\u00A0/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   for (const name of names) {
     const n = normalize(name)
     const match = profiles.find(p =>
