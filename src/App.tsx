@@ -18,7 +18,7 @@ import { insertTicket, updateTicket } from './lib/api/tickets'
 import type { TicketInsert } from './lib/supabase'
 import { isSuperAdmin } from './lib/superAdmins'
 import Login from './components/Login'
-import KanbanBoard from './components/KanbanBoard'
+import Workspace from './components/Workspace'
 import BottomNav from './components/BottomNav'
 import { fetchTickets, upsertUserProfile, updateLastSeen, checkAuthorizedUser } from './lib/supabase'
 import type { Ticket } from './lib/supabase'
@@ -646,9 +646,15 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
 
       <div className="app-layout__main">
         <AnimatePresence mode="wait">
-          <motion.div key="board" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+          <motion.div key="workspace" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
             className="flex-1 flex flex-col min-h-0">
-            <KanbanBoard user={user} onLogout={onLogout} openTicketId={openTicketId} clearOpenTicketId={() => setOpenTicketId(null)} />
+            <Workspace
+              user={user}
+              onLogout={onLogout}
+              openTicketId={openTicketId}
+              setOpenTicketId={setOpenTicketId}
+              clearOpenTicketId={() => setOpenTicketId(null)}
+            />
           </motion.div>
         </AnimatePresence>
         <BottomNav active={activeTab} onChange={handleTabChange} />

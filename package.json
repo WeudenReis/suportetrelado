@@ -23,6 +23,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@sentry/react": "^10.47.0",
     "@supabase/supabase-js": "^2.39.0",
+    "@tanstack/react-virtual": "^3.13.24",
     "clsx": "^2.1.0",
     "framer-motion": "^11.0.0",
     "jspdf": "^4.2.1",
