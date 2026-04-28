@@ -17,6 +17,12 @@ function readWord(text: string, start: number): { word: string; next: number } {
   return { word: text.slice(start, i), next: i }
 }
 
+function skipSpaces(text: string, start: number): number {
+  let i = start
+  while (i < text.length && text[i] === ' ') i++
+  return i
+}
+
 export function splitTextWithMentions(text: string): MentionSegment[] {
   if (!text) return [{ type: 'text', value: '' }]
 
@@ -59,7 +65,8 @@ export function splitTextWithMentions(text: string): MentionSegment[] {
 
       // Caso 2: Espaço normal só continua se a próxima palavra "parecer nome"
       if (sep === ' ') {
-        const next = readWord(text, mentionEnd + 1)
+        const nextStart = skipSpaces(text, mentionEnd + 1)
+        const next = readWord(text, nextStart)
         if (!next.word) break
 
         const nextWord = next.word
@@ -76,8 +83,9 @@ export function splitTextWithMentions(text: string): MentionSegment[] {
         }
 
         // Aceita conector apenas se houver próxima palavra capitalizada
-        if (isConnector && next.next < text.length && text[next.next] === ' ') {
-          const afterConnector = readWord(text, next.next + 1)
+        if (isConnector) {
+          const afterStart = skipSpaces(text, next.next)
+          const afterConnector = readWord(text, afterStart)
           if (afterConnector.word && isUppercaseLetter(afterConnector.word.charAt(0))) {
             mentionEnd = afterConnector.next
             continue
@@ -108,7 +116,13 @@ export function extractMentionDisplayNames(text: string): string[] {
   const segments = splitTextWithMentions(text)
   const names = segments
     .filter(s => s.type === 'mention')
-    .map(s => s.value.slice(1).replace(/\u00A0/g, ' ').toLowerCase())
+    .map(s => s.value
+      .slice(1)
+      .replace(/\u00A0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+    )
 
   return [...new Set(names)]
 }

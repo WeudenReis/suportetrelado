@@ -64,7 +64,13 @@ export async function resolveMentionsToEmails(names: string[]): Promise<string[]
   if (names.length === 0) return []
   const profiles = await fetchUserProfiles()
   const emails: string[] = []
-  const normalize = (s: string) => s.replace(/\u00A0/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const normalize = (s: string) => s
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
   for (const name of names) {
     const n = normalize(name)
     const match = profiles.find(p =>

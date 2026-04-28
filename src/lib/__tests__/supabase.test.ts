@@ -21,6 +21,11 @@ describe('extractMentionNames', () => {
     expect(result).toEqual(['rafael the boss'])
   })
 
+  it('deve extrair nome completo quando há múltiplos espaços (colapsa no HTML)', () => {
+    const result = extractMentionNames('Ainda está comigo o cliente @Rafael  The Boss')
+    expect(result).toEqual(['rafael the boss'])
+  })
+
   it('deve retornar array vazio quando não há menções', () => {
     const result = extractMentionNames('Sem menções aqui')
     expect(result).toEqual([])
