@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Plano de Hardening de Seguranca - Suporte chatPro</title>
+<!--[if gte mso 9]>
+<xml>
+ <w:WordDocument>
+  <w:View>Print</w:View>
+  <w:Zoom>100</w:Zoom>
+  <w:DoNotOptimizeForBrowser/>
+ </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  @page { size: A4; margin: 2cm; }
+  body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #111; line-height: 1.45; }
+  h1 { font-size: 22pt; color: #1BAD53; border-bottom: 3px solid #25D066; padding-bottom: 6px; margin-top: 0; }
+  h2 { font-size: 16pt; color: #1BAD53; margin-top: 28px; border-bottom: 1px solid #D1D1D5; padding-bottom: 4px; }
+  h3 { font-size: 13pt; color: #222; margin-top: 18px; }
+  h4 { font-size: 11.5pt; color: #444; margin-top: 14px; margin-bottom: 4px; }
+  p { margin: 6px 0; }
+  ul, ol { margin: 6px 0 6px 22px; }
+  li { margin: 3px 0; }
+  code, pre { font-family: 'Consolas', 'Courier New', monospace; }
+  code { background: #F1F0F2; padding: 1px 4px; border-radius: 3px; font-size: 10pt; }
+  pre { background: #1d2125; color: #E6E5E8; padding: 12px; border-radius: 4px; font-size: 9.5pt; white-space: pre-wrap; word-wrap: break-word; border-left: 4px solid #25D066; }
+  .meta { color: #555; font-size: 10pt; margin-bottom: 18px; }
+  .callout { background: #FFF7E6; border-left: 4px solid #FFB020; padding: 10px 14px; margin: 10px 0; font-size: 10.5pt; }
+  .critical { background: #FFECEC; border-left: 4px solid #E53935; padding: 10px 14px; margin: 10px 0; font-size: 10.5pt; }
+  .ok { background: #E9F9EE; border-left: 4px solid #25D066; padding: 10px 14px; margin: 10px 0; font-size: 10.5pt; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 10pt; }
+  th, td { border: 1px solid #D1D1D5; padding: 6px 8px; text-align: left; }
+  th { background: #F1F0F2; }
+  .tag { display: inline-block; background: #25D066; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 9pt; font-weight: 600; }
+  .tag-crit { background: #E53935; }
+  .tag-med { background: #FFB020; color: #000; }
+</style>
+</head>
+<body>
+
+<h1>Plano de Hardening de Seguranca</h1>
+<p class="meta"><strong>Projeto:</strong> Suporte chatPro &nbsp;|&nbsp; <strong>Data:</strong> 24/04/2026 &nbsp;|&nbsp; <strong>Contexto:</strong> Resposta ao pentest com interceptacao de JWT via Burp Suite e bypass do RBAC do frontend via PostgREST direto.</p>
+
+<div class="critical"><strong>Resumo executivo.</strong> Pentester autenticado como Agente interceptou JWT e acessou a API do Supabase (PostgREST) diretamente, ignorando todas as travas do frontend. Este plano elimina esse vetor movendo as regras de autorizacao para o banco (RLS + triggers + revoke de GRANTs), onde um JWT interceptado nao consegue mais escalar privilegios.</p></div>
+
+<h3>Estrutura do plano</h3>
+<ul>
+  <li><strong>Plano A - Auditoria:</strong> queries somente-leitura para validar o estado atual antes de alterar qualquer coisa.</li>
+  <li><strong>Plano B - Migration 025:</strong> script SQL unico, idempotente, aplicavel em dev e prod (FORCE RLS, WITH CHECK, triggers, search_path, revoke GRANTs).</li>
+  <li><strong>Plano C - Checklist operacional:</strong> acoes fora-de-SQL (rotacao de JWT, confirmacao de email, rate limit, etc.).</li>
+</ul>
+
+<h2>Plano A - Auditoria (read-only)</h2>
+<p>Rode em ordem no SQL Editor do Supabase. Salve os resultados antes de aplicar a migration 025.</p>
+
+<h4>A1. Tabelas sem RLS habilitado</h4>
+<pre>SELECT n.nspname AS schema, c.relname AS tabela, c.relrowsecurity AS rls_ativo, c.relforcerowsecurity AS rls_forcado
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind = 'r'
+ORDER BY c.relrowsecurity ASC, c.relname;</pre>
+
+<h4>A2. Todas as policies ativas (visao geral)</h4>
+<pre>SELECT schemaname, tablename, policyname, cmd, roles, qual, with_check
+FROM pg_policies
+WHERE schemaname = 'public'
+ORDER BY tablename, cmd, policyname;</pre>
+
+<h4>A3. Policies de UPDATE sem WITH CHECK (risco de cross-tenant)</h4>
+<pre>SELECT tablename, policyname, cmd, with_check
+FROM pg_policies
+WHERE schemaname = 'public' AND cmd IN ('UPDATE','ALL') AND with_check IS NULL
+ORDER BY tablename;</pre>
+
+<h4>A4. Matriz de cobertura por tabela (SELECT / INSERT / UPDATE / DELETE)</h4>
+<pre>SELECT tablename,
+       bool_or(cmd IN ('SELECT','ALL')) AS tem_select,
+       bool_or(cmd IN ('INSERT','ALL')) AS tem_insert,
+       bool_or(cmd IN ('UPDATE','ALL')) AS tem_update,
+       bool_or(cmd IN ('DELETE','ALL')) AS tem_delete
+FROM pg_policies
+WHERE schemaname = 'public'
+GROUP BY tablename
+ORDER BY tablename;</pre>
+
+<h4>A5. GRANTs para anon e authenticated</h4>
+<pre>SELECT grantee, table_schema, table_name, privilege_type
+FROM information_schema.role_table_grants
+WHERE table_schema = 'public' AND grantee IN ('anon','authenticated')
+ORDER BY grantee, table_name, privilege_type;</pre>
+
+<h4>A6. Funcoes SECURITY DEFINER (alvo do ataque CVE-2018-1058)</h4>
+<pre>SELECT n.nspname AS schema, p.proname AS funcao, p.prosecdef AS security_definer, p.proconfig AS configs
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public' AND p.prosecdef = true
+ORDER BY p.proname;</pre>
+
+<h4>A7. Teste de vazamento cross-org (rode como usuario agente via JWT)</h4>
+<pre>-- Deve retornar 0. Qualquer numero &gt; 0 significa vazamento de tenant.
+SELECT count(*)
+FROM tickets t
+WHERE t.organization_id NOT IN (
+  SELECT organization_id FROM org_members WHERE user_email = (auth.jwt() -&gt;&gt; 'email')
+);</pre>
+
+<h2>Plano B - Migration 025 (Hardening Definitivo)</h2>
+<p>Arquivo alvo: <code>supabase/migrations/025_security_hardening.sql</code>. Script idempotente (usa <code>IF EXISTS</code>, <code>DROP POLICY IF EXISTS</code>, <code>DO $$ ... $$</code> blocks).</p>
+
+<div class="callout"><strong>Estrategia:</strong> FORCE ROW LEVEL SECURITY em tudo + <code>has_permission()</code> em toda policy de escrita + trigger BEFORE UPDATE para permissoes de campo (tickets:assign, imutabilidade) + <code>search_path</code> fixo em SECURITY DEFINER + REVOKE de GRANTs para <code>anon</code>.</div>
+
+<h4>0. Garantir RLS em todas as tabelas publicas</h4>
+<pre>DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT c.relname
+           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+           WHERE n.nspname='public' AND c.relkind='r'
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', r.relname);
+    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY;', r.relname);
+  END LOOP;
+END $$;</pre>
+
+<h4>1. Fixar search_path em SECURITY DEFINER (anti CVE-2018-1058)</h4>
+<pre>ALTER FUNCTION public.auth_email()               SET search_path = public, pg_temp;
+ALTER FUNCTION public.get_user_role()             SET search_path = public, pg_temp;
+ALTER FUNCTION public.has_permission(text)        SET search_path = public, pg_temp;
+ALTER FUNCTION public.user_belongs_to_org(uuid)   SET search_path = public, pg_temp;
+ALTER FUNCTION public.user_org_ids()              SET search_path = public, pg_temp;
+ALTER FUNCTION public.visible_department_ids()    SET search_path = public, pg_temp;
+ALTER FUNCTION public.is_org_admin_of_dept(uuid)  SET search_path = public, pg_temp;
+ALTER FUNCTION public.handle_new_user()           SET search_path = public, pg_temp;</pre>
+
+<h4>2. WITH CHECK em todas as policies de UPDATE + gating por has_permission</h4>
+<pre>-- TICKETS
+DROP POLICY IF EXISTS tickets_update ON public.tickets;
+CREATE POLICY tickets_update ON public.tickets
+  FOR UPDATE TO authenticated
+  USING      (department_id IN (SELECT visible_department_ids()) AND has_permission('tickets:update'))
+  WITH CHECK (department_id IN (SELECT visible_department_ids()) AND has_permission('tickets:update'));
+
+-- BOARD_COLUMNS
+DROP POLICY IF EXISTS board_columns_update ON public.board_columns;
+CREATE POLICY board_columns_update ON public.board_columns
+  FOR UPDATE TO authenticated
+  USING      (department_id IN (SELECT visible_department_ids()) AND has_permission('columns:manage'))
+  WITH CHECK (department_id IN (SELECT visible_department_ids()) AND has_permission('columns:manage'));
+
+-- BOARD_LABELS
+DROP POLICY IF EXISTS board_labels_update ON public.board_labels;
+CREATE POLICY board_labels_update ON public.board_labels
+  FOR UPDATE TO authenticated
+  USING      (department_id IN (SELECT visible_department_ids()) AND has_permission('labels:manage'))
+  WITH CHECK (department_id IN (SELECT visible_department_ids()) AND has_permission('labels:manage'));
+
+-- USEFUL_LINKS
+DROP POLICY IF EXISTS useful_links_update ON public.useful_links;
+CREATE POLICY useful_links_update ON public.useful_links
+  FOR UPDATE TO authenticated
+  USING      (department_id IN (SELECT visible_department_ids()) AND has_permission('links:manage'))
+  WITH CHECK (department_id IN (SELECT visible_department_ids()) AND has_permission('links:manage'));
+
+-- AUTO_RULES
+DROP POLICY IF EXISTS auto_rules_update ON public.auto_rules;
+CREATE POLICY auto_rules_update ON public.auto_rules
+  FOR UPDATE TO authenticated
+  USING      (department_id IN (SELECT visible_department_ids()) AND has_permission('settings:manage'))
+  WITH CHECK (department_id IN (SELECT visible_department_ids()) AND has_permission('settings:manage'));
+
+-- TICKET_TEMPLATES
+DROP POLICY IF EXISTS ticket_templates_update ON public.ticket_templates;
+CREATE POLICY ticket_templates_update ON public.ticket_templates
+  FOR UPDATE TO authenticated
+  USING      (department_id IN (SELECT visible_department_ids()) AND has_permission('settings:manage'))
+  WITH CHECK (department_id IN (SELECT visible_department_ids()) AND has_permission('settings:manage'));
+
+-- DEPARTMENTS
+DROP POLICY IF EXISTS departments_update ON public.departments;
+CREATE POLICY departments_update ON public.departments
+  FOR UPDATE TO authenticated
+  USING      (id IN (SELECT visible_department_ids()) AND has_permission('departments:manage'))
+  WITH CHECK (id IN (SELECT visible_department_ids()) AND has_permission('departments:manage'));
+
+-- ORGANIZATIONS
+DROP POLICY IF EXISTS organizations_update ON public.organizations;
+CREATE POLICY organizations_update ON public.organizations
+  FOR UPDATE TO authenticated
+  USING      (id IN (SELECT user_org_ids()) AND has_permission('settings:manage'))
+  WITH CHECK (id IN (SELECT user_org_ids()) AND has_permission('settings:manage'));</pre>
+
+<h4>3. Gates de permissao em INSERT e DELETE de tickets</h4>
+<pre>DROP POLICY IF EXISTS tickets_insert ON public.tickets;
+CREATE POLICY tickets_insert ON public.tickets
+  FOR INSERT TO authenticated
+  WITH CHECK (department_id IN (SELECT visible_department_ids()) AND has_permission('tickets:create'));
+
+DROP POLICY IF EXISTS tickets_delete ON public.tickets;
+CREATE POLICY tickets_delete ON public.tickets
+  FOR DELETE TO authenticated
+  USING (department_id IN (SELECT visible_department_ids()) AND has_permission('tickets:delete'));</pre>
+
+<h4>4. Trigger BEFORE UPDATE em tickets (permissoes de campo)</h4>
+<pre>CREATE OR REPLACE FUNCTION public.check_ticket_update_permissions()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_new_col_dept uuid;
+BEGIN
+  -- Bloquear reatribuicao se nao tem tickets:assign
+  IF NEW.assigned_to IS DISTINCT FROM OLD.assigned_to
+     AND NOT has_permission('tickets:assign') THEN
+    RAISE EXCEPTION 'Sem permissao: tickets:assign' USING ERRCODE = '42501';
+  END IF;
+
+  -- Bloquear mudanca de department_id se nao for admin da org
+  IF NEW.department_id IS DISTINCT FROM OLD.department_id
+     AND NOT is_org_admin_of_dept(NEW.department_id) THEN
+    RAISE EXCEPTION 'Apenas admin pode mover ticket entre departamentos' USING ERRCODE = '42501';
+  END IF;
+
+  -- Validar que a coluna destino pertence ao mesmo department_id
+  IF NEW.column_id IS DISTINCT FROM OLD.column_id THEN
+    SELECT department_id INTO v_new_col_dept FROM board_columns WHERE id = NEW.column_id;
+    IF v_new_col_dept IS NULL OR v_new_col_dept &lt;&gt; NEW.department_id THEN
+      RAISE EXCEPTION 'Coluna destino nao pertence ao departamento do ticket' USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_check_ticket_update_permissions ON public.tickets;
+CREATE TRIGGER trg_check_ticket_update_permissions
+  BEFORE UPDATE ON public.tickets
+  FOR EACH ROW EXECUTE FUNCTION public.check_ticket_update_permissions();</pre>
+
+<h4>5. Hardening de org_members (evitar auto-promocao)</h4>
+<pre>-- WITH CHECK em INSERT/UPDATE
+DROP POLICY IF EXISTS org_members_insert ON public.org_members;
+CREATE POLICY org_members_insert ON public.org_members
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id IN (SELECT user_org_ids())
+    AND has_permission('members:invite')
+    AND role IN ('admin','supervisor','agent')
+  );
+
+DROP POLICY IF EXISTS org_members_update ON public.org_members;
+CREATE POLICY org_members_update ON public.org_members
+  FOR UPDATE TO authenticated
+  USING      (organization_id IN (SELECT user_org_ids()) AND has_permission('members:change_role'))
+  WITH CHECK (organization_id IN (SELECT user_org_ids()) AND has_permission('members:change_role') AND role IN ('admin','supervisor','agent'));
+
+-- Imutabilidade de organization_id e user_email
+CREATE OR REPLACE FUNCTION public.guard_org_members_update()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  IF NEW.organization_id IS DISTINCT FROM OLD.organization_id THEN
+    RAISE EXCEPTION 'organization_id e imutavel' USING ERRCODE = '42501';
+  END IF;
+  IF NEW.user_email IS DISTINCT FROM OLD.user_email THEN
+    RAISE EXCEPTION 'user_email e imutavel' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_guard_org_members_update ON public.org_members;
+CREATE TRIGGER trg_guard_org_members_update
+  BEFORE UPDATE ON public.org_members
+  FOR EACH ROW EXECUTE FUNCTION public.guard_org_members_update();</pre>
+
+<h4>6. user_profiles - restringir SELECT ao mesmo tenant</h4>
+<pre>DROP POLICY IF EXISTS user_profiles_select ON public.user_profiles;
+CREATE POLICY user_profiles_select ON public.user_profiles
+  FOR SELECT TO authenticated
+  USING (
+    email = auth_email()
+    OR email IN (
+      SELECT om2.user_email
+      FROM org_members om1
+      JOIN org_members om2 ON om2.organization_id = om1.organization_id
+      WHERE om1.user_email = auth_email()
+    )
+  );</pre>
+
+<h4>7. notifications - sender_email = auth_email()</h4>
+<pre>DROP POLICY IF EXISTS notifications_insert ON public.notifications;
+CREATE POLICY notifications_insert ON public.notifications
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id IN (SELECT user_org_ids())
+    -- Se a coluna sender_email existir na tabela, descomente a linha abaixo:
+    -- AND sender_email = auth_email()
+  );</pre>
+
+<h4>8. comments - user_email = auth_email()</h4>
+<pre>DROP POLICY IF EXISTS comments_insert ON public.comments;
+CREATE POLICY comments_insert ON public.comments
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    user_email = auth_email()
+    AND ticket_id IN (SELECT id FROM tickets WHERE department_id IN (SELECT visible_department_ids()))
+  );
+
+DROP POLICY IF EXISTS comments_update ON public.comments;
+CREATE POLICY comments_update ON public.comments
+  FOR UPDATE TO authenticated
+  USING      (user_email = auth_email())
+  WITH CHECK (user_email = auth_email());
+
+DROP POLICY IF EXISTS comments_delete ON public.comments;
+CREATE POLICY comments_delete ON public.comments
+  FOR DELETE TO authenticated
+  USING (user_email = auth_email() OR has_permission('tickets:delete'));</pre>
+
+<h4>9. activity_log - so insert do proprio usuario</h4>
+<pre>DROP POLICY IF EXISTS activity_log_insert ON public.activity_log;
+CREATE POLICY activity_log_insert ON public.activity_log
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id IN (SELECT user_org_ids())
+    -- Se a coluna user_email existir:
+    -- AND user_email = auth_email()
+  );</pre>
+
+<h4>10. role_permissions - somente leitura para authenticated</h4>
+<pre>DROP POLICY IF EXISTS role_permissions_insert ON public.role_permissions;
+DROP POLICY IF EXISTS role_permissions_update ON public.role_permissions;
+DROP POLICY IF EXISTS role_permissions_delete ON public.role_permissions;
+-- Sem policy = sem acesso. SELECT continua valido pela policy existente.</pre>
+
+<h4>11. REVOKE de GRANTs em anon (defesa em profundidade)</h4>
+<pre>DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT c.relname
+           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+           WHERE n.nspname='public' AND c.relkind='r'
+  LOOP
+    EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON public.%I FROM anon;', r.relname);
+    EXECUTE format('REVOKE SELECT ON public.%I FROM anon;', r.relname);
+  END LOOP;
+END $$;</pre>
+
+<h4>12. Reload do PostgREST</h4>
+<pre>NOTIFY pgrst, 'reload schema';</pre>
+
+<h4>Verificacao pos-aplicacao</h4>
+<pre>-- Deve retornar 0
+SELECT count(*) FROM pg_policies WHERE schemaname='public' AND cmd='UPDATE' AND with_check IS NULL;
+
+-- Deve retornar 0 (nenhuma tabela sem RLS forcado)
+SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+WHERE n.nspname='public' AND c.relkind='r' AND c.relforcerowsecurity = false;
+
+-- Todas as SECURITY DEFINER devem ter search_path setado
+SELECT proname, proconfig FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+WHERE n.nspname='public' AND p.prosecdef=true AND (proconfig IS NULL OR NOT 'search_path=public, pg_temp' = ANY(proconfig));</pre>
+
+<h2>Plano C - Checklist Operacional (fora de SQL)</h2>
+<p>Itens que nao resolvem via migration mas sao criticos para fechar o vetor de ataque:</p>
+
+<table>
+<tr><th>#</th><th>Acao</th><th>Onde</th><th>Prioridade</th></tr>
+<tr><td>1</td><td>Rotacionar <code>JWT Secret</code> do projeto Supabase (invalida todos os JWTs interceptados).</td><td>Dashboard Supabase &gt; Settings &gt; API &gt; JWT</td><td><span class="tag tag-crit">CRITICO</span></td></tr>
+<tr><td>2</td><td>Ativar confirmacao de email obrigatoria para novos logins.</td><td>Auth &gt; Providers &gt; Email</td><td><span class="tag tag-crit">CRITICO</span></td></tr>
+<tr><td>3</td><td>Desabilitar signup publico (<code>Disable Signup</code>) - novos membros so via convite.</td><td>Auth &gt; Settings</td><td><span class="tag">ALTO</span></td></tr>
+<tr><td>4</td><td>Configurar <code>rate limit</code> por IP na Edge Network / Cloudflare para <code>/rest/v1/*</code>.</td><td>Cloudflare ou Supabase Rate Limits</td><td><span class="tag">ALTO</span></td></tr>
+<tr><td>5</td><td>Auditar policies de Storage buckets (anexos de tickets) com a mesma regra: <code>org_members</code> + <code>visible_department_ids()</code>.</td><td>Storage &gt; Policies</td><td><span class="tag">ALTO</span></td></tr>
+<tr><td>6</td><td>Garantir que <code>service_role</code> nunca esta exposto no frontend. Somente em funcoes server-side / Edge Functions.</td><td>Revisao de codigo + .env</td><td><span class="tag tag-crit">CRITICO</span></td></tr>
+<tr><td>7</td><td>Auditar log para mudancas em <code>org_members.role</code> - trigger de auditoria em tabela separada.</td><td>Migration futura (026)</td><td><span class="tag tag-med">MEDIO</span></td></tr>
+<tr><td>8</td><td>Validar que os emails em <code>SUPER_ADMIN_EMAILS</code> (orgContext) estao consistentes com <code>org_members</code> no banco.</td><td>Revisao manual</td><td><span class="tag tag-med">MEDIO</span></td></tr>
+</table>
+
+<h2>Plano de Execucao Sugerido (4 dias)</h2>
+<ul>
+  <li><strong>Segunda:</strong> rodar Plano A no ambiente dev, revisar resultados, ajustar Plano B se houver tabelas/funcoes nao previstas.</li>
+  <li><strong>Terca:</strong> aplicar migration 025 em dev. Executar bateria de testes manuais com JWT de agente (tentativas de cross-tenant, privilege escalation, campo-a-campo).</li>
+  <li><strong>Quarta:</strong> aplicar Plano C itens 1-3 em dev (rotacao JWT, confirmacao email, signup disabled). Validar fluxos de login e convite.</li>
+  <li><strong>Quinta:</strong> replicar migration 025 + Plano C em producao. Smoke test com conta real. Monitorar logs.</li>
+</ul>
+
+<div class="ok"><strong>Resultado esperado:</strong> um JWT interceptado de agente nao consegue mais (a) ler dados de outra organizacao, (b) alterar campos que nao tem permissao, (c) se auto-promover a admin, (d) mover tickets entre departamentos, (e) atribuir tickets sem <code>tickets:assign</code>. Todas as regras passam a ser verificadas no banco, tornando o bypass do frontend inofensivo.</p></div>
+
+<h2>Notas Importantes</h2>
+<ul>
+  <li>A migration 025 e <strong>aditiva e idempotente</strong> - pode ser rodada novamente sem efeito colateral.</li>
+  <li>Em <strong>secoes 7 e 9</strong>, as linhas com <code>sender_email</code>/<code>user_email</code> estao comentadas pois dependem da presenca das colunas. O Plano A (A2) confirma o schema antes.</li>
+  <li><strong>NAO inclui</strong> a feature de customizacao de departamentos (migration 024) - seguira fluxo proprio.</li>
+  <li>Aprovacao para push em <strong>producao</strong> deve ser dada explicitamente apos validacao em dev.</li>
+</ul>
+
+<p class="meta" style="margin-top: 30px; border-top: 1px solid #D1D1D5; padding-top: 10px;">Documento gerado para revisao em equipe - Suporte chatPro - versao 1.0</p>
+
+</body>
+</html>
