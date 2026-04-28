@@ -20,6 +20,7 @@ import CardAttachments from './card/CardAttachments'
 import { useOrg } from '../lib/orgContext'
 import { useDepartmentSettings } from '../hooks/useDepartmentSettings'
 import { logger } from '../lib/logger'
+import { splitTextWithMentions } from '../lib/mentions'
 import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel, CommentReaction } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import { parseTag } from '../lib/tagUtils'
@@ -61,14 +62,11 @@ function avatarColor(name: string) {
 function renderCommentText(text: string): React.ReactNode {
   if (!text) return text
   try {
-    // Menções podem conter NBSP (\u00A0) quando inseridas via autocomplete
-    // para manter nome completo como um único token visual.
-    const parts = text.split(/(@[\w\u00C0-\u024F]+(?:\u00A0[\w\u00C0-\u024F]+)*)/g)
-    return parts.map((part, i) =>
-      /^@[\w\u00C0-\u024F]+(?:\u00A0[\w\u00C0-\u024F]+)*$/.test(part)
-        ? <span key={i} className="mention-highlight">{part}</span>
-        : part
-    )
+    return splitTextWithMentions(text).map((seg, i) => (
+      seg.type === 'mention'
+        ? <span key={i} className="mention-highlight">{seg.value}</span>
+        : <React.Fragment key={i}>{seg.value}</React.Fragment>
+    ))
   } catch {
     return text
   }

@@ -6,6 +6,7 @@ import {
   fetchActivityLog, insertNotification, extractMentionNames, resolveMentionsToEmails
 } from '../../lib/supabase'
 import { logger } from '../../lib/logger'
+import { splitTextWithMentions } from '../../lib/mentions'
 import type { Comment, ActivityLog, UserProfile } from '../../lib/supabase'
 
 function timeAgo(dateStr: string): string {
@@ -27,14 +28,11 @@ function avatarColor(name: string) {
 function renderCommentText(text: string): React.ReactNode {
   if (!text) return text
   try {
-    // Menções podem conter NBSP (\u00A0) quando inseridas via autocomplete
-    // para manter nome completo como um único token visual.
-    const parts = text.split(/(@[\w\u00C0-\u024F]+(?:\u00A0[\w\u00C0-\u024F]+)*)/g)
-    return parts.map((part, i) =>
-      /^@[\w\u00C0-\u024F]+(?:\u00A0[\w\u00C0-\u024F]+)*$/.test(part)
-        ? <span key={i} className="mention-highlight">{part}</span>
-        : part
-    )
+    return splitTextWithMentions(text).map((seg, i) => (
+      seg.type === 'mention'
+        ? <span key={i} className="mention-highlight">{seg.value}</span>
+        : <React.Fragment key={i}>{seg.value}</React.Fragment>
+    ))
   } catch {
     return text
   }

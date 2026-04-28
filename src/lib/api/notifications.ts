@@ -2,6 +2,7 @@ import { supabase } from '../supabase'
 import { logger } from '../logger'
 import type { Notification, PaginationOptions } from '../supabase'
 import { fetchUserProfiles } from './users'
+import { extractMentionDisplayNames } from '../mentions'
 
 export async function fetchNotifications(email: string, opts?: PaginationOptions): Promise<Notification[]> {
   let query = supabase
@@ -56,16 +57,7 @@ export async function deleteNotificationsByTicket(ticketId: string): Promise<voi
 }
 
 export function extractMentionNames(text: string): string[] {
-  // Suporta nomes completos quando a menção usa NBSP (\u00A0) entre palavras.
-  // NBSP é inserido pelo autocomplete para evitar capturar falsos positivos
-  // como "@joao e" em frases comuns.
-  const regex = /@([\w\u00C0-\u024F]+(?:\u00A0[\w\u00C0-\u024F]+)*)/g
-  const names: string[] = []
-  let match: RegExpExecArray | null
-  while ((match = regex.exec(text)) !== null) {
-    names.push(match[1].replace(/\u00A0/g, ' ').toLowerCase())
-  }
-  return [...new Set(names)]
+  return extractMentionDisplayNames(text)
 }
 
 export async function resolveMentionsToEmails(names: string[]): Promise<string[]> {
