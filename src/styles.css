@@ -712,6 +712,21 @@ body {
   font-weight: 600;
 }
 
+.rich-text-highlight {
+  color: #000000;
+  background: rgba(245,219,102,0.32);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.rich-text-preview {
+  color: #dfe1e6;
+  border: 1px solid rgba(166,197,226,0.12);
+  background: rgba(255,255,255,0.03);
+  padding: 12px;
+  border-radius: 10px;
+}
+
 /* =========================================
    Sidebar — Flush Panel (no floating)
    ========================================= */

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { MessageSquare, Send, Loader2, Trash2, ArrowRight, Lock } from 'lucide-react'
+import { MessageSquare, Send, Loader2, Trash2, ArrowRight, Lock, Bold, Highlighter } from 'lucide-react'
 import {
   supabase, fetchComments, insertComment, deleteComment,
   fetchActivityLog, insertNotification, resolveMentionsToEmails
 } from '../../lib/supabase'
 import { logger } from '../../lib/logger'
-import { extractMentionDisplayNames, splitTextWithMentions } from '../../lib/mentions'
+import { extractMentionDisplayNames, parseRichText } from '../../lib/textFormatting'
 import type { Comment, ActivityLog, UserProfile } from '../../lib/supabase'
 
 function timeAgo(dateStr: string): string {
@@ -28,14 +28,38 @@ function avatarColor(name: string) {
 function renderCommentText(text: string, knownMentions: readonly string[]): React.ReactNode {
   if (!text) return text
   try {
-    return splitTextWithMentions(text, { knownMentions }).map((seg, i) => (
-      seg.type === 'mention'
-        ? <span key={i} className="mention-highlight">{seg.value}</span>
-        : <React.Fragment key={i}>{seg.value}</React.Fragment>
-    ))
+    return parseRichText(text, { knownMentions }).map((seg, i) => {
+      if (seg.type === 'mention') {
+        return <span key={i} className="mention-highlight">{seg.value}</span>
+      }
+      if (seg.type === 'bold') {
+        return <strong key={i}>{seg.value}</strong>
+      }
+      if (seg.type === 'highlight') {
+        return <span key={i} className="rich-text-highlight">{seg.value}</span>
+      }
+      return <React.Fragment key={i}>{seg.value}</React.Fragment>
+    })
   } catch {
     return text
   }
+}
+
+function wrapCommentFormatting(marker: string, comment: string, setComment: React.Dispatch<React.SetStateAction<string>>, ref: React.RefObject<HTMLTextAreaElement>) {
+  const textarea = ref.current
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const selected = comment.slice(start, end)
+  const wrapped = comment.slice(0, start) + marker + selected + marker + comment.slice(end)
+
+  setComment(wrapped)
+  setTimeout(() => {
+    textarea.focus()
+    textarea.selectionStart = start + marker.length
+    textarea.selectionEnd = end + marker.length
+  }, 0)
 }
 
 export function Avatar({ name, size = 32 }: { name: string; size?: number }) {
@@ -227,6 +251,24 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
       {showComments && <div className="flex gap-2 mb-3 flex-shrink-0">
         <Avatar name={user} size={28} />
         <div className="flex-1 relative">
+          <div className="flex items-center gap-2 mb-1">
+            <button
+              type="button"
+              onClick={() => wrapCommentFormatting('**', newComment, setNewComment, commentRef)}
+              className="px-2 py-1 rounded-md text-xs font-semibold"
+              style={{ background: 'rgba(255,255,255,0.06)', color: '#dfe1e6', border: '1px solid rgba(166,197,226,0.12)' }}
+            >
+              <Bold size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => wrapCommentFormatting('==', newComment, setNewComment, commentRef)}
+              className="px-2 py-1 rounded-md text-xs font-semibold"
+              style={{ background: 'rgba(245,166,35,0.12)', color: '#f5a623', border: '1px solid rgba(245,166,35,0.24)' }}
+            >
+              <Highlighter size={14} />
+            </button>
+          </div>
           <textarea
             ref={commentRef}
             value={newComment}

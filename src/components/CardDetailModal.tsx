@@ -5,7 +5,7 @@ import {
   X, MessageSquare, Trash2, Send, Loader2,
   ArrowRight, ExternalLink, MoreHorizontal,
   AlignLeft, CreditCard, Paperclip, Check, User, Calendar, Smile,
-  CheckSquare, Square, Plus, Link2, Pencil, Lock
+  CheckSquare, Square, Plus, Link2, Pencil, Lock, Bold, Highlighter
 } from 'lucide-react'
 import {
   supabase, updateTicket, deleteTicket,
@@ -20,7 +20,7 @@ import CardAttachments from './card/CardAttachments'
 import { useOrg } from '../lib/orgContext'
 import { useDepartmentSettings } from '../hooks/useDepartmentSettings'
 import { logger } from '../lib/logger'
-import { extractMentionDisplayNames, splitTextWithMentions } from '../lib/mentions'
+import { parseRichText, extractMentionDisplayNames } from '../lib/textFormatting'
 import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel, CommentReaction } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import { parseTag } from '../lib/tagUtils'
@@ -62,11 +62,18 @@ function avatarColor(name: string) {
 function renderCommentText(text: string, knownMentions: readonly string[]): React.ReactNode {
   if (!text) return text
   try {
-    return splitTextWithMentions(text, { knownMentions }).map((seg, i) => (
-      seg.type === 'mention'
-        ? <span key={i} className="mention-highlight">{seg.value}</span>
-        : <React.Fragment key={i}>{seg.value}</React.Fragment>
-    ))
+    return parseRichText(text, { knownMentions }).map((seg, i) => {
+      if (seg.type === 'mention') {
+        return <span key={i} className="mention-highlight">{seg.value}</span>
+      }
+      if (seg.type === 'bold') {
+        return <strong key={i}>{seg.value}</strong>
+      }
+      if (seg.type === 'highlight') {
+        return <span key={i} className="rich-text-highlight">{seg.value}</span>
+      }
+      return <React.Fragment key={i}>{seg.value}</React.Fragment>
+    })
   } catch {
     return text
   }
@@ -139,6 +146,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
 
   const commentRef = useRef<HTMLTextAreaElement>(null)
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
+  const observacaoRef = useRef<HTMLTextAreaElement>(null)
   const commentsEndRef = useRef<HTMLDivElement>(null)
 
   // Mention autocomplete state
@@ -146,6 +155,35 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [mentionIndex, setMentionIndex] = useState(0)
   const [allUsers, setAllUsers] = useState<UserProfile[]>([])
   const mentionStartPos = useRef<number>(0)
+
+  const observacaoNotes = observacao.split('\n').filter(l => !l.startsWith('☐') && !l.startsWith('☑')).join('\n')
+  const setObservacaoNotes = (notes: string) => {
+    const checkLines = observacao.split('\n').filter(l => l.startsWith('☐') || l.startsWith('☑'))
+    const merged = [...(notes ? [notes] : []), ...checkLines].join('\n')
+    setObservacao(merged)
+  }
+
+  const wrapTextareaFormatting = (
+    ref: React.RefObject<HTMLTextAreaElement>,
+    marker: string,
+    value: string,
+    setter: (value: string) => void,
+  ) => {
+    const textarea = ref.current
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selected = value.slice(start, end)
+    const wrapped = value.slice(0, start) + marker + selected + marker + value.slice(end)
+
+    setter(wrapped)
+    setTimeout(() => {
+      textarea.focus()
+      textarea.selectionStart = start + marker.length
+      textarea.selectionEnd = end + marker.length
+    }, 0)
+  }
 
   const knownMentions = useMemo(() => {
     const seen = new Set<string>()
@@ -171,6 +209,32 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     }
     return out
   }, [allUsers])
+
+  const renderFormattingToolbar = (
+    ref: React.RefObject<HTMLTextAreaElement>,
+    value: string,
+    setter: (value: string) => void,
+  ) => (
+    <div className="flex items-center gap-2 mb-1">
+      <button
+        type="button"
+        onClick={() => wrapTextareaFormatting(ref, '**', value, setter)}
+        className="px-2 py-1 rounded-md text-xs font-semibold"
+        style={{ background: 'rgba(255,255,255,0.06)', color: '#dfe1e6', border: '1px solid rgba(166,197,226,0.12)' }}
+      >
+        <Bold size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => wrapTextareaFormatting(ref, '==', value, setter)}
+        className="px-2 py-1 rounded-md text-xs font-semibold"
+        style={{ background: 'rgba(245,166,35,0.12)', color: '#f5a623', border: '1px solid rgba(245,166,35,0.24)' }}
+      >
+        <Highlighter size={14} />
+      </button>
+      <span style={{ fontSize: 11, color: '#596773' }}>**negrito** / ==amarelo==</span>
+    </div>
+  )
 
   // GSAP refs
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -972,15 +1036,29 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 <AlignLeft size={14} style={{ color: '#25D066' }} />
                 Descrição
               </div>
-              <textarea
-                value={description}
-                onChange={canEditDetails ? e => setDescription(e.target.value) : undefined}
-                onBlur={canEditDetails ? saveOnBlur : undefined}
-                readOnly={!canEditDetails}
-                className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 60, cursor: canEditDetails ? undefined : 'default' }}
-                placeholder={canEditDetails ? "Adicione uma descrição mais detalhada..." : ""}
-              />
+              {canEditDetails ? (
+                <>
+                  {renderFormattingToolbar(descriptionRef, description, setDescription)}
+                  <textarea
+                    ref={descriptionRef}
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    onBlur={saveOnBlur}
+                    className="w-full rounded-md p-3 text-sm resize-y outline-none"
+                    style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 60 }}
+                    placeholder="Adicione uma descrição mais detalhada..."
+                  />
+                  {description && (
+                    <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 10 }}>
+                      {renderCommentText(description, knownMentions)}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>
+                  {renderCommentText(description, knownMentions)}
+                </div>
+              )}
             </section>
 
             {/* Checklist */}
@@ -1073,21 +1151,30 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 <Paperclip size={14} style={{ color: '#25D066' }} />
                 {fieldCfg.observacao.label ?? 'Observação'}
               </div>
-              <textarea
-                value={observacao.split('\n').filter(l => !l.startsWith('☐') && !l.startsWith('☑')).join('\n')}
-                onChange={canEditDetails ? e => {
-                  const checkLines = observacao.split('\n').filter(l => l.startsWith('☐') || l.startsWith('☑'))
-                  const newNotes = e.target.value
-                  const merged = [...(newNotes ? [newNotes] : []), ...checkLines].join('\n')
-                  setObservacao(merged)
-                } : undefined}
-                onBlur={canEditDetails ? saveOnBlur : undefined}
-                readOnly={!canEditDetails}
-                className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 80, cursor: canEditDetails ? undefined : 'default' }}
-                rows={4}
-                placeholder={canEditDetails ? 'Notas adicionais' : ''}
-              />
+              {canEditDetails ? (
+                <>
+                  {renderFormattingToolbar(observacaoRef, observacaoNotes, setObservacaoNotes)}
+                  <textarea
+                    ref={observacaoRef}
+                    value={observacaoNotes}
+                    onChange={e => setObservacaoNotes(e.target.value)}
+                    onBlur={saveOnBlur}
+                    className="w-full rounded-md p-3 text-sm resize-y outline-none"
+                    style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 80 }}
+                    rows={4}
+                    placeholder="Notas adicionais"
+                  />
+                  {observacaoNotes && (
+                    <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 10 }}>
+                      {renderCommentText(observacaoNotes, knownMentions)}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>
+                  {renderCommentText(observacaoNotes, knownMentions)}
+                </div>
+              )}
             </section>
             )}
           </div>

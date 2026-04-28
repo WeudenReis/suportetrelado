@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { extractMentionDisplayNames, splitTextWithMentions } from '../mentions'
+import { parseRichText } from '../textFormatting'
 
 describe('mentions (knownMentions)', () => {
   it('deve limitar a menção ao maior match conhecido (sem engolir texto depois)', () => {
@@ -26,5 +27,15 @@ describe('mentions (knownMentions)', () => {
     const text = 'Fala com @Rafael The Boss Oi Oi'
     const names = extractMentionDisplayNames(text, { knownMentions: ['Rafael The Boss'] })
     expect(names).toEqual(['rafael the boss'])
+  })
+
+  it('deve parsear negrito e destaque amarelo corretamente', () => {
+    const segments = parseRichText('Texto **importante** e ==destaque==', { knownMentions: ['todos'] })
+    expect(segments).toEqual([
+      { type: 'text', value: 'Texto ' },
+      { type: 'bold', value: 'importante' },
+      { type: 'text', value: ' e ' },
+      { type: 'highlight', value: 'destaque' },
+    ])
   })
 })
