@@ -1,8 +1,8 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
-import { X, Palette, Image, Upload, RotateCcw, Clock, Trash2, Tag, Pencil, Settings, Users } from 'lucide-react'
+import { X, Palette, Image, Upload, RotateCcw, Clock, Trash2, Tag, Pencil, Settings, Users, Building2 } from 'lucide-react'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
-import type { OrgRole } from '../../lib/orgContext'
+import { useOrg, type OrgRole } from '../../lib/orgContext'
 
 const WALLPAPER_PRESETS = [
   { label: 'Oceano', value: 'linear-gradient(135deg, #1a3a5c 0%, #0d2137 50%, #1e4976 100%)' },
@@ -24,6 +24,7 @@ interface SettingsPanelProps {
   onOpenLabelsManager: () => void
   onOpenAutoRules: () => void
   onOpenMembersPanel: () => void
+  onOpenDeptSettings: () => void
   onClose: () => void
   userRole: OrgRole | null
 }
@@ -32,13 +33,15 @@ export default function SettingsPanel({
   wallpaper, wallpaperInput, recentWallpapers,
   onWallpaperInputChange, onApplyWallpaper, onWallpaperFileSelect,
   onRemoveRecentWallpaper, onClearRecentWallpapers, onDeleteCurrentWallpaper,
-  onOpenLabelsManager, onOpenAutoRules, onOpenMembersPanel, onClose,
+  onOpenLabelsManager, onOpenAutoRules, onOpenMembersPanel, onOpenDeptSettings, onClose,
   userRole,
 }: SettingsPanelProps) {
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef, true)
   const isAgent = userRole === 'agent'
+  const { hasPermission } = useOrg()
+  const canManageDeptSettings = hasPermission('settings:manage')
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={e => e.target === e.currentTarget && onClose()}>
@@ -203,6 +206,27 @@ export default function SettingsPanel({
                 style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
                 <Settings size={12} /> Gerenciar Regras
               </button>
+            </div>
+          )}
+
+          {canManageDeptSettings && <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />}
+
+          {/* Configurações do Departamento — gated por settings:manage */}
+          {canManageDeptSettings && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Building2 size={13} style={{ color: '#25D066' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Departamento</span>
+              </div>
+              <button onClick={onOpenDeptSettings}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
+                style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
+                <Building2 size={12} /> Campos e Terminologia
+              </button>
+              <p style={{ fontSize: 10, color: '#596773', margin: '6px 2px 0', fontFamily: "'Space Grotesk', sans-serif" }}>
+                Personalize este departamento (ex.: Comercial, Financeiro)
+              </p>
             </div>
           )}
 

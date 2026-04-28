@@ -2,6 +2,7 @@ import { supabase } from '../supabase'
 import { logger } from '../logger'
 import type { Notification, PaginationOptions } from '../supabase'
 import { fetchUserProfiles } from './users'
+import { extractMentionDisplayNames } from '../mentions'
 
 export async function fetchNotifications(email: string, opts?: PaginationOptions): Promise<Notification[]> {
   let query = supabase
@@ -56,20 +57,20 @@ export async function deleteNotificationsByTicket(ticketId: string): Promise<voi
 }
 
 export function extractMentionNames(text: string): string[] {
-  const regex = /@([\w\u00C0-\u024F]+)/g
-  const names: string[] = []
-  let match: RegExpExecArray | null
-  while ((match = regex.exec(text)) !== null) {
-    names.push(match[1].toLowerCase())
-  }
-  return [...new Set(names)]
+  return extractMentionDisplayNames(text)
 }
 
 export async function resolveMentionsToEmails(names: string[]): Promise<string[]> {
   if (names.length === 0) return []
   const profiles = await fetchUserProfiles()
   const emails: string[] = []
-  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const normalize = (s: string) => s
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
   for (const name of names) {
     const n = normalize(name)
     const match = profiles.find(p =>

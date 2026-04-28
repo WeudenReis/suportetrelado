@@ -6,6 +6,7 @@ import {
   fetchActivityLog, insertNotification, extractMentionNames, resolveMentionsToEmails
 } from '../../lib/supabase'
 import { logger } from '../../lib/logger'
+import { splitTextWithMentions } from '../../lib/mentions'
 import type { Comment, ActivityLog, UserProfile } from '../../lib/supabase'
 
 function timeAgo(dateStr: string): string {
@@ -27,12 +28,11 @@ function avatarColor(name: string) {
 function renderCommentText(text: string): React.ReactNode {
   if (!text) return text
   try {
-    const parts = text.split(/(@[\w\u00C0-\u024F]+)/g)
-    return parts.map((part, i) =>
-      /^@[\w\u00C0-\u024F]+$/.test(part)
-        ? <span key={i} className="mention-highlight">{part}</span>
-        : part
-    )
+    return splitTextWithMentions(text).map((seg, i) => (
+      seg.type === 'mention'
+        ? <span key={i} className="mention-highlight">{seg.value}</span>
+        : <React.Fragment key={i}>{seg.value}</React.Fragment>
+    ))
   } catch {
     return text
   }
@@ -114,7 +114,8 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
   const applyMention = (profile: UserProfile) => {
     const before = newComment.slice(0, mentionStartPos.current)
     const after = newComment.slice(commentRef.current?.selectionStart ?? mentionStartPos.current + (mentionQuery?.length ?? 0) + 1)
-    const inserted = `@${profile.name} `
+    const insertedName = profile.name.trim().replace(/\s+/g, '\u00A0')
+    const inserted = `@${insertedName} `
     setNewComment(before + inserted + after)
     setMentionQuery(null)
     setTimeout(() => {
