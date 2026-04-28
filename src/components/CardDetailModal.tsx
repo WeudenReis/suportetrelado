@@ -11,7 +11,7 @@ import {
   supabase, updateTicket, deleteTicket,
   fetchComments, insertComment, deleteComment, fetchCommentReactions, toggleCommentReaction,
   fetchActivityLog, insertActivityLog,
-  extractMentionNames, resolveMentionsToEmails, insertNotification,
+  resolveMentionsToEmails, insertNotification,
   fetchUserProfiles,
   fetchBoardLabels, updateBoardLabel, deleteBoardLabel
 } from '../lib/supabase'
@@ -20,7 +20,7 @@ import CardAttachments from './card/CardAttachments'
 import { useOrg } from '../lib/orgContext'
 import { useDepartmentSettings } from '../hooks/useDepartmentSettings'
 import { logger } from '../lib/logger'
-import { splitTextWithMentions } from '../lib/mentions'
+import { extractMentionDisplayNames, splitTextWithMentions } from '../lib/mentions'
 import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel, CommentReaction } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import { parseTag } from '../lib/tagUtils'
@@ -59,10 +59,10 @@ function avatarColor(name: string) {
   return avatarPalette[name.charCodeAt(0) % avatarPalette.length]
 }
 
-function renderCommentText(text: string): React.ReactNode {
+function renderCommentText(text: string, knownMentions: readonly string[]): React.ReactNode {
   if (!text) return text
   try {
-    return splitTextWithMentions(text).map((seg, i) => (
+    return splitTextWithMentions(text, { knownMentions }).map((seg, i) => (
       seg.type === 'mention'
         ? <span key={i} className="mention-highlight">{seg.value}</span>
         : <React.Fragment key={i}>{seg.value}</React.Fragment>
@@ -146,6 +146,31 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [mentionIndex, setMentionIndex] = useState(0)
   const [allUsers, setAllUsers] = useState<UserProfile[]>([])
   const mentionStartPos = useRef<number>(0)
+
+  const knownMentions = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = ['todos']
+    seen.add('todos')
+    for (const u of allUsers) {
+      const name = (u.name || '').trim()
+      if (name) {
+        const key = name.toLowerCase()
+        if (!seen.has(key)) {
+          out.push(name)
+          seen.add(key)
+        }
+      }
+      const alias = (u.email || '').split('@')[0]?.trim()
+      if (alias && /^[\w\u00C0-\u024F]+$/.test(alias)) {
+        const key = alias.toLowerCase()
+        if (!seen.has(key)) {
+          out.push(alias)
+          seen.add(key)
+        }
+      }
+    }
+    return out
+  }, [allUsers])
 
   // GSAP refs
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -381,7 +406,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       commentRef.current?.focus()
 
       // Detect @nome mentions and create notifications
-      const mentionNames = extractMentionNames(commentText)
+      const mentionNames = extractMentionDisplayNames(commentText, { knownMentions })
       if (mentionNames.length > 0) {
         const { data: { session } } = await supabase.auth.getSession()
         const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
@@ -1257,7 +1282,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                             color: '#b6c2cf',
                             border: item.text.startsWith('[INTERNO] ') ? '1px solid rgba(245,166,35,0.2)' : '1px solid rgba(166,197,226,0.08)',
                           }}>
-                            {renderCommentText(item.text.startsWith('[INTERNO] ') ? item.text.slice(10) : item.text)}
+                            {renderCommentText(item.text.startsWith('[INTERNO] ') ? item.text.slice(10) : item.text, knownMentions)}
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-1.5">
                             {getCommentReactions(item.id).map(r => (

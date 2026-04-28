@@ -73,11 +73,34 @@ export async function resolveMentionsToEmails(names: string[]): Promise<string[]
     .toLowerCase()
   for (const name of names) {
     const n = normalize(name)
-    const match = profiles.find(p =>
+
+    // 1) Match exato: nome completo ou alias (email prefix)
+    const exact = profiles.find(p =>
       normalize(p.name) === n ||
       normalize(p.email.split('@')[0]) === n
     )
-    if (match) emails.push(match.email)
+    if (exact) {
+      emails.push(exact.email)
+      continue
+    }
+
+    // 2) Match por melhor prefixo: tolera texto extra após o nome/alias (ex.: "rafael the boss oi")
+    let best: { email: string; score: number } | null = null
+    for (const p of profiles) {
+      const pn = normalize(p.name)
+      if (pn && (n === pn || n.startsWith(pn + ' '))) {
+        const score = pn.length
+        if (!best || score > best.score) best = { email: p.email, score }
+      }
+
+      const alias = normalize(p.email.split('@')[0])
+      if (alias && (n === alias || n.startsWith(alias + ' '))) {
+        const score = alias.length
+        if (!best || score > best.score) best = { email: p.email, score }
+      }
+    }
+    if (best) emails.push(best.email)
   }
-  return emails
+
+  return [...new Set(emails)]
 }
