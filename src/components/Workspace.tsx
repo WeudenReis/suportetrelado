@@ -5,6 +5,7 @@ import KanbanBoard from './KanbanBoard'
 import ViewSwitcher, { type WorkView } from './workspace/ViewSwitcher'
 
 const TableView = lazy(() => import('./views/TableView'))
+const CalendarView = lazy(() => import('./views/CalendarView'))
 
 interface WorkspaceProps {
   user: string
@@ -49,6 +50,16 @@ export default function Workspace({ user, onLogout, openTicketId, clearOpenTicke
           {view === 'table' && (
             <Suspense fallback={<ViewSpinner />}>
               <TableView
+                user={user}
+                openTicketId={openTicketId}
+                onCloseTicket={clearOpenTicketId}
+                onOpenTicket={setOpenTicketId}
+              />
+            </Suspense>
+          )}
+          {view === 'calendar' && (
+            <Suspense fallback={<ViewSpinner />}>
+              <CalendarView
                 user={user}
                 openTicketId={openTicketId}
                 onCloseTicket={clearOpenTicketId}

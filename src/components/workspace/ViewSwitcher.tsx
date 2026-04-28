@@ -13,7 +13,7 @@ interface ViewItem {
 const VIEWS: ViewItem[] = [
   { id: 'board',     label: 'Quadro',     icon: <LayoutGrid size={15} strokeWidth={1.8} />, enabled: true  },
   { id: 'table',     label: 'Tabela',     icon: <Table2 size={15} strokeWidth={1.8} />,     enabled: true  },
-  { id: 'calendar',  label: 'Calendário', icon: <CalendarDays size={15} strokeWidth={1.8} />, enabled: false },
+  { id: 'calendar',  label: 'Calendário', icon: <CalendarDays size={15} strokeWidth={1.8} />, enabled: true  },
   { id: 'timeline',  label: 'Cronograma', icon: <GanttChart size={15} strokeWidth={1.8} />, enabled: false },
   { id: 'dashboard', label: 'Dashboard',  icon: <BarChart3 size={15} strokeWidth={1.8} />,  enabled: false },
 ]
