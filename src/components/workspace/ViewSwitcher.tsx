@@ -15,7 +15,7 @@ const VIEWS: ViewItem[] = [
   { id: 'table',     label: 'Tabela',     icon: <Table2 size={15} strokeWidth={1.8} />,     enabled: true  },
   { id: 'calendar',  label: 'Calendário', icon: <CalendarDays size={15} strokeWidth={1.8} />, enabled: true  },
   { id: 'timeline',  label: 'Cronograma', icon: <GanttChart size={15} strokeWidth={1.8} />, enabled: true  },
-  { id: 'dashboard', label: 'Dashboard',  icon: <BarChart3 size={15} strokeWidth={1.8} />,  enabled: false },
+  { id: 'dashboard', label: 'Dashboard',  icon: <BarChart3 size={15} strokeWidth={1.8} />,  enabled: true  },
 ]
 
 interface ViewSwitcherProps {

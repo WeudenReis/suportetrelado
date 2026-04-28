@@ -164,6 +164,8 @@ export function MiniStatLine({
   color,
   delay = 0,
   showDivider = true,
+  onClick,
+  isActive = false,
 }: {
   label: string
   value: number
@@ -171,21 +173,36 @@ export function MiniStatLine({
   color: string
   delay?: number
   showDivider?: boolean
+  onClick?: () => void
+  isActive?: boolean
 }) {
   const accent = safeAccent(color)
   const pct = total > 0 ? Math.round((value / total) * 100) : 0
   const fillPct = value > 0 ? Math.max(pct, 2) : 0
+  const interactive = !!onClick
   return (
     <motion.div
       initial={{ opacity: 0, x: -4 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={interactive ? { x: 2, backgroundColor: 'rgba(255,255,255,0.025)' } : undefined}
+      onClick={onClick}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }) : undefined}
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 7,
-        padding: '10px 2px 12px',
+        padding: '10px 8px 12px',
+        marginInline: -8,
+        borderRadius: 8,
+        cursor: interactive ? 'pointer' : 'default',
+        outline: 'none',
+        background: isActive ? `${accent}14` : 'transparent',
+        boxShadow: isActive ? `inset 0 0 0 1px ${accent}55` : 'none',
         borderBottom: showDivider ? '1px solid rgba(255,255,255,0.05)' : 'none',
+        transition: 'background 0.15s, box-shadow 0.15s',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
@@ -275,7 +292,7 @@ export function PriorityLegend({ high, medium, low }: { high: number; medium: nu
 }
 
 // ── Member Load Card (avatar + nome/% acima, barra robusta abaixo) ──
-export function MemberLoadCard({ name, count, maxCount, index }: { name: string; count: number; maxCount: number; index: number }) {
+export function MemberLoadCard({ name, count, maxCount, index, onClick, isActive = false }: { name: string; count: number; maxCount: number; index: number; onClick?: () => void; isActive?: boolean }) {
   const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0
   const fillPct = count > 0 ? Math.max(pct, 4) : 0
   const isNone = name === 'Sem responsável'
@@ -283,11 +300,27 @@ export function MemberLoadCard({ name, count, maxCount, index }: { name: string;
   const barColor = isNone ? '#596773' : isHigh ? '#ef5c48' : '#25D066'
   const avatarBg = isNone ? '#596773' : avatarColor(name)
   const initials = (name || '??').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?'
+  const interactive = !!onClick
   return (
     <motion.div
       whileHover={{ scale: 1.01 }}
       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: SURFACE_BG, border: `1px solid ${isHigh ? '#ef5c4840' : 'rgba(255,255,255,0.06)'}`, boxShadow: isHigh ? `0 0 0 1px ${PRIORITY_C.high}15` : 'none' }}
+      onClick={onClick}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }) : undefined}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '10px 12px', borderRadius: 12,
+        background: isActive ? `${barColor}1F` : SURFACE_BG,
+        border: `1px solid ${isActive ? `${barColor}66` : isHigh ? '#ef5c4840' : 'rgba(255,255,255,0.06)'}`,
+        boxShadow: isActive
+          ? `0 0 0 1px ${barColor}33`
+          : isHigh ? `0 0 0 1px ${PRIORITY_C.high}15` : 'none',
+        cursor: interactive ? 'pointer' : 'default',
+        outline: 'none',
+        transition: 'background 0.15s, border 0.15s, box-shadow 0.15s',
+      }}
     >
       <div style={{ width: 36, height: 36, borderRadius: '50%', background: avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', fontFamily: fontH, flexShrink: 0, boxShadow: `0 0 12px ${avatarBg}55, inset 0 1px 0 rgba(255,255,255,0.25)` }}>
         {initials}

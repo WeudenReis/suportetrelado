@@ -7,6 +7,7 @@ import ViewSwitcher, { type WorkView } from './workspace/ViewSwitcher'
 const TableView = lazy(() => import('./views/TableView'))
 const CalendarView = lazy(() => import('./views/CalendarView'))
 const TimelineView = lazy(() => import('./views/TimelineView'))
+const DashboardFullscreenView = lazy(() => import('./views/DashboardFullscreenView'))
 
 interface WorkspaceProps {
   user: string
@@ -71,6 +72,16 @@ export default function Workspace({ user, onLogout, openTicketId, clearOpenTicke
           {view === 'timeline' && (
             <Suspense fallback={<ViewSpinner />}>
               <TimelineView
+                user={user}
+                openTicketId={openTicketId}
+                onCloseTicket={clearOpenTicketId}
+                onOpenTicket={setOpenTicketId}
+              />
+            </Suspense>
+          )}
+          {view === 'dashboard' && (
+            <Suspense fallback={<ViewSpinner />}>
+              <DashboardFullscreenView
                 user={user}
                 openTicketId={openTicketId}
                 onCloseTicket={clearOpenTicketId}

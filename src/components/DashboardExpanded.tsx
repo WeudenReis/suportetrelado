@@ -88,7 +88,10 @@ interface DashboardExpandedProps {
   profiles: UserProfile[]
   columns: BoardColumn[]
   user: string
-  onClose: () => void
+  onClose?: () => void
+  /** Quando true, renderiza inline (sem portal/fixed) e oculta o botão de fechar.
+   *  Usado pela visualização Dashboard do Workspace. */
+  embedded?: boolean
 }
 
 type DateRange = '7d' | '30d' | '90d' | 'all' | 'custom'
@@ -102,7 +105,7 @@ const DATE_RANGES: { key: DateRange; label: string }[] = [
   { key: 'custom', label: 'Personalizado' },
 ]
 
-export default function DashboardExpanded({ tickets, profiles, columns, user, onClose }: DashboardExpandedProps) {
+export default function DashboardExpanded({ tickets, profiles, columns, user, onClose, embedded = false }: DashboardExpandedProps) {
   const [dateRange, setDateRange] = useState<DateRange>('30d')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
@@ -460,6 +463,26 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
   const cardStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 18 }
 
+  // Drill-down: clicar num status/prioridade/responsável aplica filtro e abre aba Tickets.
+  // Toggle: clicar de novo no mesmo limpa o filtro e volta para Visão Geral.
+  const drillStatus = useCallback((id: string) => {
+    if (filterStatus === id) { setFilterStatus('all'); setActiveTab('overview') }
+    else { setFilterStatus(id); setActiveTab('tickets') }
+  }, [filterStatus])
+  const drillPriority = useCallback((id: string) => {
+    if (filterPriority === id) { setFilterPriority('all'); setActiveTab('overview') }
+    else { setFilterPriority(id); setActiveTab('tickets') }
+  }, [filterPriority])
+  const drillAssignee = useCallback((displayName: string) => {
+    // memberDist usa displayName resolvido. Para filtrar precisamos do raw assignee
+    // (email/nome bruto). Recuperamos pelo profile match; fallback usa o displayName.
+    const profile = profiles.find(p => p.name === displayName || p.email.split('@')[0] === displayName)
+    const raw = profile?.email ?? profile?.name ?? displayName
+    if (displayName === 'Sem responsável') return // sem token estável de filtro
+    if (filterAssignee === raw) { setFilterAssignee('all'); setActiveTab('overview') }
+    else { setFilterAssignee(raw); setActiveTab('tickets') }
+  }, [filterAssignee, profiles])
+
   const content = (
     <AnimatePresence>
       <motion.div
@@ -467,7 +490,9 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#111720', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        style={embedded
+          ? { position: 'relative', flex: 1, minHeight: 0, background: '#1d2125', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+          : { position: 'fixed', inset: 0, zIndex: 9999, background: '#111720', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
       >
         {/* ── HEADER ── */}
         <div style={{ padding: '14px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, background: '#0e1520' }}>
@@ -512,11 +537,13 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
             </button>
           </div>
 
-          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'transparent', color: '#596773', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = '#B6C2CF' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#596773' }}>
-            <X size={16} />
-          </button>
+          {!embedded && (
+            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'transparent', color: '#596773', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = '#B6C2CF' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#596773' }}>
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         {/* ── TABS ── */}
@@ -591,6 +618,8 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                         color={col.dot_color || '#579dff'}
                         delay={0.04 * i}
                         showDivider={i < columns.length - 1}
+                        onClick={() => drillStatus(col.id)}
+                        isActive={filterStatus === col.id}
                       />
                     ))}
                   </div>
@@ -613,6 +642,8 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                         color={p.color}
                         delay={0.04 * i}
                         showDivider={i < arr.length - 1}
+                        onClick={() => drillPriority(p.key)}
+                        isActive={filterPriority === p.key}
                       />
                     ))}
                   </div>
@@ -622,15 +653,22 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 <div style={cardStyle}>
                   <SectionH icon={<Users size={12} />} title="Carga por responsável" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {Object.entries(memberDistActive).sort(([,a],[,b]) => b-a).slice(0, 10).map(([name, count], i) => (
-                      <MemberLoadCard
-                        key={name}
-                        name={name}
-                        count={count}
-                        maxCount={maxMemberActive}
-                        index={i}
-                      />
-                    ))}
+                    {Object.entries(memberDistActive).sort(([,a],[,b]) => b-a).slice(0, 10).map(([name, count], i) => {
+                      const profile = profiles.find(p => p.name === name || p.email.split('@')[0] === name)
+                      const raw = profile?.email ?? profile?.name ?? name
+                      const isActive = name !== 'Sem responsável' && filterAssignee === raw
+                      return (
+                        <MemberLoadCard
+                          key={name}
+                          name={name}
+                          count={count}
+                          maxCount={maxMemberActive}
+                          index={i}
+                          onClick={name === 'Sem responsável' ? undefined : () => drillAssignee(name)}
+                          isActive={isActive}
+                        />
+                      )
+                    })}
                     {Object.keys(memberDistActive).length === 0 && <p style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Sem dados</p>}
                   </div>
                 </div>
@@ -823,5 +861,5 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     </AnimatePresence>
   )
 
-  return ReactDOM.createPortal(content, document.body)
+  return embedded ? content : ReactDOM.createPortal(content, document.body)
 }
