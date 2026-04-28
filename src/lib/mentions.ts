@@ -2,6 +2,14 @@ export type MentionSegment =
   | { type: 'text'; value: string }
   | { type: 'mention'; value: string }
 
+export type MentionParseOptions = {
+  /**
+   * Lista de menções válidas (ex.: nomes de usuários, aliases) para casar o texto após o '@'.
+   * Se fornecido, o parser tenta usar o maior match e evita capturar palavras extras.
+   */
+  knownMentions?: readonly string[]
+}
+
 function isWordChar(ch: string): boolean {
   // Letras/dígitos/underscore + faixa latina estendida (acentos)
   return /[\w\u00C0-\u024F]/.test(ch)
@@ -23,7 +31,57 @@ function skipSpaces(text: string, start: number): number {
   return i
 }
 
-export function splitTextWithMentions(text: string): MentionSegment[] {
+function isMentionSeparator(ch: string): boolean {
+  return ch === ' ' || ch === '\u00A0'
+}
+
+function skipMentionSeparators(text: string, start: number): number {
+  let i = start
+  while (i < text.length && isMentionSeparator(text[i])) i++
+  return i
+}
+
+function normalizeForCompare(s: string): string {
+  return s
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function candidateToWords(candidate: string): string[] {
+  const normalized = normalizeForCompare(candidate)
+  if (!normalized) return []
+  return normalized.split(' ').filter(Boolean)
+}
+
+function matchKnownMentionAt(text: string, start: number, candidate: string): number | null {
+  const words = candidateToWords(candidate)
+  if (words.length === 0) return null
+
+  let pos = start
+  for (let w = 0; w < words.length; w++) {
+    const current = readWord(text, pos)
+    if (!current.word) return null
+    if (normalizeForCompare(current.word) !== words[w]) return null
+
+    pos = current.next
+
+    if (w < words.length - 1) {
+      if (pos >= text.length || !isMentionSeparator(text[pos])) return null
+      pos = skipMentionSeparators(text, pos)
+      if (pos >= text.length) return null
+    }
+  }
+
+  // Evita casar prefixo dentro de uma palavra maior (ex.: @joaozinho não deve casar @joao)
+  if (pos < text.length && isWordChar(text[pos])) return null
+  return pos
+}
+
+export function splitTextWithMentions(text: string, opts?: MentionParseOptions): MentionSegment[] {
   if (!text) return [{ type: 'text', value: '' }]
 
   const segments: MentionSegment[] = []
@@ -43,6 +101,24 @@ export function splitTextWithMentions(text: string): MentionSegment[] {
     }
 
     const atPos = i
+
+    // Se houver lista de menções conhecidas, tenta casar o maior match
+    const knownMentions = opts?.knownMentions
+    if (knownMentions && knownMentions.length > 0) {
+      let bestEnd: number | null = null
+      for (const candidate of knownMentions) {
+        const end = matchKnownMentionAt(text, atPos + 1, candidate)
+        if (end !== null && (bestEnd === null || end > bestEnd)) bestEnd = end
+      }
+      if (bestEnd !== null) {
+        pushTextUntil(atPos)
+        segments.push({ type: 'mention', value: text.slice(atPos, bestEnd) })
+        i = bestEnd
+        lastTextStart = bestEnd
+        continue
+      }
+    }
+
     const first = readWord(text, atPos + 1)
     if (!first.word) {
       i++
@@ -112,8 +188,8 @@ export function splitTextWithMentions(text: string): MentionSegment[] {
   return segments
 }
 
-export function extractMentionDisplayNames(text: string): string[] {
-  const segments = splitTextWithMentions(text)
+export function extractMentionDisplayNames(text: string, opts?: MentionParseOptions): string[] {
+  const segments = splitTextWithMentions(text, opts)
   const names = segments
     .filter(s => s.type === 'mention')
     .map(s => s.value

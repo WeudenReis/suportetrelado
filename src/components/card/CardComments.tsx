@@ -3,10 +3,10 @@ import { AnimatePresence } from 'framer-motion'
 import { MessageSquare, Send, Loader2, Trash2, ArrowRight, Lock } from 'lucide-react'
 import {
   supabase, fetchComments, insertComment, deleteComment,
-  fetchActivityLog, insertNotification, extractMentionNames, resolveMentionsToEmails
+  fetchActivityLog, insertNotification, resolveMentionsToEmails
 } from '../../lib/supabase'
 import { logger } from '../../lib/logger'
-import { splitTextWithMentions } from '../../lib/mentions'
+import { extractMentionDisplayNames, splitTextWithMentions } from '../../lib/mentions'
 import type { Comment, ActivityLog, UserProfile } from '../../lib/supabase'
 
 function timeAgo(dateStr: string): string {
@@ -25,10 +25,10 @@ function avatarColor(name: string) {
   return avatarPalette[name.charCodeAt(0) % avatarPalette.length]
 }
 
-function renderCommentText(text: string): React.ReactNode {
+function renderCommentText(text: string, knownMentions: readonly string[]): React.ReactNode {
   if (!text) return text
   try {
-    return splitTextWithMentions(text).map((seg, i) => (
+    return splitTextWithMentions(text, { knownMentions }).map((seg, i) => (
       seg.type === 'mention'
         ? <span key={i} className="mention-highlight">{seg.value}</span>
         : <React.Fragment key={i}>{seg.value}</React.Fragment>
@@ -102,6 +102,31 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
   }, [comments.length, activities.length])
 
   const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+  const knownMentions = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = ['todos']
+    seen.add('todos')
+    for (const u of allUsers) {
+      const name = (u.name || '').trim()
+      if (name) {
+        const key = name.toLowerCase()
+        if (!seen.has(key)) {
+          out.push(name)
+          seen.add(key)
+        }
+      }
+      const alias = (u.email || '').split('@')[0]?.trim()
+      if (alias && /^[\w\u00C0-\u024F]+$/.test(alias)) {
+        const key = alias.toLowerCase()
+        if (!seen.has(key)) {
+          out.push(alias)
+          seen.add(key)
+        }
+      }
+    }
+    return out
+  }, [allUsers])
   const filteredMentionUsers = mentionQuery !== null
     ? allUsers.filter(u => {
         const q = normalize(mentionQuery)
@@ -141,7 +166,7 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
       setSendingComment(false)
       commentRef.current?.focus()
 
-      const mentionNames = extractMentionNames(commentText)
+      const mentionNames = extractMentionDisplayNames(commentText, { knownMentions })
       if (mentionNames.length > 0) {
         const { data: { session } } = await supabase.auth.getSession()
         const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
@@ -314,7 +339,7 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
                       color: '#b6c2cf',
                       border: item.text.startsWith('[INTERNO] ') ? '1px solid rgba(245,166,35,0.2)' : '1px solid rgba(166,197,226,0.08)',
                     }}>
-                      {renderCommentText(item.text.startsWith('[INTERNO] ') ? item.text.slice(10) : item.text)}
+                      {renderCommentText(item.text.startsWith('[INTERNO] ') ? item.text.slice(10) : item.text, knownMentions)}
                     </div>
                     <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#596773' }}>
                       <Trash2 size={9} /> Excluir
