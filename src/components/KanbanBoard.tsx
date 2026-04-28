@@ -12,7 +12,7 @@ const InstanceModal = lazy(() => import('./InstanceModal'))
 const ArchivedPanel = lazy(() => import('./ArchivedPanel').then(m => ({ default: m.ArchivedPanel })))
 import { supabase, fetchTickets, fetchAttachmentCounts, insertTicket, updateTicket, insertActivityLog, isDevEnvironment, fetchBoardLabels, uploadAttachment } from '../lib/supabase'
 import { compressAttachment } from '../lib/imageUtils'
-import { insertBoardColumn, archiveBoardColumn, BoardColumn } from '../lib/boardColumns'
+import { insertBoardColumn, archiveBoardColumn, updateBoardColumn, BoardColumn } from '../lib/boardColumns'
 import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShortcuts'
 import type { Ticket, TicketStatus, BoardLabel } from '../lib/supabase'
 import ShortcutsHelpModal from './kanban/ShortcutsHelpModal'
@@ -299,7 +299,24 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       const newIndex = columnOrder.indexOf(overColumnId)
       if (oldIndex < 0 || newIndex < 0) return
 
-      setColumnOrder(prev => arrayMove(prev, oldIndex, newIndex))
+      const previousOrder = columnOrder
+      const newOrder = arrayMove(previousOrder, oldIndex, newIndex)
+      setColumnOrder(newOrder)
+
+      // Persiste a nova posicao no banco para sobreviver ao F5.
+      // Faz em duas etapas (offset + valor final) para evitar colisoes
+      // caso exista uma constraint UNIQUE em (department_id, position).
+      ;(async () => {
+        try {
+          const offset = newOrder.length + 100
+          await Promise.all(newOrder.map((id, idx) => updateBoardColumn(id, { position: offset + idx })))
+          await Promise.all(newOrder.map((id, idx) => updateBoardColumn(id, { position: idx })))
+        } catch (error) {
+          console.error('[KanbanBoard] Falha ao persistir reordenacao de colunas', error)
+          setColumnOrder(previousOrder)
+          showToast('Erro ao salvar nova ordem das colunas.', 'err')
+        }
+      })()
       return
     }
 
