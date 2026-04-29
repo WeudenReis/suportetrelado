@@ -49,9 +49,19 @@
   --float-bg: #282e33;
   --float-border: 1px solid rgba(166,197,226,0.12);
 
-  /* Typography */
+  /* Typography — chatPro brand + Inter para superfícies de dados densos */
   --font-display: 'Paytone One', sans-serif;
   --font-body: 'Space Grotesk', sans-serif;
+  --font-data: 'Inter', 'Space Grotesk', sans-serif;
+}
+
+/* Inter com algarismos tabulares e variantes estilísticas para legibilidade
+   em dashboards (KPIs, tabelas, números). Aplicar via classe ou inline. */
+.font-data,
+.font-numeric {
+  font-family: var(--font-data);
+  font-feature-settings: 'tnum' 1, 'cv11' 1, 'ss01' 1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Reduced motion — desabilita animações CSS para acessibilidade */
@@ -68,10 +78,12 @@
 html, body, #root { height: 100%; margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, 'Droid Sans', 'Helvetica Neue', sans-serif;
   background-color: var(--bg-app);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   scrollbar-gutter: stable;
 }
 
