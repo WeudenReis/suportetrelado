@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } fro
 import { DndContext, DragOverlay, closestCenter, closestCorners, pointerWithin, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, horizontalListSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, RefreshCw, X, Loader2, Share2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, LayoutGrid, List, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
+import { Plus, X, Loader2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, ChevronRight, AlignLeft, Paperclip, Calendar, Check, Filter, AlertTriangle, CheckSquare } from 'lucide-react'
 import { clsx } from 'clsx'
 import Card from './Card'
 import ErrorBoundary from './ErrorBoundary'
@@ -26,8 +26,12 @@ const DepartmentSettingsModal = lazy(() => import('./kanban/DepartmentSettingsMo
 const MembersManagerPanel = lazy(() => import('./kanban/MembersManagerPanel'))
 const MyProfilePanel = lazy(() => import('./kanban/MyProfilePanel'))
 import AddTicketModal from './kanban/AddTicketModal'
-import FilterPanel from './kanban/FilterPanel'
+import FilterPopoverContent from './kanban/FilterPopoverContent'
+import ActiveFiltersChips from './kanban/ActiveFiltersChips'
+import MoreActionsMenu from './kanban/MoreActionsMenu'
 import DepartmentSwitcher from './kanban/DepartmentSwitcher'
+import ViewSwitcher, { type WorkView } from './workspace/ViewSwitcher'
+import Popover from './ui/Popover'
 import { DroppableColumn, SortableCard, SortableBoardColumn } from './kanban/DndComponents'
 import { useOrg } from '../lib/orgContext'
 import { useSearch } from './SearchContext'
@@ -42,7 +46,13 @@ import { useKanbanColumnsCRUD } from '../hooks/useKanbanColumnsCRUD'
 import { useKanbanBulkActions } from '../hooks/useKanbanBulkActions'
 import { useKanbanRealtime } from '../hooks/useKanbanRealtime'
 
-interface KanbanBoardProps { user: string; openTicketId?: string | null; clearOpenTicketId?: () => void }
+interface KanbanBoardProps {
+  user: string
+  openTicketId?: string | null
+  clearOpenTicketId?: () => void
+  view: WorkView
+  onChangeView: (view: WorkView) => void
+}
 
 function buildLocalColumn(title: string, position: number): BoardColumn {
   return {
@@ -59,7 +69,7 @@ function buildLocalColumn(title: string, position: number): BoardColumn {
 
 // DroppableColumn, SortableCard e SortableBoardColumn extraídos para ./kanban/DndComponents.tsx
 
-export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: KanbanBoardProps) {
+export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, view, onChangeView }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null)
@@ -163,7 +173,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: K
   // Filtros + busca (full-text server-side com fallback local) extraídos para hook
   const {
     searchQuery, setSearchQuery,
-    showFilters, setShowFilters,
+    showFilters: showFiltersPopover, setShowFilters: setShowFiltersPopover,
     filterPriority, setFilterPriority,
     filterAssignee, setFilterAssignee,
     filterLabel, setFilterLabel,
@@ -473,7 +483,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: K
   const noModalOpen = !showAddModal && !selectedTicket && !showSettings && !showInstanceModal && !showArchivedPanel && !showLabelsManager && !showShortcutsHelp
   const shortcutActions = useMemo(() => [
     { key: 'n', description: 'Novo ticket', action: () => { if (noModalOpen) { setShowAddModal(true) } } },
-    { key: 'f', description: 'Filtros avançados', action: () => { if (noModalOpen) setShowFilters(p => !p) } },
+    { key: 'f', description: 'Filtros avançados', action: () => { if (noModalOpen) setShowFiltersPopover(p => !p) } },
     { key: 'k', ctrl: true, description: 'Pesquisar', action: () => { focusGlobalSearch() } },
     { key: '/', description: 'Pesquisar', action: () => { if (noModalOpen) focusGlobalSearch() } },
     { key: 'r', description: 'Atualizar tickets', action: () => { if (noModalOpen) handleRefresh() } },
@@ -481,13 +491,13 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: K
     { key: '?', shift: true, description: 'Atalhos de teclado', action: () => openShortcutsHelp() },
     { key: 'Escape', description: 'Fechar modal/painel', action: () => {
       if (showShortcutsHelp) { closeShortcutsHelp(); return }
-      if (showFilters) { setShowFilters(false); return }
+      if (showFiltersPopover) { setShowFiltersPopover(false); return }
       if (showAddModal) { setShowAddModal(false); return }
       if (selectedTicket) { setSelectedTicket(null); return }
       if (showSettings) { setShowSettings(false); return }
       if (showArchivedPanel) { setShowArchivedPanel(false); return }
     }},
-  ], [noModalOpen, showAddModal, selectedTicket, showSettings, showFilters, showArchivedPanel, showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp, handleRefresh, setShowFilters, focusGlobalSearch])
+  ], [noModalOpen, showAddModal, selectedTicket, showSettings, showFiltersPopover, showArchivedPanel, showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp, handleRefresh, setShowFiltersPopover, focusGlobalSearch])
 
   useKeyboardShortcuts(shortcutActions)
 
@@ -536,184 +546,100 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: K
         )}
       </AnimatePresence>
 
-      {/* Nav */}
-      <header className="board-header">
-        <div className="trello-board-header__left">
-          <button className="trello-board-chip trello-board-chip--title" type="button" style={{ paddingLeft: '4px' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '2px' }}>
-              <path d="M21 11.5C21 15.6421 16.9706 19 12 19C10.7441 19 9.54922 18.7753 8.46162 18.3743L4.5 20L5.39793 16.205C3.20456 14.8682 2 13.0456 2 11.5C2 7.35786 6.47715 4 12 4C17.5228 4 21 7.35786 21 11.5Z" fill="#25D066"/>
-              <circle cx="8" cy="11.5" r="1.5" fill="#111111"/>
-              <circle cx="12" cy="11.5" r="1.5" fill="#111111"/>
-              <circle cx="16" cy="11.5" r="1.5" fill="#111111"/>
-            </svg>
-            <span className="trello-board-chip__title">Suporte chatPro</span>
-          </button>
-
-          {isDevEnvironment && (
-            <span style={{
-              background: '#f97316',
-              color: '#fff',
-              fontSize: 11,
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: 4,
-              letterSpacing: '0.05em',
-              lineHeight: '18px',
-              flexShrink: 0,
-            }}>DEV</span>
-          )}
-
-          <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
-
-          <button
-            onClick={() => setShowInstanceModal(true)}
-            className="trello-board-chip"
-            type="button"
-          >
-            <Plug size={14} />
-            Instância
-          </button>
-
+      {/* Toolbar consolidada — ViewSwitcher + alertas + ferramentas */}
+      <header className="board-toolbar" role="banner" aria-label="Barra de ferramentas do quadro">
+        <div className="board-toolbar__left">
+          <ViewSwitcher active={view} onChange={onChangeView} />
           {staleCount > 0 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, scale: 0.92 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="trello-alert-chip"
+              transition={{ duration: 0.16 }}
+              onClick={() => { setShowFiltersPopover(true) }}
+              className="board-stale-chip"
+              title="Tickets sem resposta há mais de 12 horas"
             >
-              <span className="trello-alert-chip__dot" />
-              {staleCount} sem resposta +12h
-            </motion.div>
+              <AlertTriangle size={12} />
+              <span><strong>{staleCount}</strong> sem resposta +12h</span>
+            </motion.button>
           )}
         </div>
 
-        <div className="trello-board-header__right">
-          <div className={clsx('trello-board-status', isConnected ? 'trello-board-status--ok' : 'trello-board-status--off')} title={isConnected ? 'Conectado ao realtime' : 'Sem conexão'}>
-            <span className="trello-board-status__dot" />
-          </div>
-
-          <button onClick={handleRefresh} className="trello-icon-btn" type="button" title="Atualizar tickets">
-            <RefreshCw size={16} className={clsx(refreshing && 'animate-spin')} />
-          </button>
-
-          <button
-            className="trello-icon-btn"
-            type="button"
-            title="Compartilhar"
-            onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Link copiado!', 'ok') }}
-          >
-            <Share2 size={16} />
-          </button>
-
-          {/* Toggle Kanban / Lista */}
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 2, gap: 2 }}>
-            <button
-              onClick={() => { setViewMode('kanban'); localStorage.setItem('chatpro-view-mode', 'kanban') }}
-              style={{
-                padding: '4px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: viewMode === 'kanban' ? 'rgba(37,208,102,0.15)' : 'transparent',
-                color: viewMode === 'kanban' ? '#25D066' : '#8C96A3',
-                display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600,
-                transition: 'all 0.15s',
-              }}
-              title="Kanban"
-              type="button"
-            >
-              <LayoutGrid size={14} />
-            </button>
-            <button
-              onClick={() => { setViewMode('list'); localStorage.setItem('chatpro-view-mode', 'list') }}
-              style={{
-                padding: '4px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: viewMode === 'list' ? 'rgba(37,208,102,0.15)' : 'transparent',
-                color: viewMode === 'list' ? '#25D066' : '#8C96A3',
-                display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600,
-                transition: 'all 0.15s',
-              }}
-              title="Lista"
-              type="button"
-            >
-              <List size={14} />
-            </button>
-          </div>
-
-          {/* Modo compacto */}
-          <button
-            onClick={() => setCompactMode(p => { localStorage.setItem('chatpro-compact-mode', String(!p)); return !p })}
-            className="trello-icon-btn"
-            type="button"
-            title={compactMode ? 'Modo normal (C)' : 'Modo compacto (C)'}
-            style={compactMode ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
-          >
-            {compactMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-          </button>
-
-          {/* Recolher / Expandir tudo (só no modo lista) */}
-          {viewMode === 'list' && (
-            <button
-              onClick={() => {
-                if (collapsedColumns.size === allColumns.length) {
-                  setCollapsedColumns(new Set())
-                } else {
-                  setCollapsedColumns(new Set(allColumns.map(c => c.id)))
-                }
-              }}
-              className="trello-icon-btn"
-              type="button"
-              title={collapsedColumns.size === allColumns.length ? 'Expandir tudo' : 'Recolher tudo'}
-              style={collapsedColumns.size === allColumns.length ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
-            >
-              {collapsedColumns.size === allColumns.length ? <ChevronsUpDown size={16} /> : <ChevronsDownUp size={16} />}
-            </button>
+        <div className="board-toolbar__right">
+          {isDevEnvironment && (
+            <span className="board-dev-badge" title="Ambiente de desenvolvimento">
+              <span className="board-dev-badge__dot" />
+              DEV
+            </span>
           )}
 
-          {/* Filtros avançados */}
-          <button
-            onClick={() => setShowFilters(p => !p)}
-            className="trello-icon-btn"
-            type="button"
-            title="Filtros avançados (F)"
-            style={showFilters || activeFilterCount > 0 ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
-          >
-            <Filter size={16} />
-            {activeFilterCount > 0 && (
-              <span style={{
-                position: 'absolute', top: -4, right: -4,
-                width: 16, height: 16, borderRadius: '50%',
-                background: '#25D066', color: '#000',
-                fontSize: 9, fontWeight: 800,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>{activeFilterCount}</span>
-            )}
-          </button>
+          <DepartmentSwitcher />
 
-          {/* Atalhos de teclado */}
-          <button
-            onClick={openShortcutsHelp}
-            className="trello-icon-btn"
-            type="button"
-            title="Atalhos de teclado (?)"
-          >
-            <Keyboard size={16} />
-          </button>
+          <span className="board-toolbar__divider" aria-hidden="true" />
 
-          {/* Seleção múltipla */}
-          <button
-            onClick={() => { setBulkMode(p => !p); setSelectedCardIds(new Set()) }}
-            className="trello-icon-btn"
-            type="button"
-            title="Seleção múltipla"
-            style={bulkMode ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
-          >
-            <CheckSquare size={16} />
-          </button>
+          <span
+            className={clsx('board-toolbar__status', isConnected ? 'board-toolbar__status--ok' : 'board-toolbar__status--off')}
+            title={isConnected ? 'Conectado ao tempo real' : 'Sem conexão com o tempo real'}
+            aria-label={isConnected ? 'Conectado' : 'Desconectado'}
+          />
 
-          {/* Agrupar cards (swimlanes inline) */}
           <GroupBySwitcher value={groupBy} onChange={setGroupBy} />
 
-          <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
+          <Popover
+            open={showFiltersPopover}
+            onClose={() => setShowFiltersPopover(false)}
+            width={300}
+            anchor={
+              <button
+                onClick={() => setShowFiltersPopover(p => !p)}
+                className="trello-icon-btn"
+                type="button"
+                title="Filtros (F)"
+                style={(showFiltersPopover || activeFilterCount > 0) ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
+              >
+                <Filter size={16} />
+                {activeFilterCount > 0 && (
+                  <span className="board-filter-badge">{activeFilterCount}</span>
+                )}
+              </button>
+            }
+          >
+            <FilterPopoverContent
+              filterPriority={filterPriority}
+              filterAssignee={filterAssignee}
+              filterLabel={filterLabel}
+              uniqueAssignees={uniqueAssignees}
+              uniqueLabels={uniqueLabels}
+              activeFilterCount={activeFilterCount}
+              onFilterPriorityChange={setFilterPriority}
+              onFilterAssigneeChange={setFilterAssignee}
+              onFilterLabelChange={setFilterLabel}
+              onClearAllFilters={clearAllFilters}
+            />
+          </Popover>
 
-          {/* Online avatars (presence-based) */}
-          <div className="flex -space-x-1.5 cursor-default">
+          <MoreActionsMenu
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
+            onShare={() => { navigator.clipboard.writeText(window.location.href); showToast('Link copiado!', 'ok') }}
+            viewMode={viewMode}
+            onChangeViewMode={(mode) => { setViewMode(mode); localStorage.setItem('chatpro-view-mode', mode) }}
+            compactMode={compactMode}
+            onToggleCompact={() => setCompactMode(p => { localStorage.setItem('chatpro-compact-mode', String(!p)); return !p })}
+            bulkMode={bulkMode}
+            onToggleBulk={() => { setBulkMode(p => !p); setSelectedCardIds(new Set()) }}
+            onShowShortcuts={openShortcutsHelp}
+            onOpenInstance={() => setShowInstanceModal(true)}
+            collapseAllAvailable={viewMode === 'list'}
+            allCollapsed={collapsedColumns.size === allColumns.length && allColumns.length > 0}
+            onCollapseAll={() => setCollapsedColumns(new Set(allColumns.map(c => c.id)))}
+            onExpandAll={() => setCollapsedColumns(new Set())}
+          />
+
+          <span className="board-toolbar__divider" aria-hidden="true" />
+
+          <div className="flex -space-x-1.5 cursor-default" aria-label="Membros online">
             {visibleUsers.slice(0, 5).map((u, i) => {
               const member = allMembers.find(m => m.email === u)
               const color = member?.avatar_color || ['#579DFF', '#6366f1', '#f59e0b', '#ef4444', '#06b6d4'][i % 5]
@@ -740,7 +666,6 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: K
             )}
           </div>
 
-          {/* Members button */}
           <div className="relative">
             <button
               onClick={() => setShowMembersPanel(p => !p)}
@@ -767,7 +692,6 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: K
                       <span className="members-panel__count">{allMembers.length}</span>
                     </div>
 
-                    {/* Online section */}
                     {(() => {
                       const onlineMembers = allMembers.filter(m => onlineUsers.includes(m.email))
                       const offlineMembers = allMembers.filter(m => !onlineUsers.includes(m.email))
@@ -841,12 +765,23 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: K
               )}
             </AnimatePresence>
           </div>
-
-          <DepartmentSwitcher />
         </div>
       </header>
 
-      {/* Painel de arquivados */}
+      <AnimatePresence>
+        <ActiveFiltersChips
+          key="active-filters"
+          filterPriority={filterPriority}
+          filterAssignee={filterAssignee}
+          filterLabel={filterLabel}
+          uniqueAssignees={uniqueAssignees}
+          onClearPriority={() => setFilterPriority('all')}
+          onClearAssignee={() => setFilterAssignee('all')}
+          onClearLabel={() => setFilterLabel('all')}
+          onClearAll={clearAllFilters}
+        />
+      </AnimatePresence>
+
       {showArchivedPanel && (
         <Suspense fallback={null}>
           <ArchivedPanel
@@ -855,25 +790,6 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: K
           />
         </Suspense>
       )}
-
-      {/* Filtros avançados panel */}
-      <AnimatePresence>
-        {showFilters && (
-          <FilterPanel
-            filterPriority={filterPriority}
-            filterAssignee={filterAssignee}
-            filterLabel={filterLabel}
-            uniqueAssignees={uniqueAssignees}
-            uniqueLabels={uniqueLabels}
-            activeFilterCount={activeFilterCount}
-            onFilterPriorityChange={setFilterPriority}
-            onFilterAssigneeChange={setFilterAssignee}
-            onFilterLabelChange={setFilterLabel}
-            onClearAllFilters={clearAllFilters}
-            onClose={() => setShowFilters(false)}
-          />
-        )}
-      </AnimatePresence>
 
       {/* Board */}
       <main className="board-main" style={boardSurfaceStyle}>

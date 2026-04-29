@@ -1037,6 +1037,152 @@ body {
   color: #F87171;
   background: rgba(239,68,68,0.14);
 }
+
+/* =========================================
+   Board Toolbar — versão consolidada (Fase E)
+   ViewSwitcher + alertas + ferramentas
+   ========================================= */
+.board-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 52px;
+  padding: 0 16px 0 0;
+  background: rgba(34,39,43,0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+  min-width: 0;
+  width: 100%;
+  z-index: 30;
+  position: relative;
+}
+.board-toolbar__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.board-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.board-toolbar__divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255,255,255,0.08);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+.board-toolbar__status {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  margin: 0 4px;
+  position: relative;
+}
+.board-toolbar__status--ok {
+  background: #25D066;
+  box-shadow: 0 0 0 3px rgba(37,208,102,0.14);
+}
+.board-toolbar__status--off {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.16);
+}
+
+/* Filter badge sobre o ícone Filtrar */
+.board-filter-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #25D066;
+  color: #0d1417;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Stale chip — versão suave (âmbar, clicável) */
+.board-stale-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(245,158,11,0.10);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: #f59e0b;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.board-stale-chip:hover {
+  background: rgba(245,158,11,0.18);
+  border-color: rgba(245,158,11,0.45);
+}
+.board-stale-chip strong {
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+/* DEV badge — outline sutil (em vez de bloco laranja) */
+.board-dev-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid rgba(249,115,22,0.5);
+  color: #f97316;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.board-dev-badge__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #f97316;
+  box-shadow: 0 0 0 2px rgba(249,115,22,0.25);
+}
+
+@media (max-width: 768px) {
+  .board-toolbar {
+    height: auto;
+    min-height: 52px;
+    padding: 6px 8px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .board-toolbar__left,
+  .board-toolbar__right {
+    width: 100%;
+    overflow-x: auto;
+    gap: 4px;
+  }
+}
 .trello-create-btn {
   display: inline-flex;
   align-items: center;

@@ -6,6 +6,7 @@ import { fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '
 import { fetchBoardColumns, type BoardColumn } from '../../lib/boardColumns'
 import { useOrg } from '../../lib/orgContext'
 import { logger } from '../../lib/logger'
+import ViewSwitcher, { type WorkView } from '../workspace/ViewSwitcher'
 
 const CardDetailModal = lazy(() => import('../CardDetailModal'))
 
@@ -14,6 +15,8 @@ interface TableViewProps {
   openTicketId: string | null
   onCloseTicket: () => void
   onOpenTicket: (id: string) => void
+  view: WorkView
+  onChangeView: (view: WorkView) => void
 }
 
 type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'cliente' | 'due_date' | 'created_at'
@@ -62,7 +65,7 @@ function priorityRank(p?: string | null): number {
   return 3
 }
 
-export default function TableView({ user, openTicketId, onCloseTicket, onOpenTicket }: TableViewProps) {
+export default function TableView({ user, openTicketId, onCloseTicket, onOpenTicket, view, onChangeView }: TableViewProps) {
   const { departmentId } = useOrg()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [profiles, setProfiles] = useState<UserProfile[]>([])
@@ -197,10 +200,12 @@ export default function TableView({ user, openTicketId, onCloseTicket, onOpenTic
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#1d2125' }}>
       {/* Toolbar */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px',
+        display: 'flex', alignItems: 'center', gap: 10, padding: '6px 18px 6px 0',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         flexWrap: 'wrap',
       }}>
+        <ViewSwitcher active={view} onChange={onChangeView} />
+
         {/* Search */}
         <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 420 }}>
           <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#596773' }} />

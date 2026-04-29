@@ -6,6 +6,7 @@ import { updateTicket } from '../../lib/api/tickets'
 import { fetchBoardColumns, type BoardColumn } from '../../lib/boardColumns'
 import { useOrg } from '../../lib/orgContext'
 import { logger } from '../../lib/logger'
+import ViewSwitcher, { type WorkView } from '../workspace/ViewSwitcher'
 
 const CardDetailModal = lazy(() => import('../CardDetailModal'))
 
@@ -14,6 +15,8 @@ interface TimelineViewProps {
   openTicketId: string | null
   onCloseTicket: () => void
   onOpenTicket: (id: string) => void
+  view: WorkView
+  onChangeView: (view: WorkView) => void
 }
 
 const FONT = "'Space Grotesk', sans-serif"
@@ -81,7 +84,7 @@ interface DragState {
   preview: { startKey: string; endKey: string }
 }
 
-export default function TimelineView({ user, openTicketId, onCloseTicket, onOpenTicket }: TimelineViewProps) {
+export default function TimelineView({ user, openTicketId, onCloseTicket, onOpenTicket, view, onChangeView }: TimelineViewProps) {
   const { departmentId } = useOrg()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [boardColumns, setBoardColumns] = useState<BoardColumn[]>([])
@@ -297,26 +300,33 @@ export default function TimelineView({ user, openTicketId, onCloseTicket, onOpen
       {/* TOOLBAR */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 20px',
+        padding: '6px 20px 6px 0',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         background: 'rgba(34,39,43,0.55)',
         flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <ViewSwitcher active={view} onChange={onChangeView} />
           <div style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: 'rgba(37,208,102,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            paddingLeft: 8,
+            borderLeft: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex', alignItems: 'center', gap: 10,
           }}>
-            <GanttChart size={17} style={{ color: '#25D066' }} />
-          </div>
-          <div>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>
-              Cronograma
-            </h2>
-            <p style={{ fontSize: 11, color: '#596773', margin: 0, fontFamily: FONT }}>
-              {spans.length} cartão{spans.length === 1 ? '' : 'es'} agendado{spans.length === 1 ? '' : 's'} · arraste para reagendar
-            </p>
+            <div style={{
+              width: 30, height: 30, borderRadius: 8,
+              background: 'rgba(37,208,102,0.12)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <GanttChart size={15} style={{ color: '#25D066' }} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: 14, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>
+                Cronograma
+              </h2>
+              <p style={{ fontSize: 10.5, color: '#596773', margin: 0, fontFamily: FONT }}>
+                {spans.length} cartão{spans.length === 1 ? '' : 'es'} agendado{spans.length === 1 ? '' : 's'} · arraste para reagendar
+              </p>
+            </div>
           </div>
         </div>
 

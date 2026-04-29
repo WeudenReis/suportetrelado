@@ -2,7 +2,7 @@ import { useState, lazy, Suspense } from 'react'
 import { Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import KanbanBoard from './KanbanBoard'
-import ViewSwitcher, { type WorkView } from './workspace/ViewSwitcher'
+import type { WorkView } from './workspace/ViewSwitcher'
 
 const TableView = lazy(() => import('./views/TableView'))
 const CalendarView = lazy(() => import('./views/CalendarView'))
@@ -29,8 +29,6 @@ export default function Workspace({ user, openTicketId, clearOpenTicketId, setOp
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <ViewSwitcher active={view} onChange={setView} />
-
       <AnimatePresence mode="wait">
         <motion.div
           key={view}
@@ -45,6 +43,8 @@ export default function Workspace({ user, openTicketId, clearOpenTicketId, setOp
               user={user}
               openTicketId={openTicketId}
               clearOpenTicketId={clearOpenTicketId}
+              view={view}
+              onChangeView={setView}
             />
           )}
           {view === 'table' && (
@@ -54,6 +54,8 @@ export default function Workspace({ user, openTicketId, clearOpenTicketId, setOp
                 openTicketId={openTicketId}
                 onCloseTicket={clearOpenTicketId}
                 onOpenTicket={setOpenTicketId}
+                view={view}
+                onChangeView={setView}
               />
             </Suspense>
           )}
@@ -64,6 +66,8 @@ export default function Workspace({ user, openTicketId, clearOpenTicketId, setOp
                 openTicketId={openTicketId}
                 onCloseTicket={clearOpenTicketId}
                 onOpenTicket={setOpenTicketId}
+                view={view}
+                onChangeView={setView}
               />
             </Suspense>
           )}
@@ -74,6 +78,8 @@ export default function Workspace({ user, openTicketId, clearOpenTicketId, setOp
                 openTicketId={openTicketId}
                 onCloseTicket={clearOpenTicketId}
                 onOpenTicket={setOpenTicketId}
+                view={view}
+                onChangeView={setView}
               />
             </Suspense>
           )}
@@ -84,6 +90,8 @@ export default function Workspace({ user, openTicketId, clearOpenTicketId, setOp
                 openTicketId={openTicketId}
                 onCloseTicket={clearOpenTicketId}
                 onOpenTicket={setOpenTicketId}
+                view={view}
+                onChangeView={setView}
               />
             </Suspense>
           )}

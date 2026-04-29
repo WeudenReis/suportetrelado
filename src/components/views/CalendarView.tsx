@@ -17,6 +17,7 @@ import { useOrg } from '../../lib/orgContext'
 import { logger } from '../../lib/logger'
 import PlannerEventModal from '../PlannerEventModal'
 import PlannerSettingsPanel from '../PlannerSettingsPanel'
+import ViewSwitcher, { type WorkView } from '../workspace/ViewSwitcher'
 
 const CardDetailModal = lazy(() => import('../CardDetailModal'))
 
@@ -25,6 +26,8 @@ interface CalendarViewProps {
   openTicketId: string | null
   onCloseTicket: () => void
   onOpenTicket: (id: string) => void
+  view: WorkView
+  onChangeView: (view: WorkView) => void
 }
 
 const DAYS_PT_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
@@ -76,7 +79,7 @@ function buildCalendar(year: number, month: number): DayCell[] {
   return days
 }
 
-export default function CalendarView({ user, openTicketId, onCloseTicket, onOpenTicket }: CalendarViewProps) {
+export default function CalendarView({ user, openTicketId, onCloseTicket, onOpenTicket, view, onChangeView }: CalendarViewProps) {
   const { departmentId } = useOrg()
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [tickets, setTickets] = useState<Ticket[]>([])
@@ -300,29 +303,36 @@ export default function CalendarView({ user, openTicketId, onCloseTicket, onOpen
       {/* TOOLBAR */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 20px',
+        padding: '6px 20px 6px 0',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         background: 'rgba(34,39,43,0.55)',
         flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <ViewSwitcher active={view} onChange={onChangeView} />
           <div style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: 'rgba(37,208,102,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            paddingLeft: 8,
+            borderLeft: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex', alignItems: 'center', gap: 10,
           }}>
-            <CalendarDays size={17} style={{ color: '#25D066' }} />
-          </div>
-          <div>
-            <h2 style={{
-              fontSize: 15, fontWeight: 800, color: '#E5E7EB', margin: 0,
-              fontFamily: "'Paytone One', sans-serif",
+            <div style={{
+              width: 30, height: 30, borderRadius: 8,
+              background: 'rgba(37,208,102,0.12)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {MONTHS_PT[month]} {year}
-            </h2>
-            <p style={{ fontSize: 11, color: '#596773', margin: 0, fontFamily: FONT }}>
-              {monthCounts.tks} cartão{monthCounts.tks === 1 ? '' : 'es'} · {monthCounts.evs} evento{monthCounts.evs === 1 ? '' : 's'}
-            </p>
+              <CalendarDays size={15} style={{ color: '#25D066' }} />
+            </div>
+            <div>
+              <h2 style={{
+                fontSize: 14, fontWeight: 800, color: '#E5E7EB', margin: 0,
+                fontFamily: "'Paytone One', sans-serif",
+              }}>
+                {MONTHS_PT[month]} {year}
+              </h2>
+              <p style={{ fontSize: 10.5, color: '#596773', margin: 0, fontFamily: FONT }}>
+                {monthCounts.tks} cartão{monthCounts.tks === 1 ? '' : 'es'} · {monthCounts.evs} evento{monthCounts.evs === 1 ? '' : 's'}
+              </p>
+            </div>
           </div>
         </div>
 
