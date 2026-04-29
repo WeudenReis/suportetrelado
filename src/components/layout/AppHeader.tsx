@@ -164,7 +164,7 @@ export default function AppHeader({
 
         <span className="app-header__divider" aria-hidden="true" />
 
-        <UpdatesPopover />
+        <UpdatesPopover user={user} />
 
         <span className="app-header__divider" aria-hidden="true" />
 
