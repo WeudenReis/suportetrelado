@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { Gift, Sparkles, Wrench, Bug, ShieldCheck, ExternalLink, Inbox } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import IconButton from './ui/IconButton'
 import Badge from './ui/Badge'
 import Popover from './ui/Popover'
@@ -22,10 +22,10 @@ const TYPE_META: Record<
   ChangelogType,
   { label: string; color: string; bg: string; icon: React.ReactNode }
 > = {
-  feat:        { label: 'Novidade', color: '#25D066', bg: 'rgba(37,208,102,0.12)', icon: <Sparkles size={11} /> },
-  improvement: { label: 'Melhoria', color: '#579DFF', bg: 'rgba(87,157,255,0.12)', icon: <Wrench size={11} /> },
-  fix:         { label: 'Correção', color: '#F5A623', bg: 'rgba(245,166,35,0.12)', icon: <Bug size={11} /> },
-  security:    { label: 'Segurança', color: '#A259FF', bg: 'rgba(162,89,255,0.14)', icon: <ShieldCheck size={11} /> },
+  feat:        { label: 'Novidade', color: '#25D066', bg: 'rgba(37,208,102,0.12)', icon: <Icon name="Sparkles" size={11} /> },
+  improvement: { label: 'Melhoria', color: '#579DFF', bg: 'rgba(87,157,255,0.12)', icon: <Icon name="Wrench" size={11} /> },
+  fix:         { label: 'Correção', color: '#F5A623', bg: 'rgba(245,166,35,0.12)', icon: <Icon name="Bug" size={11} /> },
+  security:    { label: 'Segurança', color: '#A259FF', bg: 'rgba(162,89,255,0.14)', icon: <Icon name="ShieldCheck" size={11} /> },
 }
 
 const TYPE_ORDER: ChangelogType[] = ['feat', 'improvement', 'fix', 'security']
@@ -100,7 +100,7 @@ export default function UpdatesPopover({ user }: UpdatesPopoverProps) {
       width={380}
       anchor={
         <IconButton
-          icon={<Gift size={16} />}
+          icon={<Icon name="Gift" size={16} />}
           label="Novidades"
           onClick={handleToggle}
           active={open}
@@ -158,7 +158,7 @@ function Header({ unseen }: { unseen: number }) {
           background: 'rgba(37,208,102,0.14)', color: '#25D066',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <Gift size={13} />
+          <Icon name="Gift" size={13} />
         </span>
         <h3 style={{
           margin: 0, fontFamily: "'Paytone One', sans-serif",
@@ -336,7 +336,7 @@ function EntryCard({ entry, unread }: { entry: ChangelogEntry; unread: boolean }
           }}
         >
           {entry.link.label}
-          <ExternalLink size={11} />
+          <Icon name="ExternalLink" size={11} />
         </a>
       )}
     </article>
@@ -354,7 +354,7 @@ function EmptyState({ onlyUnread, typeFilter }: { onlyUnread: boolean; typeFilte
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       gap: 8, padding: '32px 16px', color: '#6B7685', textAlign: 'center',
     }}>
-      <Inbox size={28} style={{ opacity: 0.5 }} />
+      <Icon name="Inbox" size={28} style={{ opacity: 0.5 }} />
       <span style={{ fontSize: 12 }}>{message}</span>
     </div>
   )

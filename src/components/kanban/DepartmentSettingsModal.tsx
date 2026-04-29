@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { X, Loader2, Save, RotateCcw, Building2 } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useDepartmentSettings } from '../../hooks/useDepartmentSettings'
 import {
@@ -92,7 +92,7 @@ export default function DepartmentSettingsModal({ onClose, onShowToast }: Depart
         {/* Header */}
         <div className="px-6 pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Building2 size={18} style={{ color: '#25D066' }} />
+            <Icon name="Building2" size={18} style={{ color: '#25D066' }} />
           </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: 16, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Configurações do Departamento</h2>
@@ -101,7 +101,7 @@ export default function DepartmentSettingsModal({ onClose, onShowToast }: Depart
           <button onClick={onClose} className="p-1.5 rounded-lg transition-colors" style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}>
-            <X size={16} />
+            <Icon name="X" size={16} />
           </button>
         </div>
 
@@ -194,7 +194,7 @@ export default function DepartmentSettingsModal({ onClose, onShowToast }: Depart
             style={{ padding: '11px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#8C96A3', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: "'Space Grotesk', sans-serif", display: 'flex', alignItems: 'center', gap: 5 }}
             title="Restaurar configuração padrão"
           >
-            <RotateCcw size={13} /> Padrão
+            <Icon name="RotateCcw" size={13} /> Padrão
           </button>
           <button onClick={onClose} disabled={saving}
             style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#8C96A3', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -202,7 +202,7 @@ export default function DepartmentSettingsModal({ onClose, onShowToast }: Depart
           </button>
           <button onClick={handleSave} disabled={saving || loading}
             style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', background: saving ? 'rgba(37,208,102,0.3)' : '#25D066', border: 'none', cursor: saving || loading ? 'not-allowed' : 'pointer', fontFamily: "'Space Grotesk', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, boxShadow: '0 2px 12px rgba(37,208,102,0.3)' }}>
-            {saving ? <><Loader2 size={15} className="animate-spin" /> Salvando...</> : <><Save size={15} /> Salvar</>}
+            {saving ? <><Icon name="Loader2" size={15} className="animate-spin" /> Salvando...</> : <><Icon name="Save" size={15} /> Salvar</>}
           </button>
         </div>
       </motion.div>

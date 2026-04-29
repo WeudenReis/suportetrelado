@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Calendar, Clock, Disc, Edit3 } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import type { PlannerEvent } from '../lib/supabase'
 import { useOrg } from '../lib/orgContext'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -119,7 +119,7 @@ export default function PlannerEventModal({
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
             >
-              <X size={16} />
+              <Icon name="X" size={16} />
             </button>
           </div>
 
@@ -145,7 +145,7 @@ export default function PlannerEventModal({
             <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: '#8C96A3', marginBottom: 6, fontFamily: font }}>
-                  <Calendar size={12} /> Data
+                  <Icon name="Calendar" size={12} /> Data
                 </label>
                 <input
                   type="date"
@@ -162,7 +162,7 @@ export default function PlannerEventModal({
               </div>
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: '#8C96A3', marginBottom: 6, fontFamily: font }}>
-                  <Clock size={12} /> Hora Início
+                  <Icon name="Clock" size={12} /> Hora Início
                 </label>
                 <input
                   type="time"
@@ -180,7 +180,7 @@ export default function PlannerEventModal({
             {/* Descrição */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: '#8C96A3', marginBottom: 6, fontFamily: font }}>
-                <Edit3 size={12} /> Descrição (Opcional)
+                <Icon name="Edit3" size={12} /> Descrição (Opcional)
               </label>
               <textarea
                 rows={3}
@@ -200,7 +200,7 @@ export default function PlannerEventModal({
             {/* Cores */}
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: '#8C96A3', marginBottom: 8, fontFamily: font }}>
-                <Disc size={12} /> Cor do Evento
+                <Icon name="Disc" size={12} /> Cor do Evento
               </label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {COLORS.map(c => (

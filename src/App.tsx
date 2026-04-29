@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
-import { Inbox, X, AtSign, UserPlus, MessageSquare, ArrowRight, Megaphone, Loader2 } from 'lucide-react'
+import { Icon } from './lib/icons'
 import { animate } from 'framer-motion'
 import { supabase, isSupabaseConfigured } from './lib/supabase'
 import { ThemeProvider } from './lib/theme'
@@ -35,7 +35,7 @@ const Onboarding = lazy(() => import('./components/Onboarding'))
 function SidebarSpinner() {
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#596773', padding: 40 }}>
-      <Loader2 size={24} className="animate-spin" />
+      <Icon name="Loader2" size={24} className="animate-spin" />
     </div>
   )
 }
@@ -353,7 +353,7 @@ function OrgGate({ user, onLogout, children }: { user: string; onLogout: () => v
   if (loading) {
     return (
       <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1d2125' }}>
-        <Loader2 size={28} className="animate-spin" style={{ color: '#25D066' }} />
+        <Icon name="Loader2" size={28} className="animate-spin" style={{ color: '#25D066' }} />
       </div>
     )
   }
@@ -703,11 +703,11 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
 import type { Notification } from './lib/supabase'
 
 const TOAST_TYPE_ICON: Record<string, React.ReactNode> = {
-  mention:      <AtSign size={16} />,
-  assignment:   <UserPlus size={16} />,
-  comment:      <MessageSquare size={16} />,
-  move:         <ArrowRight size={16} />,
-  announcement: <Megaphone size={16} />,
+  mention:      <Icon name="AtSign" size={16} />,
+  assignment:   <Icon name="UserPlus" size={16} />,
+  comment:      <Icon name="MessageSquare" size={16} />,
+  move:         <Icon name="ArrowRight" size={16} />,
+  announcement: <Icon name="Megaphone" size={16} />,
 }
 
 const TOAST_TYPE_LABEL: Record<string, string> = {
@@ -719,7 +719,7 @@ const TOAST_TYPE_LABEL: Record<string, string> = {
 }
 
 function NotificationToast({ notif, onDismiss, onClickOpen }: { notif: Notification; onDismiss: () => void; onClickOpen: () => void }) {
-  const icon = TOAST_TYPE_ICON[notif.type] || <Inbox size={16} />
+  const icon = TOAST_TYPE_ICON[notif.type] || <Icon name="Inbox" size={16} />
   const label = TOAST_TYPE_LABEL[notif.type] || 'Notificação'
 
   return (
@@ -796,7 +796,7 @@ function NotificationToast({ notif, onDismiss, onClickOpen }: { notif: Notificat
           onMouseEnter={e => { e.currentTarget.style.color = '#E5E7EB' }}
           onMouseLeave={e => { e.currentTarget.style.color = '#6B7280' }}
         >
-          <X size={14} />
+          <Icon name="X" size={14} />
         </button>
       </div>
     </motion.div>

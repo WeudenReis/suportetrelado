@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Tag, X, Pencil } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel } from '../../lib/supabase'
 import type { BoardLabel } from '../../lib/supabase'
 
@@ -30,10 +30,10 @@ export default function LabelsManagerModal({ boardLabels, departmentId, onLabels
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5" style={{ background: '#1d2125', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="flex items-center gap-2">
-            <Tag size={15} style={{ color: '#579dff' }} />
+            <Icon name="Tag" size={15} style={{ color: '#579dff' }} />
             <h3 className="font-bold text-sm" style={{ color: '#b6c2cf' }}>Gerenciar Etiquetas</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: '#596773' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><Icon name="X" size={16} style={{ color: '#596773' }} /></button>
         </div>
 
         {/* Content */}
@@ -73,14 +73,14 @@ export default function LabelsManagerModal({ boardLabels, departmentId, onLabels
                 <div className="flex-1 px-3.5 py-2.5 rounded-lg text-xs font-bold text-white" style={{ background: label.color }}>{label.name}</div>
                 <button onClick={() => { setEditingLabel(label); setEditLabelName(label.name); setEditLabelColor(label.color) }}
                   className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-white/10"
-                  title="Editar"><Pencil size={14} style={{ color: '#9fadbc' }} /></button>
+                  title="Editar"><Icon name="Pencil" size={14} style={{ color: '#9fadbc' }} /></button>
               </div>
             )
           ))}
 
           {boardLabels.length === 0 && !editingLabel && (
             <div className="text-center py-6">
-              <Tag size={28} style={{ color: '#596773', margin: '0 auto 8px' }} />
+              <Icon name="Tag" size={28} style={{ color: '#596773', margin: '0 auto 8px' }} />
               <p className="text-xs" style={{ color: '#596773' }}>Nenhuma etiqueta criada ainda</p>
             </div>
           )}

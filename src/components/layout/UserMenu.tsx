@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { User, Settings, Archive, LogOut } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import Popover from '../ui/Popover'
 
 interface UserMenuProps {
@@ -155,11 +155,11 @@ export default function UserMenu({
       </div>
 
       <div style={{ padding: 6 }} role="menu">
-        <MenuItem icon={<User size={14} />} label="Meu perfil" onClick={handle(onMyProfile)} />
-        <MenuItem icon={<Settings size={14} />} label="Configurações" onClick={handle(onSettings)} />
-        <MenuItem icon={<Archive size={14} />} label="Itens arquivados" onClick={handle(onArchived)} />
+        <MenuItem icon={<Icon name="User" size={14} />} label="Meu perfil" onClick={handle(onMyProfile)} />
+        <MenuItem icon={<Icon name="Settings" size={14} />} label="Configurações" onClick={handle(onSettings)} />
+        <MenuItem icon={<Icon name="Archive" size={14} />} label="Itens arquivados" onClick={handle(onArchived)} />
         <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '6px 4px' }} />
-        <MenuItem icon={<LogOut size={14} />} label="Sair" onClick={handle(onLogout)} danger />
+        <MenuItem icon={<Icon name="LogOut" size={14} />} label="Sair" onClick={handle(onLogout)} danger />
       </div>
     </Popover>
   )

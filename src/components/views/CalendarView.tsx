@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Plus, Settings, RefreshCw, Loader2, CalendarDays } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import {
   fetchTickets,
   fetchPlannerEvents,
@@ -320,7 +320,7 @@ export default function CalendarView({ user, openTicketId, onCloseTicket, onOpen
               background: 'rgba(37,208,102,0.12)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <CalendarDays size={15} style={{ color: '#25D066' }} />
+              <Icon name="CalendarDays" size={15} style={{ color: '#25D066' }} />
             </div>
             <div>
               <h2 style={{
@@ -344,7 +344,7 @@ export default function CalendarView({ user, openTicketId, onCloseTicket, onOpen
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
           >
-            <ChevronLeft size={15} />
+            <Icon name="ChevronLeft" size={15} />
           </button>
           <button
             onClick={goToday}
@@ -366,7 +366,7 @@ export default function CalendarView({ user, openTicketId, onCloseTicket, onOpen
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
           >
-            <ChevronRight size={15} />
+            <Icon name="ChevronRight" size={15} />
           </button>
 
           <span style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.08)', margin: '0 4px' }} />
@@ -379,7 +379,7 @@ export default function CalendarView({ user, openTicketId, onCloseTicket, onOpen
             onMouseEnter={e => { if (!refreshing) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
             onMouseLeave={e => { if (!refreshing) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
           >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
+            <Icon name="RefreshCw" size={14} className={refreshing ? 'animate-spin' : undefined} />
           </button>
           <button
             onClick={() => setIsSettingsOpen(true)}
@@ -388,7 +388,7 @@ export default function CalendarView({ user, openTicketId, onCloseTicket, onOpen
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
           >
-            <Settings size={14} />
+            <Icon name="Settings" size={14} />
           </button>
           <button
             onClick={() => openNewEvent(selectedDate)}
@@ -402,7 +402,7 @@ export default function CalendarView({ user, openTicketId, onCloseTicket, onOpen
             onMouseEnter={e => { e.currentTarget.style.background = '#1BAD53' }}
             onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
           >
-            <Plus size={13} strokeWidth={2.5} />
+            <Icon name="Plus" size={13} strokeWidth={2.5} />
             Novo Evento
           </button>
         </div>
@@ -410,7 +410,7 @@ export default function CalendarView({ user, openTicketId, onCloseTicket, onOpen
 
       {loading ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#596773' }}>
-          <Loader2 size={22} className="animate-spin" />
+          <Icon name="Loader2" size={22} className="animate-spin" />
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Layers, Check } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import type { GroupByMode } from '../../lib/kanbanGrouping'
 
 interface GroupBySwitcherProps {
@@ -39,7 +39,7 @@ export default function GroupBySwitcher({ value, onChange }: GroupBySwitcherProp
         title="Agrupar cards"
         style={isActive ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
       >
-        <Layers size={16} />
+        <Icon name="Layers" size={16} />
       </button>
       <AnimatePresence>
         {open && (
@@ -80,7 +80,7 @@ export default function GroupBySwitcher({ value, onChange }: GroupBySwitcherProp
                   onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
                 >
                   <span>{opt.label}</span>
-                  {selected && <Check size={13} />}
+                  {selected && <Icon name="Check" size={13} />}
                 </button>
               )
             })}

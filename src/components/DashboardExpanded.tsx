@@ -23,13 +23,7 @@ import {
   calcCycleTimeStats,
   calcCFD,
 } from './dashboard/dashboardMetrics'
-import {
-  X, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock,
-  Users, Columns3, Target, Download, Filter, SortAsc,
-  ArrowUpRight, ShieldAlert, Activity, Inbox, CalendarRange,
-  ExternalLink, FileText, Hourglass, CalendarClock, Repeat,
-  Building2, Gauge, Timer, AreaChart, Info,
-} from 'lucide-react'
+import { Icon } from '../lib/icons'
 import type { Ticket, UserProfile } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import CardDetailModal from './CardDetailModal'
@@ -532,10 +526,10 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
   }, [sorted, total, highCount, completedCount, resolutionRate, avgHours, backlogCount, statusDist, priorityDist, memberDist, dateRange, customStart, customEnd, columns, colLabelMap])
 
   const TABS = [
-    { key: 'overview' as const, label: 'Visão Geral', icon: <BarChart3 size={13} /> },
-    { key: 'tickets' as const, label: `Tickets (${total})`, icon: <Inbox size={13} /> },
-    { key: 'team' as const, label: 'Equipe', icon: <Users size={13} /> },
-    { key: 'trends' as const, label: 'Tendências', icon: <TrendingUp size={13} /> },
+    { key: 'overview' as const, label: 'Visão Geral', icon: <Icon name="BarChart3" size={13} /> },
+    { key: 'tickets' as const, label: `Tickets (${total})`, icon: <Icon name="Inbox" size={13} /> },
+    { key: 'team' as const, label: 'Equipe', icon: <Icon name="Users" size={13} /> },
+    { key: 'trends' as const, label: 'Tendências', icon: <Icon name="TrendingUp" size={13} /> },
   ]
 
   const cardStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 18 }
@@ -574,7 +568,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
         {/* ── HEADER ── */}
         <div style={{ padding: '14px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, background: '#0e1520' }}>
           <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(37,208,102,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <BarChart3 size={16} color="#25D066" />
+            <Icon name="BarChart3" size={16} color="#25D066" />
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#E5E7EB', fontFamily: fontH }}>Dashboard Executivo</h2>
@@ -598,7 +592,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
           {/* Custom date inputs */}
           {dateRange === 'custom' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <CalendarRange size={13} color="#596773" />
+              <Icon name="CalendarRange" size={13} color="#596773" />
               <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} style={{ background: '#1e2a38', border: '1px solid rgba(255,255,255,0.1)', color: '#B6C2CF', borderRadius: 7, padding: '5px 8px', fontSize: 11, fontFamily: font, outline: 'none' }} />
               <span style={{ fontSize: 11, color: '#596773' }}>até</span>
               <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} style={{ background: '#1e2a38', border: '1px solid rgba(255,255,255,0.1)', color: '#B6C2CF', borderRadius: 7, padding: '5px 8px', fontSize: 11, fontFamily: font, outline: 'none' }} />
@@ -607,10 +601,10 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
             <button onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: font }}>
-              <Download size={11} /> CSV
+              <Icon name="Download" size={11} /> CSV
             </button>
             <button onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: 'rgba(239,92,72,0.08)', border: '1px solid rgba(239,92,72,0.2)', color: '#ef5c48', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: font }}>
-              <FileText size={11} /> PDF
+              <Icon name="FileText" size={11} /> PDF
             </button>
           </div>
 
@@ -618,7 +612,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
             <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'transparent', color: '#596773', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = '#B6C2CF' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#596773' }}>
-              <X size={16} />
+              <Icon name="X" size={16} />
             </button>
           )}
         </div>
@@ -642,7 +636,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
         {/* ── FILTER BAR ── */}
         <div style={{ display: 'flex', gap: 8, padding: '10px 28px', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', flexShrink: 0, background: '#0d1520' }}>
-          <Filter size={12} color="#596773" />
+          <Icon name="Filter" size={12} color="#596773" />
           <span style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Filtrar:</span>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
             <option value="all">Todos status</option>
@@ -673,13 +667,13 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* KPIs */}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <KPI icon={<Activity size={13} />}    label="Total ativos"   value={filtered.length}      color="#25D066" sub={`${backlogCount} em ${columns[0]?.title ?? 'backlog'}`} delta={periodComparison.delta.total} />
-                <KPI icon={<ShieldAlert size={13} />} label="Alta prioridade" value={highCount}            color="#ef5c48" sub="tickets urgentes" delta={periodComparison.delta.high} inverted />
-                <KPI icon={<CheckCircle2 size={13} />} label="Taxa resolução" value={`${resolutionRate}%`} color="#4bce97" sub={`${completedCount} concluídos`} delta={periodComparison.delta.resolutionRate} />
-                <KPI icon={<Clock size={13} />}        label="Tempo médio"    value={`${avgHours}h`}        color="#e2b203" sub="para concluir" delta={periodComparison.delta.avgHours} inverted />
-                <KPI icon={<Target size={13} />}       label="Concluídos"     value={completedCount}        color="#a259ff" sub={`de ${total} no filtro`} delta={periodComparison.delta.completed} />
+                <KPI icon={<Icon name="Activity" size={13} />}    label="Total ativos"   value={filtered.length}      color="#25D066" sub={`${backlogCount} em ${columns[0]?.title ?? 'backlog'}`} delta={periodComparison.delta.total} />
+                <KPI icon={<Icon name="ShieldAlert" size={13} />} label="Alta prioridade" value={highCount}            color="#ef5c48" sub="tickets urgentes" delta={periodComparison.delta.high} inverted />
+                <KPI icon={<Icon name="CheckCircle2" size={13} />} label="Taxa resolução" value={`${resolutionRate}%`} color="#4bce97" sub={`${completedCount} concluídos`} delta={periodComparison.delta.resolutionRate} />
+                <KPI icon={<Icon name="Clock" size={13} />}        label="Tempo médio"    value={`${avgHours}h`}        color="#e2b203" sub="para concluir" delta={periodComparison.delta.avgHours} inverted />
+                <KPI icon={<Icon name="Target" size={13} />}       label="Concluídos"     value={completedCount}        color="#a259ff" sub={`de ${total} no filtro`} delta={periodComparison.delta.completed} />
                 <KPI
-                  icon={<Gauge size={13} />}
+                  icon={<Icon name="Gauge" size={13} />}
                   label="Forecast backlog"
                   value={
                     forecast.openCount === 0
@@ -703,7 +697,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 {/* Status */}
                 <div style={cardStyle}>
-                  <SectionH icon={<Columns3 size={12} />} title="Status do pipeline" />
+                  <SectionH icon={<Icon name="Columns3" size={12} />} title="Status do pipeline" />
                   <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', maxHeight: 360, paddingRight: 4 }} className="inbox-scroll">
                     {columns.map((col, i) => (
                       <MiniStatLine
@@ -723,7 +717,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
                 {/* Prioridade */}
                 <div style={cardStyle}>
-                  <SectionH icon={<AlertTriangle size={12} />} title="Distribuição de prioridades" />
+                  <SectionH icon={<Icon name="AlertTriangle" size={12} />} title="Distribuição de prioridades" />
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {([
                       { key: 'high',   label: 'Alta',  value: priorityDist.high   || 0, color: PRIORITY_C.high   },
@@ -747,7 +741,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
                 {/* Por responsável */}
                 <div style={cardStyle}>
-                  <SectionH icon={<Users size={12} />} title="Carga por responsável" />
+                  <SectionH icon={<Icon name="Users" size={12} />} title="Carga por responsável" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {Object.entries(memberDistActive).sort(([,a],[,b]) => b-a).slice(0, 10).map(([name, count], i) => {
                       const profile = profiles.find(p => p.name === name || p.email.split('@')[0] === name)
@@ -771,7 +765,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
                 {/* Aging Report — idade dos tickets abertos */}
                 <div style={cardStyle}>
-                  <SectionH icon={<Hourglass size={12} />} title="Idade dos tickets abertos" />
+                  <SectionH icon={<Icon name="Hourglass" size={12} />} title="Idade dos tickets abertos" />
                   {agingBuckets.every(b => b.count === 0) ? (
                     <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
                       Nenhum ticket aberto no momento.
@@ -785,7 +779,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                         const risk = stale + twoWeek
                         return risk > 0 ? (
                           <p style={{ marginTop: 10, fontSize: 10, color: '#ef5c48', fontFamily: font, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <AlertTriangle size={11} /> {risk} ticket{risk === 1 ? '' : 's'} aberto{risk === 1 ? '' : 's'} há mais de 1 semana
+                            <Icon name="AlertTriangle" size={11} /> {risk} ticket{risk === 1 ? '' : 's'} aberto{risk === 1 ? '' : 's'} há mais de 1 semana
                           </p>
                         ) : null
                       })()}
@@ -795,7 +789,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
                 {/* Top Clientes — span ambas colunas */}
                 <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
-                  <SectionH icon={<Building2 size={12} />} title={`Top clientes por volume (${topClients.length})`} />
+                  <SectionH icon={<Icon name="Building2" size={12} />} title={`Top clientes por volume (${topClients.length})`} />
                   {topClients.length === 0 ? (
                     <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
                       Nenhum cliente identificado nos tickets do filtro.
@@ -813,7 +807,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {/* Sort row */}
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <SortAsc size={12} color="#596773" />
+                <Icon name="SortAsc" size={12} color="#596773" />
                 <span style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Ordenar:</span>
                 {(['created_at', 'priority', 'status', 'assignee'] as SortKey[]).map(k => {
                   const ls: Record<SortKey, string> = { created_at: 'Data', priority: 'Prioridade', status: 'Status', assignee: 'Responsável' }
@@ -852,7 +846,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                     <span style={{ fontSize: 12, fontWeight: 700, color: dias > 7 ? '#ef5c48' : dias > 3 ? '#e2b203' : '#4bce97', fontFamily: fontH }}>{dias}d</span>
                     <button title="Abrir ticket" style={{ width: 26, height: 26, borderRadius: 6, background: 'rgba(87,157,255,0.1)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#579dff', flexShrink: 0 }}
                       onClick={e => { e.stopPropagation(); setSelectedTicket(t) }}>
-                      <ExternalLink size={12} />
+                      <Icon name="ExternalLink" size={12} />
                     </button>
                   </div>
                 )
@@ -918,7 +912,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* CFD — fluxo cumulativo aproximado */}
               <div style={cardStyle}>
-                <SectionH icon={<AreaChart size={12} />} title={`CFD — fluxo cumulativo (últimos ${cfdDays}d)`} />
+                <SectionH icon={<Icon name="AreaChart" size={12} />} title={`CFD — fluxo cumulativo (últimos ${cfdDays}d)`} />
                 {cfdPoints.every(p => p.total === 0) ? (
                   <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
                     Sem tickets no pipeline para o período.
@@ -930,7 +924,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                       marginTop: 10, fontSize: 9, color: '#596773', fontFamily: font,
                       display: 'flex', alignItems: 'flex-start', gap: 5, fontStyle: 'italic',
                     }}>
-                      <Info size={10} style={{ marginTop: 1, flexShrink: 0 }} />
+                      <Icon name="Info" size={10} style={{ marginTop: 1, flexShrink: 0 }} />
                       Aproximação: usa o status atual de cada ticket. Movimentações passadas entre colunas não são reconstruídas — para fluxo histórico fiel, seria preciso persistir transições de status.
                     </p>
                   </>
@@ -939,13 +933,13 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
               {/* Throughput semanal: criados vs concluídos */}
               <div style={cardStyle}>
-                <SectionH icon={<Repeat size={12} />} title="Throughput — criados vs concluídos por semana" />
+                <SectionH icon={<Icon name="Repeat" size={12} />} title="Throughput — criados vs concluídos por semana" />
                 <ThroughputBars weeks={throughput} />
               </div>
 
               {/* Cycle time — distribuição de horas até resolução */}
               <div style={cardStyle}>
-                <SectionH icon={<Timer size={12} />} title="Cycle time — quanto tempo até resolver" />
+                <SectionH icon={<Icon name="Timer" size={12} />} title="Cycle time — quanto tempo até resolver" />
                 {cycleStats.total === 0 ? (
                   <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
                     Nenhum ticket concluído no filtro.
@@ -957,7 +951,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
               {/* Heatmap de criação por dia da semana × hora */}
               <div style={cardStyle}>
-                <SectionH icon={<CalendarClock size={12} />} title="Atividade por dia da semana × hora" />
+                <SectionH icon={<Icon name="CalendarClock" size={12} />} title="Atividade por dia da semana × hora" />
                 {heatmap.total === 0 ? (
                   <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
                     Sem tickets no período selecionado.
@@ -968,7 +962,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
               </div>
 
               <div style={cardStyle}>
-                <SectionH icon={<TrendingUp size={12} />} title="Tickets criados por dia" />
+                <SectionH icon={<Icon name="TrendingUp" size={12} />} title="Tickets criados por dia" />
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 130, padding: '0 4px' }}>
                   {trendData.map((d, i) => {
                     const h = maxTrend > 0 ? (d.count / maxTrend) * 100 : 0
@@ -989,7 +983,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                   { title: 'Resolvidos recentemente', color: '#4bce97', items: active.filter(t => !!t.is_completed).sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6) },
                 ].map(s => (
                   <div key={s.title} style={cardStyle}>
-                    <SectionH icon={<ArrowUpRight size={12} />} title={s.title} />
+                    <SectionH icon={<Icon name="ArrowUpRight" size={12} />} title={s.title} />
                     {s.items.length === 0 ? <p style={{ fontSize: 12, color: '#596773', fontFamily: font }}>—</p> : s.items.map(t => (
                       <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}
                         onClick={() => setSelectedTicket(t)}>

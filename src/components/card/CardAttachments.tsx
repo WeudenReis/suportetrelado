@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Paperclip, Download, Trash2, Loader2, Video, FileText, Image as ImageIcon } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { fetchAttachments, uploadAttachment, deleteAttachment } from '../../lib/supabase'
 import { compressAttachment } from '../../lib/imageUtils'
 import { useOrg } from '../../lib/orgContext'
@@ -102,7 +102,7 @@ export default function CardAttachments({ ticketId, ticketDepartmentId, user }: 
       onDrop={handleDrop}
     >
       <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-        <Paperclip size={14} style={{ color: isDragging ? '#25D066' : '#596773', transition: 'color 0.15s' }} />
+        <Icon name="Paperclip" size={14} style={{ color: isDragging ? '#25D066' : '#596773', transition: 'color 0.15s' }} />
         Anexos
         {isDragging && (
           <span className="text-[10px] font-semibold animate-pulse" style={{ color: '#25D066' }}>
@@ -127,21 +127,21 @@ export default function CardAttachments({ ticketId, ticketDepartmentId, user }: 
                   </a>
                 ) : att.file_type === 'video' ? (
                   <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16">
-                    <Video size={18} style={{ color: '#596773' }} />
+                    <Icon name="Video" size={18} style={{ color: '#596773' }} />
                   </a>
                 ) : (
                   <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16">
-                    <FileText size={18} style={{ color: '#596773' }} />
+                    <Icon name="FileText" size={18} style={{ color: '#596773' }} />
                   </a>
                 )}
                 <div className="px-2 py-1 flex items-center justify-between">
                   <span className="text-[9px] truncate" style={{ color: '#596773' }}>{att.file_name}</span>
                   <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <a href={att.file_url} download target="_blank" rel="noreferrer" className="p-0.5 rounded hover:bg-white/10">
-                      <Download size={10} style={{ color: '#596773' }} />
+                      <Icon name="Download" size={10} style={{ color: '#596773' }} />
                     </a>
                     <button onClick={() => handleDeleteAttachment(att)} className="p-0.5 rounded hover:bg-red-500/20">
-                      <Trash2 size={10} className="text-red-400" />
+                      <Icon name="Trash2" size={10} className="text-red-400" />
                     </button>
                   </div>
                 </div>
@@ -152,7 +152,7 @@ export default function CardAttachments({ ticketId, ticketDepartmentId, user }: 
                 className="flex flex-col items-center justify-center gap-1 h-16 rounded-lg"
                 style={{ background: '#22272b', border: '2px dashed rgba(37,208,102,0.2)' }}
               >
-                <Loader2 size={16} className="animate-spin" style={{ color: '#25D066' }} />
+                <Icon name="Loader2" size={16} className="animate-spin" style={{ color: '#25D066' }} />
                 <span className="text-[9px]" style={{ color: '#596773' }}>Enviando...</span>
               </div>
             )}
@@ -172,7 +172,7 @@ export default function CardAttachments({ ticketId, ticketDepartmentId, user }: 
             transition: 'background 0.15s, border-color 0.15s, color 0.15s',
           }}
         >
-          <ImageIcon size={14} />
+          <Icon name="Image" size={14} />
           {isDragging ? 'Solte os arquivos aqui' : uploading ? 'Enviando...' : 'Adicionar arquivo'}
         </button>
 

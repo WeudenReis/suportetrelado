@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
-import { Info, AlertTriangle, AlertOctagon, Plus, Pin, Trash2, X, Megaphone, ShieldAlert, TrendingUp, Clock, Paperclip, Image as ImageIcon, Video as VideoIcon, FileText, Download, Loader2 } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import { useAnnouncementContext } from './useAnnouncementContext'
 import {
   fetchUserProfiles, insertNotification,
@@ -23,9 +23,9 @@ interface AnnouncementsViewProps {
 }
 
 const SEVERITY: Record<AnnouncementSeverity, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
-  info:     { label: 'Info',    color: '#25D066', bg: 'rgba(37,208,102,0.08)',   border: 'rgba(37,208,102,0.35)',  icon: <Info size={14} /> },
-  warning:  { label: 'Atenção', color: '#F5A623', bg: 'rgba(245,166,35,0.08)',   border: 'rgba(245,166,35,0.35)',  icon: <AlertTriangle size={14} /> },
-  critical: { label: 'Urgente', color: '#ef5c48', bg: 'rgba(239,92,72,0.08)',    border: 'rgba(239,92,72,0.35)',   icon: <AlertOctagon size={14} /> },
+  info:     { label: 'Info',    color: '#25D066', bg: 'rgba(37,208,102,0.08)',   border: 'rgba(37,208,102,0.35)',  icon: <Icon name="Info" size={14} /> },
+  warning:  { label: 'Atenção', color: '#F5A623', bg: 'rgba(245,166,35,0.08)',   border: 'rgba(245,166,35,0.35)',  icon: <Icon name="AlertTriangle" size={14} /> },
+  critical: { label: 'Urgente', color: '#ef5c48', bg: 'rgba(239,92,72,0.08)',    border: 'rgba(239,92,72,0.35)',   icon: <Icon name="AlertOctagon" size={14} /> },
 }
 
 function timeAgo(dateStr: string): string {
@@ -249,7 +249,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
               background: stats.critical > 0 ? 'rgba(239,92,72,0.15)' : 'rgba(37,208,102,0.12)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Megaphone size={16} style={{ color: stats.critical > 0 ? '#ef5c48' : '#25D066' }} />
+              <Icon name="Megaphone" size={16} style={{ color: stats.critical > 0 ? '#ef5c48' : '#25D066' }} />
             </div>
             <div>
               <h2 style={{
@@ -276,7 +276,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
           >
-            <X size={15} />
+            <Icon name="X" size={15} />
           </button>
         </div>
       </div>
@@ -290,12 +290,12 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
             border: `1px solid ${healthLabel.color}30`,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <ShieldAlert size={14} color={healthLabel.color} />
+            <Icon name="ShieldAlert" size={14} color={healthLabel.color} />
             <span style={{ fontSize: 11, fontWeight: 800, color: healthLabel.color, fontFamily: font, letterSpacing: '0.06em' }}>
               {healthLabel.text}
             </span>
             <span style={{ flex: 1 }} />
-            <Clock size={11} color={healthLabel.color} style={{ opacity: 0.7 }} />
+            <Icon name="Clock" size={11} color={healthLabel.color} style={{ opacity: 0.7 }} />
             <span style={{ fontSize: 10, color: healthLabel.color, fontFamily: font, opacity: 0.7 }}>
               {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
             </span>
@@ -329,7 +329,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
               background: 'rgba(245,166,35,0.06)', border: '1px solid rgba(245,166,35,0.15)',
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <TrendingUp size={12} color="#F5A623" />
+              <Icon name="TrendingUp" size={12} color="#F5A623" />
               <span style={{ fontSize: 11, color: '#F5A623', fontFamily: font, fontWeight: 600 }}>
                 {stats.recent24h} novo{stats.recent24h > 1 ? 's' : ''} nas últimas 24 horas — monitore de perto
               </span>
@@ -360,7 +360,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
             else e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
           }}
         >
-          {showForm ? <X size={14} /> : <Plus size={14} />}
+          {showForm ? <Icon name="X" size={14} /> : <Icon name="Plus" size={14} />}
           {showForm ? 'Cancelar' : 'Novo Aviso'}
         </button>
       </div>
@@ -432,7 +432,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
             {/* ── Anexos ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Paperclip size={12} style={{ color: isDragging ? '#25D066' : '#596773', transition: 'color 0.15s' }} />
+                <Icon name="Paperclip" size={12} style={{ color: isDragging ? '#25D066' : '#596773', transition: 'color 0.15s' }} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#8C96A3', fontFamily: font }}>
                   Anexos {pendingAttachments.length > 0 && <span style={{ color: '#25D066' }}>({pendingAttachments.length})</span>}
                 </span>
@@ -457,11 +457,11 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                         <img src={att.url} alt={att.name} style={{ width: '100%', height: 64, objectFit: 'cover', display: 'block' }} />
                       ) : att.type === 'video' ? (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 64, background: 'rgba(87,157,255,0.06)' }}>
-                          <VideoIcon size={20} style={{ color: '#579dff' }} />
+                          <Icon name="Video" size={20} style={{ color: '#579dff' }} />
                         </div>
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 64, background: 'rgba(245,166,35,0.06)' }}>
-                          <FileText size={20} style={{ color: '#F5A623' }} />
+                          <Icon name="FileText" size={20} style={{ color: '#F5A623' }} />
                         </div>
                       )}
                       <div style={{ padding: '4px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
@@ -477,7 +477,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                             display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                           }}
                         >
-                          <X size={10} />
+                          <Icon name="X" size={10} />
                         </button>
                       </div>
                     </div>
@@ -488,7 +488,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                       gap: 4, height: 88, borderRadius: 8,
                       background: '#22272b', border: '2px dashed rgba(37,208,102,0.25)',
                     }}>
-                      <Loader2 size={16} className="animate-spin" style={{ color: '#25D066' }} />
+                      <Icon name="Loader2" size={16} className="animate-spin" style={{ color: '#25D066' }} />
                       <span style={{ fontSize: 9, color: '#596773', fontFamily: font }}>Enviando...</span>
                     </div>
                   )}
@@ -509,7 +509,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                   transition: 'all 0.15s',
                 }}
               >
-                <ImageIcon size={12} />
+                <Icon name="Image" size={12} />
                 {isDragging ? 'Solte os arquivos aqui' : uploading ? 'Enviando...' : 'Adicionar arquivo'}
               </button>
               <p style={{ fontSize: 9, textAlign: 'center', color: '#3b4755', fontFamily: font, margin: 0 }}>
@@ -535,7 +535,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'all 0.15s',
                 }}>
-                  {isPinned && <Pin size={10} style={{ color: '#000' }} />}
+                  {isPinned && <Icon name="Pin" size={10} style={{ color: '#000' }} />}
                 </div>
                 <span style={{ fontSize: 12, color: '#8C96A3', fontFamily: font }}>Fixar no topo</span>
               </label>
@@ -552,7 +552,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                   transition: 'all 0.15s',
                 }}
               >
-                {submitting && <Loader2 size={12} className="animate-spin" />}
+                {submitting && <Icon name="Loader2" size={12} className="animate-spin" />}
                 {submitting ? 'Publicando...' : uploading ? 'Aguarde upload...' : 'Publicar'}
               </button>
             </div>
@@ -578,7 +578,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
               background: 'rgba(37,208,102,0.08)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Megaphone size={24} style={{ color: '#25D066', opacity: 0.6 }} />
+              <Icon name="Megaphone" size={24} style={{ color: '#25D066', opacity: 0.6 }} />
             </div>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#8C96A3', margin: '0 0 4px', fontFamily: font }}>
               Nenhum aviso ainda
@@ -622,7 +622,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                       background: 'rgba(37,208,102,0.1)', padding: '2px 6px', borderRadius: 99,
                       display: 'flex', alignItems: 'center', gap: 3,
                     }}>
-                      <Pin size={8} /> Fixado
+                      <Icon name="Pin" size={8} /> Fixado
                     </span>
                   )}
                   <span style={{ flex: 1 }} />
@@ -709,7 +709,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                           background: cfg.bg, color: cfg.color,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
-                          <FileText size={14} />
+                          <Icon name="FileText" size={14} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: '#E5E7EB', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -717,7 +717,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                           </div>
                           <div style={{ fontSize: 9, color: '#596773' }}>{formatBytes(att.size)}</div>
                         </div>
-                        <Download size={12} style={{ color: '#596773', flexShrink: 0 }} />
+                        <Icon name="Download" size={12} style={{ color: '#596773', flexShrink: 0 }} />
                       </a>
                     ))}
                   </div>
@@ -749,7 +749,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)'; e.currentTarget.style.color = '#25D066' }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = ann.is_pinned ? '#25D066' : '#8C96A3' }}
                     >
-                      <Pin size={12} />
+                      <Icon name="Pin" size={12} />
                     </button>
                     <button
                       onClick={e => { e.stopPropagation(); removeAnnouncement(ann.id) }}
@@ -763,7 +763,7 @@ export default function AnnouncementsView({ user, onClose }: AnnouncementsViewPr
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,92,72,0.15)'; e.currentTarget.style.color = '#ef5c48' }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
                     >
-                      <Trash2 size={12} />
+                      <Icon name="Trash2" size={12} />
                     </button>
                   </div>
                   )}

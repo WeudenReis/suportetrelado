@@ -1,5 +1,4 @@
-import { Filter, X } from 'lucide-react'
-
+import { Icon } from '../../lib/icons'
 interface FilterPopoverContentProps {
   filterPriority: string
   filterAssignee: string
@@ -59,7 +58,7 @@ export default function FilterPopoverContent({
     <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#25D066', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-          <Filter size={13} /> Filtros
+          <Icon name="Filter" size={13} /> Filtros
         </span>
         {activeFilterCount > 0 && (
           <button
@@ -76,7 +75,7 @@ export default function FilterPopoverContent({
               fontFamily: "'Space Grotesk', sans-serif",
             }}
           >
-            <X size={11} /> Limpar
+            <Icon name="X" size={11} /> Limpar
           </button>
         )}
       </header>

@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
-import { LayoutGrid, Table2, CalendarDays, GanttChart, BarChart3 } from 'lucide-react'
-
+import { Icon } from '../../lib/icons'
 export type WorkView = 'board' | 'table' | 'calendar' | 'timeline' | 'dashboard'
 
 interface ViewItem {
@@ -11,11 +10,11 @@ interface ViewItem {
 }
 
 const VIEWS: ViewItem[] = [
-  { id: 'board',     label: 'Quadro',     icon: <LayoutGrid size={15} strokeWidth={1.8} />, enabled: true  },
-  { id: 'table',     label: 'Tabela',     icon: <Table2 size={15} strokeWidth={1.8} />,     enabled: true  },
-  { id: 'calendar',  label: 'Calendário', icon: <CalendarDays size={15} strokeWidth={1.8} />, enabled: true  },
-  { id: 'timeline',  label: 'Cronograma', icon: <GanttChart size={15} strokeWidth={1.8} />, enabled: true  },
-  { id: 'dashboard', label: 'Dashboard',  icon: <BarChart3 size={15} strokeWidth={1.8} />,  enabled: true  },
+  { id: 'board',     label: 'Quadro',     icon: <Icon name="LayoutGrid" size={15} strokeWidth={1.8} />, enabled: true  },
+  { id: 'table',     label: 'Tabela',     icon: <Icon name="Table2" size={15} strokeWidth={1.8} />,     enabled: true  },
+  { id: 'calendar',  label: 'Calendário', icon: <Icon name="CalendarDays" size={15} strokeWidth={1.8} />, enabled: true  },
+  { id: 'timeline',  label: 'Cronograma', icon: <Icon name="GanttChart" size={15} strokeWidth={1.8} />, enabled: true  },
+  { id: 'dashboard', label: 'Dashboard',  icon: <Icon name="BarChart3" size={15} strokeWidth={1.8} />,  enabled: true  },
 ]
 
 interface ViewSwitcherProps {

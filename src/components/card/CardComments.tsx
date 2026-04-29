@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { MessageSquare, Send, Loader2, Trash2, ArrowRight, Lock, Bold, Highlighter } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import {
   supabase, fetchComments, insertComment, deleteComment,
   fetchActivityLog, insertNotification, resolveMentionsToEmails
@@ -232,7 +232,7 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
     <>
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#b6c2cf' }}>
-          <MessageSquare size={14} style={{ color: '#596773' }} />
+          <Icon name="MessageSquare" size={14} style={{ color: '#596773' }} />
           Timeline
           {comments.length > 0 && <span className="text-[10px] font-normal" style={{ color: '#596773' }}>({comments.length})</span>}
         </div>
@@ -258,7 +258,7 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
               className="px-2 py-1 rounded-md text-xs font-semibold"
               style={{ background: 'rgba(255,255,255,0.06)', color: '#dfe1e6', border: '1px solid rgba(166,197,226,0.12)' }}
             >
-              <Bold size={14} />
+              <Icon name="Bold" size={14} />
             </button>
             <button
               type="button"
@@ -266,7 +266,7 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
               className="px-2 py-1 rounded-md text-xs font-semibold"
               style={{ background: 'rgba(245,166,35,0.12)', color: '#f5a623', border: '1px solid rgba(245,166,35,0.24)' }}
             >
-              <Highlighter size={14} />
+              <Icon name="Highlighter" size={14} />
             </button>
           </div>
           <textarea
@@ -341,13 +341,13 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
                   }}
                   title="Nota interna (não visível ao cliente)"
                 >
-                  <Lock size={10} />
+                  <Icon name="Lock" size={10} />
                   {isInternalNote ? 'Nota Interna' : 'Público'}
                 </button>
                 <button onClick={handleSendComment} disabled={!newComment.trim() || sendingComment}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-40"
                   style={{ background: isInternalNote ? '#f5a623' : '#3b82f6' }}>
-                  {sendingComment ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                  {sendingComment ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Send" size={12} />}
                   {isInternalNote ? 'Nota' : 'Enviar'}
                 </button>
               </div>
@@ -372,7 +372,7 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
                   <>
                     {item.text.startsWith('[INTERNO] ') && (
                       <div className="flex items-center gap-1 mt-0.5 mb-0.5">
-                        <Lock size={9} style={{ color: '#f5a623' }} />
+                        <Icon name="Lock" size={9} style={{ color: '#f5a623' }} />
                         <span style={{ color: '#f5a623', fontSize: 9, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>NOTA INTERNA</span>
                       </div>
                     )}
@@ -384,12 +384,12 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
                       {renderCommentText(item.text.startsWith('[INTERNO] ') ? item.text.slice(10) : item.text, knownMentions)}
                     </div>
                     <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#596773' }}>
-                      <Trash2 size={9} /> Excluir
+                      <Icon name="Trash2" size={9} /> Excluir
                     </button>
                   </>
                 ) : (
                   <div className="mt-0.5 text-[12px] flex items-center gap-1.5" style={{ color: '#596773' }}>
-                    <ArrowRight size={10} style={{ color: '#579dff' }} />
+                    <Icon name="ArrowRight" size={10} style={{ color: '#579dff' }} />
                     {item.text}
                   </div>
                 )}
@@ -406,7 +406,7 @@ export default function CardComments({ ticketId, ticketTitle, ticketDepartmentId
       {!showComments && comments.length > 0 && (
         <div className="flex-1 flex items-center justify-center">
           <button onClick={() => setShowComments(true)} className="text-[11px] px-3 py-2 rounded-lg transition-colors hover:bg-white/5" style={{ color: '#596773', border: '1px dashed rgba(166,197,226,0.12)' }}>
-            <MessageSquare size={14} className="inline mr-1.5" style={{ verticalAlign: '-2px' }} />
+            <Icon name="MessageSquare" size={14} className="inline mr-1.5" style={{ verticalAlign: '-2px' }} />
             {comments.length} comentario{comments.length !== 1 ? 's' : ''}
           </button>
         </div>

@@ -1,6 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
-import { Loader2 } from 'lucide-react'
-
+import { Icon } from '../../lib/icons'
 type ButtonVariant = 'primary' | 'secondary' | 'subtle' | 'danger'
 type ButtonSize = 'sm' | 'md'
 
@@ -70,7 +69,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       }}
       {...rest}
     >
-      {loading ? <Loader2 size={14} className="animate-spin" /> : leftIcon}
+      {loading ? <Icon name="Loader2" size={14} className="animate-spin" /> : leftIcon}
       {children}
       {rightIcon}
     </button>

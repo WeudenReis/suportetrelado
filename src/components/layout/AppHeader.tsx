@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Bell, CalendarRange, Megaphone, Link2, Plus, Search, X, Loader2 } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import IconButton from '../ui/IconButton'
 import Badge from '../ui/Badge'
 import UpdatesPopover from '../UpdatesPopover'
@@ -83,9 +83,9 @@ export default function AppHeader({
       {showBoardActions && (
         <div className="app-header__search" data-tour="board-search">
           {loading ? (
-            <Loader2 size={14} className="animate-spin" style={{ color: '#25D066', flexShrink: 0 }} />
+            <Icon name="Loader2" size={14} className="animate-spin" style={{ color: '#25D066', flexShrink: 0 }} />
           ) : (
-            <Search size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
+            <Icon name="Search" size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
           )}
           <input
             ref={inputRef}
@@ -111,7 +111,7 @@ export default function AppHeader({
               className="app-header__search-clear"
               aria-label="Limpar busca"
             >
-              <X size={12} />
+              <Icon name="X" size={12} />
             </button>
           )}
         </div>
@@ -125,7 +125,7 @@ export default function AppHeader({
           onClick={onCreateTicket}
           className="trello-create-btn app-header__create"
         >
-          <Plus size={14} style={{ marginRight: 4 }} />
+          <Icon name="Plus" size={14} style={{ marginRight: 4 }} />
           Criar
         </button>
       )}
@@ -136,27 +136,27 @@ export default function AppHeader({
         aria-label="Painéis laterais"
       >
         <IconButton
-          icon={<Bell size={16} />}
+          icon={<Icon name="Bell" size={16} />}
           label="Caixa de entrada"
           onClick={() => toggle('inbox')}
           active={activeSidebar === 'inbox'}
           badge={unreadCount > 0 ? <Badge count={unreadCount} color="green" pulse /> : undefined}
         />
         <IconButton
-          icon={<CalendarRange size={16} />}
+          icon={<Icon name="CalendarRange" size={16} />}
           label="Planejador"
           onClick={() => toggle('planner')}
           active={activeSidebar === 'planner'}
         />
         <IconButton
-          icon={<Megaphone size={16} />}
+          icon={<Icon name="Megaphone" size={16} />}
           label="Avisos"
           onClick={() => toggle('announcements')}
           active={activeSidebar === 'announcements'}
           badge={announcementCount > 0 ? <Badge count={announcementCount} color={announcementColor} /> : undefined}
         />
         <IconButton
-          icon={<Link2 size={16} />}
+          icon={<Icon name="Link2" size={16} />}
           label="Links úteis"
           onClick={() => toggle('links')}
           active={activeSidebar === 'links'}

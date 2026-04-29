@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Inbox, Lock, ChevronLeft, ChevronRight, SlidersHorizontal, MoreHorizontal } from 'lucide-react'
-
+import { Icon } from '../lib/icons'
 const INTEGRATIONS = [
   { label: 'Email',  icon: '✉️', border: '#3b82f6', isNew: false },
   { label: 'Chrome', icon: '🌐', border: '#f59e0b', isNew: false },
@@ -73,13 +72,13 @@ export default function Sidebar({ user: _user, collapsed, onToggle }: SidebarPro
           className="absolute -right-3 top-5 z-40 w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition-colors"
           style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }}
         >
-          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {collapsed ? <Icon name="ChevronRight" size={14} /> : <Icon name="ChevronLeft" size={14} />}
         </button>
 
         {collapsed ? (
           <div className="flex flex-col items-center pt-4 gap-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.15)' }}>
-              <Inbox size={16} className="text-blue-400" />
+              <Icon name="Inbox" size={16} className="text-blue-400" />
             </div>
           </div>
         ) : (
@@ -88,16 +87,16 @@ export default function Sidebar({ user: _user, collapsed, onToggle }: SidebarPro
             <div className="flex items-center justify-between mb-3 px-1">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.16)' }}>
-                  <Inbox size={15} className="text-blue-300" />
+                  <Icon name="Inbox" size={15} className="text-blue-300" />
                 </div>
                 <span className="text-xl font-bold truncate" style={{ color: '#ffffff' }}>Caixa de entrada</span>
               </div>
               <div className="flex items-center gap-1">
                 <button className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: '#9fb0c2' }}>
-                  <SlidersHorizontal size={14} />
+                  <Icon name="SlidersHorizontal" size={14} />
                 </button>
                 <button className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: '#9fb0c2' }}>
-                  <MoreHorizontal size={14} />
+                  <Icon name="MoreHorizontal" size={14} />
                 </button>
               </div>
             </div>
@@ -145,7 +144,7 @@ export default function Sidebar({ user: _user, collapsed, onToggle }: SidebarPro
 
               {/* Bottom lock */}
               <div className="flex items-center gap-2 pt-3 mt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.14)' }}>
-                <Lock size={12} style={{ color: 'rgba(229,238,249,0.88)' }} />
+                <Icon name="Lock" size={12} style={{ color: 'rgba(229,238,249,0.88)' }} />
                 <span className="text-sm leading-tight font-semibold" style={{ color: 'rgba(229,238,249,0.88)' }}>
                   A Caixa de Entrada é visível apenas para você
                 </span>

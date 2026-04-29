@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Keyboard, X } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 const SHORTCUTS = [
@@ -41,13 +41,13 @@ export default function ShortcutsHelpModal({ onClose }: ShortcutsHelpModalProps)
       >
         <div className="px-6 pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Keyboard size={18} style={{ color: '#25D066' }} />
+            <Icon name="Keyboard" size={18} style={{ color: '#25D066' }} />
           </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: 16, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Atalhos de Teclado</h2>
             <p style={{ fontSize: 11, color: '#596773', margin: 0, marginTop: 1 }}>Navegue mais rápido pelo chatPro</p>
           </div>
-          <button onClick={onClose} style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8 }}><X size={16} /></button>
+          <button onClick={onClose} style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8 }}><Icon name="X" size={16} /></button>
         </div>
         <div className="px-6 py-5" style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: '60vh', overflowY: 'auto' }}>
           {SHORTCUTS.map(({ key, desc }) => (

@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
-import { X, Palette, Image, Upload, RotateCcw, Clock, Trash2, Tag, Pencil, Settings, Users, Building2 } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useOrg, type OrgRole } from '../../lib/orgContext'
 
@@ -53,7 +53,7 @@ export default function SettingsPanel({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(37,208,102,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Palette size={16} style={{ color: '#25D066' }} />
+                <Icon name="Palette" size={16} style={{ color: '#25D066' }} />
               </div>
               <h2 style={{ fontSize: 15, fontWeight: 900, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Aparência</h2>
             </div>
@@ -61,7 +61,7 @@ export default function SettingsPanel({
               style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'transparent', color: '#596773', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
-            ><X size={15} /></button>
+            ><Icon name="X" size={15} /></button>
           </div>
         </div>
 
@@ -109,7 +109,7 @@ export default function SettingsPanel({
               />
               <button onClick={() => { if (wallpaperInput.trim()) { onApplyWallpaper(wallpaperInput.trim()); onWallpaperInputChange('') } }}
                 style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: '#25D066', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Image size={14} />
+                <Icon name="Image" size={14} />
               </button>
             </div>
             <input ref={wallpaperFileInputRef} type="file" accept="image/*" className="hidden" onChange={onWallpaperFileSelect} />
@@ -117,7 +117,7 @@ export default function SettingsPanel({
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
               style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
-              <Upload size={13} /> Importar imagem
+              <Icon name="Upload" size={13} /> Importar imagem
             </button>
 
             {wallpaper && (wallpaper.startsWith('data:') || wallpaper.startsWith('http')) && (
@@ -125,7 +125,7 @@ export default function SettingsPanel({
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,85,85,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,85,85,0.3)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,85,85,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,85,85,0.15)' }}
                 style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", marginTop: 8, background: 'rgba(255,85,85,0.06)', border: '1px solid rgba(255,85,85,0.15)', color: '#ff5555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s, border-color 0.15s' }}>
-                <Trash2 size={13} /> Excluir wallpaper
+                <Icon name="Trash2" size={13} /> Excluir wallpaper
               </button>
             )}
           </div>
@@ -135,13 +135,13 @@ export default function SettingsPanel({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 10px' }}>
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#25D066', margin: 0, fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Clock size={11} /> Recentes
+                  <Icon name="Clock" size={11} /> Recentes
                 </p>
                 <button onClick={onClearRecentWallpapers}
                   onMouseEnter={e => { e.currentTarget.style.color = '#ff5555' }}
                   onMouseLeave={e => { e.currentTarget.style.color = '#8C96A3' }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8C96A3', fontSize: 10, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: 0, transition: 'color 0.15s' }}>
-                  <Trash2 size={10} /> Limpar
+                  <Icon name="Trash2" size={10} /> Limpar
                 </button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
@@ -158,7 +158,7 @@ export default function SettingsPanel({
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,50,50,0.9)' }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.65)' }}
                         style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: '50%', background: 'rgba(0,0,0,0.65)', border: '1.5px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: 'background 0.15s' }}>
-                        <X size={10} />
+                        <Icon name="X" size={10} />
                       </button>
                     </div>
                   )
@@ -172,7 +172,7 @@ export default function SettingsPanel({
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
             style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#8C96A3', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
-            <RotateCcw size={12} /> Restaurar padrão
+            <Icon name="RotateCcw" size={12} /> Restaurar padrão
           </button>
 
           <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
@@ -180,14 +180,14 @@ export default function SettingsPanel({
           {/* Etiquetas */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <Tag size={13} style={{ color: '#25D066' }} />
+              <Icon name="Tag" size={13} style={{ color: '#25D066' }} />
               <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Etiquetas</span>
             </div>
             <button onClick={onOpenLabelsManager}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
               style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
-              <Pencil size={12} /> Gerenciar Etiquetas
+              <Icon name="Pencil" size={12} /> Gerenciar Etiquetas
             </button>
           </div>
 
@@ -197,14 +197,14 @@ export default function SettingsPanel({
           {!isAgent && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <Settings size={13} style={{ color: '#25D066' }} />
+                <Icon name="Settings" size={13} style={{ color: '#25D066' }} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Regras Automáticas</span>
               </div>
               <button onClick={onOpenAutoRules}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
                 style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
-                <Settings size={12} /> Gerenciar Regras
+                <Icon name="Settings" size={12} /> Gerenciar Regras
               </button>
             </div>
           )}
@@ -215,14 +215,14 @@ export default function SettingsPanel({
           {canManageDeptSettings && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <Building2 size={13} style={{ color: '#25D066' }} />
+                <Icon name="Building2" size={13} style={{ color: '#25D066' }} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Departamento</span>
               </div>
               <button onClick={onOpenDeptSettings}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
                 style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
-                <Building2 size={12} /> Campos e Terminologia
+                <Icon name="Building2" size={12} /> Campos e Terminologia
               </button>
               <p style={{ fontSize: 10, color: '#596773', margin: '6px 2px 0', fontFamily: "'Space Grotesk', sans-serif" }}>
                 Personalize este departamento (ex.: Comercial, Financeiro)
@@ -236,14 +236,14 @@ export default function SettingsPanel({
           {!isAgent && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <Users size={13} style={{ color: '#25D066' }} />
+                <Icon name="Users" size={13} style={{ color: '#25D066' }} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#25D066', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Equipe</span>
               </div>
               <button onClick={onOpenMembersPanel}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
                 style={{ width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif", background: 'rgba(37,208,102,0.08)', border: '1px solid rgba(37,208,102,0.2)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.15s' }}>
-                <Users size={12} /> Ver Membros e Roles
+                <Icon name="Users" size={12} /> Ver Membros e Roles
               </button>
             </div>
           )}

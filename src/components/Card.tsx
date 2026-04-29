@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { Archive, Pencil, Check, Clock, Calendar, AlignLeft, Paperclip, CheckSquare, Loader2 } from 'lucide-react';
+import { Icon } from '../lib/icons'
 import { animate, useReducedMotion } from 'framer-motion';
 import clsx from 'clsx';
 import { updateTicket, type Ticket } from '../lib/supabase';
@@ -221,7 +221,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
       {/* Spinner de mutação */}
       {isMutatingProp && (
         <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
-          <Loader2 size={14} className="animate-spin" style={{ color: '#579dff' }} />
+          <Icon name="Loader2" size={14} className="animate-spin" style={{ color: '#579dff' }} />
         </div>
       )}
       {/* ── MODO COMPACTO ────────────────── */}
@@ -245,7 +245,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
             title={card.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
             type="button"
           >
-            {card.is_completed && <Check size={11} strokeWidth={3} />}
+            {card.is_completed && <Icon name="Check" size={11} strokeWidth={3} />}
           </button>
           {/* Título */}
           <p className={clsx(styles.compactTitle, card.is_completed && styles.titleDone)}>{card.title}</p>
@@ -261,7 +261,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
           {/* Ações */}
           {!isEditing && (
             <div className={clsx(styles.actions, isHovered && styles.actionsVisible)}>
-              <button className={styles.actionBtn} onClick={handleArchive} onPointerDown={e => e.stopPropagation()} title="Arquivar" type="button"><Archive size={12} /></button>
+              <button className={styles.actionBtn} onClick={handleArchive} onPointerDown={e => e.stopPropagation()} title="Arquivar" type="button"><Icon name="Archive" size={12} /></button>
             </div>
           )}
         </div>
@@ -331,7 +331,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
             title={card.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
             type="button"
           >
-            {card.is_completed && <Check size={11} strokeWidth={3} />}
+            {card.is_completed && <Icon name="Check" size={11} strokeWidth={3} />}
           </button>
 
           {/* Título ou input de edição */}
@@ -363,7 +363,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
                 title="Arquivar cartão"
                 type="button"
               >
-                <Archive size={13} />
+                <Icon name="Archive" size={13} />
               </button>
               <button
                 className={styles.actionBtn}
@@ -372,7 +372,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
                 title="Editar título"
                 type="button"
               >
-                <Pencil size={13} />
+                <Icon name="Pencil" size={13} />
               </button>
             </div>
           )}
@@ -393,18 +393,18 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
             <div className={styles.badgesRow}>
               {hasDesc && (
                 <span className={styles.badge} title="Tem descrição">
-                  <AlignLeft size={12} />
+                  <Icon name="AlignLeft" size={12} />
                 </span>
               )}
               {attCount > 0 && (
                 <span className={styles.badge} title={`${attCount} anexo(s)`}>
-                  <Paperclip size={12} />
+                  <Icon name="Paperclip" size={12} />
                   {attCount}
                 </span>
               )}
               {hasChecklist && (
                 <span className={clsx(styles.badge, checkDone === checkTotal && styles.badgeDone)} title={`Checklist: ${checkDone}/${checkTotal}`}>
-                  <CheckSquare size={12} />
+                  <Icon name="CheckSquare" size={12} />
                   {checkDone}/{checkTotal}
                 </span>
               )}
@@ -421,7 +421,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
               if (!elapsed) return null;
               return (
                 <span className={clsx(styles.footerBadge, elapsed.isOverdue && styles.footerOverdue)}>
-                  <Clock size={12} />
+                  <Icon name="Clock" size={12} />
                   {elapsed.label}
                 </span>
               );
@@ -430,7 +430,7 @@ function Card({ card, onClick, onUpdate, onArchive, isDragging, style, onShowToa
             {/* Data de criação */}
             {card.created_at && (
               <span className={styles.footerBadge}>
-                <Calendar size={12} />
+                <Icon name="Calendar" size={12} />
                 {formatDate(card.created_at)}
               </span>
             )}

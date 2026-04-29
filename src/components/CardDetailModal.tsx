@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { AnimatePresence } from 'framer-motion'
-import {
-  X, MessageSquare, Trash2, Send, Loader2,
-  ArrowRight, ExternalLink, MoreHorizontal,
-  AlignLeft, CreditCard, Paperclip, Check, User, Calendar, Smile,
-  CheckSquare, Square, Plus, Link2, Pencil, Lock
-} from 'lucide-react'
+import { Icon } from '../lib/icons'
 import {
   supabase, updateTicket, deleteTicket,
   fetchComments, insertComment, deleteComment, fetchCommentReactions, toggleCommentReaction,
@@ -661,7 +656,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         {/* ── Top bar ── */}
         <div className="elite-modal__topbar">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <CreditCard size={18} style={{ color: '#596773' }} />
+            <Icon name="CreditCard" size={18} style={{ color: '#596773' }} />
             <input
               id="card-detail-title"
               value={title}
@@ -698,8 +693,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   ))
               }
             </select>
-            <button onClick={(e) => { e.stopPropagation(); setShowMoreMenu(prev => !prev) }} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Mais opcoes"><MoreHorizontal size={16} /></button>
-            <button onClick={handleClose} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }}><X size={18} /></button>
+            <button onClick={(e) => { e.stopPropagation(); setShowMoreMenu(prev => !prev) }} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Mais opcoes"><Icon name="MoreHorizontal" size={16} /></button>
+            <button onClick={handleClose} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }}><Icon name="X" size={18} /></button>
 
             {showMoreMenu && (
               <div className="absolute right-10 top-10 w-44 rounded-lg overflow-hidden z-20" style={{ background: '#282e33', border: '1px solid rgba(166,197,226,0.16)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }} onClick={(e) => e.stopPropagation()}>
@@ -725,7 +720,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           {canEditDetails && !coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
           {canAssign && (
             <button onClick={() => setShowMemberPicker(p => !p)} className="elite-action-chip" style={showMemberPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>
-              <Link2 size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Vincular
+              <Icon name="Link2" size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Vincular
             </button>
           )}
         </div>
@@ -733,7 +728,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         {/* ── Creation info ── */}
         <div className="flex items-center gap-3 px-5 py-1 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#596773' }}>
-            <User size={12} />
+            <Icon name="User" size={12} />
             <span>Criado por <strong style={{ color: '#8c9bab' }}>{(() => {
               const raw = ticket.assignee || ''
               if (!raw) return 'Desconhecido'
@@ -744,7 +739,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           </div>
           <span style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.08)' }} />
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#596773' }}>
-            <Calendar size={12} />
+            <Icon name="Calendar" size={12} />
             <span>{new Date(ticket.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })} às {new Date(ticket.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         </div>
@@ -791,7 +786,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                               setTags(next); save({ tags: next });
                             }}
                           >
-                            {isApplied && <Check size={12} strokeWidth={3} />}
+                            {isApplied && <Icon name="Check" size={12} strokeWidth={3} />}
                             <span className="flex-1 truncate">{label.name}</span>
                           </button>
                           <button
@@ -800,7 +795,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                             onClick={() => { setEditingLabelId(label.id); setEditingLabelName(label.name); setEditingLabelColor(label.color) }}
                             title="Editar etiqueta"
                           >
-                            <Pencil size={11} style={{ color: '#9fadbc' }} />
+                            <Icon name="Pencil" size={11} style={{ color: '#9fadbc' }} />
                           </button>
                         </div>
                       );
@@ -869,31 +864,31 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             {(fieldCfg.cliente.visible || fieldCfg.instancia.visible || fieldCfg.link_retaguarda.visible || fieldCfg.link_sessao.visible) && (
               <div className="grid grid-cols-2 gap-2">
                 {fieldCfg.cliente.visible && (
-                  <FieldGroup label={fieldCfg.cliente.label ?? 'Cliente'} icon={<User size={13} />}>
+                  <FieldGroup label={fieldCfg.cliente.label ?? 'Cliente'} icon={<Icon name="User" size={13} />}>
                     <input value={cliente} onChange={canEditDetails ? e => setCliente(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder={fieldCfg.cliente.label ?? 'Nome do cliente'} />
                   </FieldGroup>
                 )}
                 {fieldCfg.instancia.visible && (
-                  <FieldGroup label={fieldCfg.instancia.label ?? 'Instância'} icon={<CreditCard size={13} />}>
+                  <FieldGroup label={fieldCfg.instancia.label ?? 'Instância'} icon={<Icon name="CreditCard" size={13} />}>
                     <input value={instancia} onChange={canEditDetails ? e => setInstancia(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder={fieldCfg.instancia.label ?? 'Código da instância'} />
                   </FieldGroup>
                 )}
                 {fieldCfg.link_retaguarda.visible && (
-                  <FieldGroup label={fieldCfg.link_retaguarda.label ?? 'Link Retaguarda'} icon={<Link2 size={13} />}>
+                  <FieldGroup label={fieldCfg.link_retaguarda.label ?? 'Link Retaguarda'} icon={<Icon name="Link2" size={13} />}>
                     <div className="flex gap-1">
                       <input value={linkRetaguarda} onChange={canEditDetails ? e => setLinkRetaguarda(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
                       {linkRetaguarda && (
-                        <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
+                        <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><Icon name="ExternalLink" size={12} /></a>
                       )}
                     </div>
                   </FieldGroup>
                 )}
                 {fieldCfg.link_sessao.visible && (
-                  <FieldGroup label={fieldCfg.link_sessao.label ?? 'Link Sessão'} icon={<Link2 size={13} />}>
+                  <FieldGroup label={fieldCfg.link_sessao.label ?? 'Link Sessão'} icon={<Icon name="Link2" size={13} />}>
                     <div className="flex gap-1">
                       <input value={linkSessao} onChange={canEditDetails ? e => setLinkSessao(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
                       {linkSessao && (
-                        <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
+                        <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><Icon name="ExternalLink" size={12} /></a>
                       )}
                     </div>
                   </FieldGroup>
@@ -924,7 +919,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                     <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(87,157,255,0.15)', color: '#579dff' }}>
                       {displayName}
                       <button onClick={() => { const next = members.filter(x => x !== m); setMembers(next); const joined = next.join(', '); setAssignee(joined); save({ assignee: joined || null }) }} className="hover:text-red-400 transition-colors">
-                        <X size={10} />
+                        <Icon name="X" size={10} />
                       </button>
                     </span>
                     )
@@ -973,7 +968,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                             {u.name.charAt(0).toUpperCase()}
                           </div>
                           <span className="flex-1 text-[11px] truncate" style={{ color: '#b6c2cf' }}>{u.name}</span>
-                          {isAdded && <Check size={12} style={{ color: '#22c55e' }} />}
+                          {isAdded && <Icon name="Check" size={12} style={{ color: '#22c55e' }} />}
                         </button>
                       )
                     })}
@@ -984,7 +979,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
             <section>
               <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-                <AlignLeft size={14} style={{ color: '#25D066' }} />
+                <Icon name="AlignLeft" size={14} style={{ color: '#25D066' }} />
                 Descrição
               </div>
               {canEditDetails ? (
@@ -1045,7 +1040,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               return (
                 <section className="mt-3">
                   <div className="flex items-center gap-2 mb-2 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-                    <CheckSquare size={14} style={{ color: '#596773' }} />
+                    <Icon name="CheckSquare" size={14} style={{ color: '#596773' }} />
                     Checklist
                     {totalCount > 0 && <span className="ml-auto text-[10px] font-normal" style={{ color: '#596773' }}>{doneCount}/{totalCount}</span>}
                   </div>
@@ -1058,12 +1053,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                     {checkItems.map(item => (
                       <div key={item.idx} className="flex items-center gap-2 group rounded-md px-2 py-1.5 transition-colors hover:bg-white/5" style={{ cursor: canEditDetails ? 'pointer' : 'default' }}>
                         <button onClick={() => toggleItem(item.idx)} disabled={!canEditDetails} className="flex-shrink-0" style={{ color: item.checked ? '#22c55e' : '#596773', cursor: canEditDetails ? 'pointer' : 'default' }}>
-                          {item.checked ? <CheckSquare size={16} /> : <Square size={16} />}
+                          {item.checked ? <Icon name="CheckSquare" size={16} /> : <Icon name="Square" size={16} />}
                         </button>
                         <span className="flex-1 text-sm" style={{ color: item.checked ? '#596773' : '#b6c2cf', textDecoration: item.checked ? 'line-through' : 'none' }}>{item.text}</span>
                         {canEditDetails && (
                           <button onClick={() => removeItem(item.idx)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-500/20">
-                            <Trash2 size={12} className="text-red-400" />
+                            <Icon name="Trash2" size={12} className="text-red-400" />
                           </button>
                         )}
                       </div>
@@ -1080,7 +1075,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                         className="modal-field flex-1 text-xs"
                       />
                       <button onClick={addItem} className="px-2 py-1 rounded-md transition-colors hover:bg-white/10" style={{ color: '#579dff' }}>
-                        <Plus size={16} />
+                        <Icon name="Plus" size={16} />
                       </button>
                     </div>
                   )}
@@ -1091,7 +1086,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             {fieldCfg.observacao.visible && (
             <section className="mt-3">
               <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-                <Paperclip size={14} style={{ color: '#25D066' }} />
+                <Icon name="Paperclip" size={14} style={{ color: '#25D066' }} />
                 {fieldCfg.observacao.label ?? 'Observação'}
               </div>
               {canEditDetails ? (
@@ -1120,7 +1115,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             {/* Header with tab filters */}
             <div className="flex items-center justify-between mb-3 flex-shrink-0">
               <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#b6c2cf' }}>
-                <MessageSquare size={14} style={{ color: '#596773' }} />
+                <Icon name="MessageSquare" size={14} style={{ color: '#596773' }} />
                 Timeline
                 <span className="text-[10px] font-normal" style={{ color: '#596773' }}>
                   ({comments.length + activities.length})
@@ -1244,13 +1239,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                         }}
                         title="Nota interna (não visível ao cliente)"
                       >
-                        <Lock size={10} />
+                        <Icon name="Lock" size={10} />
                         {isInternalNote ? 'Nota Interna' : 'Público'}
                       </button>
                       <button onClick={handleSendComment} disabled={!newComment.trim() || sendingComment}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-40"
                         style={{ background: isInternalNote ? '#f5a623' : '#3b82f6' }}>
-                        {sendingComment ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                        {sendingComment ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Send" size={12} />}
                         {isInternalNote ? 'Nota' : 'Enviar'}
                       </button>
                     </div>
@@ -1268,7 +1263,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             <div className="elite-modal__feed">
               {feedItems.length === 0 ? (
                 <div className="text-center py-8" style={{ color: '#596773' }}>
-                  <MessageSquare size={22} style={{ margin: '0 auto 8px', opacity: 0.35 }} />
+                  <Icon name="MessageSquare" size={22} style={{ margin: '0 auto 8px', opacity: 0.35 }} />
                   <p style={{ fontSize: 12 }}>
                     {timelineFilter === 'comments' ? 'Nenhum comentário ainda.' : timelineFilter === 'activity' ? 'Nenhuma atividade registrada.' : 'Nenhuma atividade ainda.'}
                   </p>
@@ -1295,7 +1290,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                         <>
                           {item.text.startsWith('[INTERNO] ') && (
                             <div className="flex items-center gap-1 mt-0.5 mb-0.5">
-                              <Lock size={9} style={{ color: '#f5a623' }} />
+                              <Icon name="Lock" size={9} style={{ color: '#f5a623' }} />
                               <span style={{ color: '#f5a623', fontSize: 9, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>NOTA INTERNA</span>
                             </div>
                           )}
@@ -1331,7 +1326,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                                 color: '#8da2b5',
                               }}
                             >
-                              <Smile size={11} /> Reagir
+                              <Icon name="Smile" size={11} /> Reagir
                             </button>
                           </div>
                           {reactionPickerFor === item.id && (
@@ -1355,12 +1350,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                             </div>
                           )}
                           <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#596773' }}>
-                            <Trash2 size={9} /> Excluir
+                            <Icon name="Trash2" size={9} /> Excluir
                           </button>
                         </>
                       ) : (
                         <div className="mt-0.5 text-[12px] flex items-center gap-1.5" style={{ color: '#596773' }}>
-                          <ArrowRight size={10} style={{ color: '#579dff' }} />
+                          <Icon name="ArrowRight" size={10} style={{ color: '#579dff' }} />
                           {item.text}
                         </div>
                       )}
@@ -1381,7 +1376,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               ? { background: 'rgba(75,206,151,0.18)', color: '#4bce97', border: '1px solid rgba(75,206,151,0.24)' }
               : { background: 'rgba(96,165,250,0.18)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.24)' }
             }>
-            {saving ? 'Salvando...' : saveSuccess ? <><Check size={12} className="inline mr-1" />Salvo!</> : 'Salvar'}
+            {saving ? 'Salvando...' : saveSuccess ? <><Icon name="Check" size={12} className="inline mr-1" />Salvo!</> : 'Salvar'}
           </button>
           <button onClick={handleDelete}
             className="px-4 py-2 rounded-lg text-xs font-semibold transition-colors"

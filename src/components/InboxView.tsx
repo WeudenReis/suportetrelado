@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CheckCheck, Clock, X } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import { useNotificationContext } from './useNotificationContext'
 import type { Notification } from '../lib/supabase'
 import InboxTabs from './inbox/InboxTabs'
@@ -100,7 +100,7 @@ export default function InboxSidebar({ user: _user, onClose, onOpenTicket }: Inb
                 background: 'rgba(37,208,102,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <Inbox size={16} style={{ color: '#25D066' }} />
+                <Icon name="Inbox" size={16} style={{ color: '#25D066' }} />
               </div>
               <div>
                 <h2 style={{
@@ -126,7 +126,7 @@ export default function InboxSidebar({ user: _user, onClose, onOpenTicket }: Inb
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
             >
-              <X size={15} />
+              <Icon name="X" size={15} />
             </button>
           </div>
         </div>
@@ -161,7 +161,7 @@ export default function InboxSidebar({ user: _user, onClose, onOpenTicket }: Inb
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.16)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
             >
-              <CheckCheck size={13} />
+              <Icon name="CheckCheck" size={13} />
               Marcar todas como lidas
             </button>
           </div>
@@ -195,7 +195,7 @@ export default function InboxSidebar({ user: _user, onClose, onOpenTicket }: Inb
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
               >
-                <Clock size={22} />
+                <Icon name="Clock" size={22} />
               </motion.div>
               <span style={{ fontSize: 12, fontWeight: 500, fontFamily: "'Space Grotesk', sans-serif" }}>
                 Carregando...

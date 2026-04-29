@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { ArchiveRestore, Trash2, X, Search } from 'lucide-react';
+import { Icon } from '../lib/icons'
 import clsx from 'clsx';
 import styles from './ArchivedPanel.module.css';
 import { useOrg } from '../lib/orgContext';
@@ -127,13 +127,13 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
         <div className={styles.header}>
           <h2 className={styles.title}>Itens arquivados</h2>
           <button className={styles.closeBtn} onClick={onClose} type="button">
-            <X size={16} />
+            <Icon name="X" size={16} />
           </button>
         </div>
 
         {/* Search bar */}
         <div className={styles.searchWrapper}>
-          <Search size={13} className={styles.searchIcon} />
+          <Icon name="Search" size={13} className={styles.searchIcon} />
           <input
             className={styles.searchInput}
             type="text"
@@ -143,7 +143,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
           />
           {search && (
             <button className={styles.searchClear} onClick={() => setSearch('')} type="button">
-              <X size={11} />
+              <Icon name="X" size={11} />
             </button>
           )}
         </div>
@@ -195,7 +195,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
                           onClick={() => restoreCard(card.id)}
                           title="Restaurar cartão" type="button"
                         >
-                          <ArchiveRestore size={14} />
+                          <Icon name="ArchiveRestore" size={14} />
                           Restaurar
                         </button>
                         <button
@@ -204,7 +204,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
                           title="Excluir permanentemente" type="button"
                           disabled={!hasPermission('tickets:delete')}
                         >
-                          <Trash2 size={14} />
+                          <Icon name="Trash2" size={14} />
                         </button>
                       </div>
                     </div>
@@ -230,7 +230,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
                       onClick={() => restoreList(list.id)}
                       title="Restaurar lista" type="button"
                     >
-                      <ArchiveRestore size={14} />
+                      <Icon name="ArchiveRestore" size={14} />
                       Restaurar
                     </button>
                     <button
@@ -239,7 +239,7 @@ export function ArchivedPanel({ onClose, onRestore }: ArchivedPanelProps) {
                       title="Excluir permanentemente" type="button"
                       disabled={!isAdmin}
                     >
-                      <Trash2 size={14} />
+                      <Icon name="Trash2" size={14} />
                     </button>
                   </div>
                 </div>

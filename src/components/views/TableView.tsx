@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Filter, ArrowUp, ArrowDown, ArrowUpDown, X, RefreshCw, Loader2, Inbox } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../../lib/supabase'
 import { fetchBoardColumns, type BoardColumn } from '../../lib/boardColumns'
 import { useOrg } from '../../lib/orgContext'
@@ -208,7 +208,7 @@ export default function TableView({ user, openTicketId, onCloseTicket, onOpenTic
 
         {/* Search */}
         <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 420 }}>
-          <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#596773' }} />
+          <Icon name="Search" size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#596773' }} />
           <input
             type="text"
             placeholder="Buscar por título, descrição, cliente, tags…"
@@ -228,7 +228,7 @@ export default function TableView({ user, openTicketId, onCloseTicket, onOpenTic
 
         {/* Filtros */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Filter size={13} style={{ color: '#596773' }} />
+          <Icon name="Filter" size={13} style={{ color: '#596773' }} />
           <Select
             value={filterStatus}
             onChange={setFilterStatus}
@@ -262,7 +262,7 @@ export default function TableView({ user, openTicketId, onCloseTicket, onOpenTic
                 color: '#25D066', fontSize: 11, fontWeight: 700, fontFamily: FONT, cursor: 'pointer',
               }}
             >
-              <X size={11} /> Limpar ({activeFilterCount})
+              <Icon name="X" size={11} /> Limpar ({activeFilterCount})
             </button>
           )}
         </div>
@@ -284,7 +284,7 @@ export default function TableView({ user, openTicketId, onCloseTicket, onOpenTic
             color: '#8C96A3', cursor: refreshing ? 'wait' : 'pointer',
           }}
         >
-          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+          <Icon name="RefreshCw" size={13} className={refreshing ? 'animate-spin' : ''} />
         </button>
       </div>
 
@@ -315,7 +315,7 @@ export default function TableView({ user, openTicketId, onCloseTicket, onOpenTic
       <div ref={scrollerRef} style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, color: '#596773' }}>
-            <Loader2 size={22} className="animate-spin" />
+            <Icon name="Loader2" size={22} className="animate-spin" />
           </div>
         ) : sorted.length === 0 ? (
           <EmptyState hasFilters={activeFilterCount > 0 || search.length > 0} onClear={() => { clearFilters(); setSearch('') }} />
@@ -448,8 +448,8 @@ function SortHeader({ label, sortKey, sort, onClick }: {
     >
       {label}
       {isActive
-        ? (sort.dir === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />)
-        : <ArrowUpDown size={11} style={{ opacity: 0.4 }} />}
+        ? (sort.dir === 'asc' ? <Icon name="ArrowUp" size={11} /> : <Icon name="ArrowDown" size={11} />)
+        : <Icon name="ArrowUpDown" size={11} style={{ opacity: 0.4 }} />}
     </button>
   )
 }
@@ -486,7 +486,7 @@ function EmptyState({ hasFilters, onClear }: { hasFilters: boolean; onClear: () 
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: '#596773',
       }}>
-        <Inbox size={26} strokeWidth={1.5} />
+        <Icon name="Inbox" size={26} strokeWidth={1.5} />
       </div>
       <p style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: '#8C96A3', margin: 0 }}>
         {hasFilters ? 'Nenhum ticket corresponde aos filtros' : 'Nenhum ticket por aqui ainda'}

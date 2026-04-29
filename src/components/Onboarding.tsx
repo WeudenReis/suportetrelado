@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import { useOnboarding } from '../hooks/useOnboarding'
 
 interface TooltipPosition {
@@ -281,7 +281,7 @@ export default function Onboarding() {
                       color: '#6B7280', display: 'flex', padding: 2,
                     }}
                   >
-                    <X size={14} />
+                    <Icon name="X" size={14} />
                   </button>
                 </div>
 
@@ -325,7 +325,7 @@ export default function Onboarding() {
                           fontSize: 12, fontFamily: "'Space Grotesk', sans-serif",
                         }}
                       >
-                        <ChevronLeft size={12} />
+                        <Icon name="ChevronLeft" size={12} />
                         Anterior
                       </button>
                     )}
@@ -340,7 +340,7 @@ export default function Onboarding() {
                       }}
                     >
                       {currentStep < totalSteps - 1 ? (
-                        <>Próximo <ChevronRight size={12} /></>
+                        <>Próximo <Icon name="ChevronRight" size={12} /></>
                       ) : (
                         'Concluir'
                       )}

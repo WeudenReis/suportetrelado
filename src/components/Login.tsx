@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, AlertTriangle, CheckCircle2, X, ShieldX, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { Icon, type IconName } from '../lib/icons'
 import { supabase, isSupabaseConfigured, isDevEnvironment } from '../lib/supabase'
 
 interface LoginProps {
@@ -12,15 +12,14 @@ type AuthMode = 'login' | 'forgot'
 type ToastType = 'error' | 'success' | 'warning'
 interface Toast { id: string; type: ToastType; title: string; message: string }
 
-const toastCfg = {
-  error:   { icon: AlertTriangle, bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',   iconColor: '#f87171', titleColor: '#fca5a5' },
-  success: { icon: CheckCircle2,  bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   iconColor: '#4ade80', titleColor: '#86efac' },
-  warning: { icon: AlertTriangle, bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)',  iconColor: '#fbbf24', titleColor: '#fcd34d' },
+const toastCfg: Record<ToastType, { icon: IconName; bg: string; border: string; iconColor: string; titleColor: string }> = {
+  error:   { icon: 'AlertTriangle', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',   iconColor: '#f87171', titleColor: '#fca5a5' },
+  success: { icon: 'CheckCircle2',  bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   iconColor: '#4ade80', titleColor: '#86efac' },
+  warning: { icon: 'AlertTriangle', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)',  iconColor: '#fbbf24', titleColor: '#fcd34d' },
 }
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
   const cfg = toastCfg[toast.type]
-  const Icon = cfg.icon
   useEffect(() => {
     const t = setTimeout(() => onDismiss(toast.id), 6000)
     return () => clearTimeout(t)
@@ -32,13 +31,13 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
         background: cfg.bg, border: `1px solid ${cfg.border}`, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: 300, maxWidth: 400,
       }}>
-      <Icon size={17} style={{ color: cfg.iconColor, marginTop: 1, flexShrink: 0 }} />
+      <Icon name={cfg.icon} size={17} style={{ color: cfg.iconColor, marginTop: 1, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 13, fontWeight: 600, color: cfg.titleColor, margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>{toast.title}</p>
         <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0', fontFamily: "'Space Grotesk', sans-serif" }}>{toast.message}</p>
       </div>
       <button onClick={() => onDismiss(toast.id)} style={{ padding: 2, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', flexShrink: 0 }}>
-        <X size={13} />
+        <Icon name="X" size={13} />
       </button>
     </motion.div>
   )
@@ -300,7 +299,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
               background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
               marginBottom: 20,
             }}>
-              <ShieldX size={18} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
+              <Icon name="ShieldX" size={18} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
               <div>
                 <p style={{ fontSize: 13, fontWeight: 600, color: '#fca5a5', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
                   Acesso não autorizado
@@ -319,7 +318,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                 <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {/* E-mail */}
                   <div style={{ position: 'relative' }}>
-                    <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <Icon name="Mail" size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
                     <input
                       type="email"
                       placeholder="Seu e-mail"
@@ -334,7 +333,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
 
                   {/* Senha */}
                   <div style={{ position: 'relative' }}>
-                    <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <Icon name="Lock" size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
                     <input
                       ref={passwordRef}
                       type={showPassword ? 'text' : 'password'}
@@ -357,7 +356,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                       onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
                       tabIndex={-1}
                     >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showPassword ? <Icon name="EyeOff" size={16} /> : <Icon name="Eye" size={16} />}
                     </button>
                   </div>
 
@@ -378,9 +377,9 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                     }}
                   >
                     {loadingEmail ? (
-                      <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
+                      <Icon name="Loader2" size={17} style={{ animation: 'spin 1s linear infinite' }} />
                     ) : (
-                      <ArrowRight size={17} />
+                      <Icon name="ArrowRight" size={17} />
                     )}
                     {loadingEmail ? 'Entrando...' : 'Entrar'}
                   </button>
@@ -412,7 +411,7 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                 <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {/* E-mail */}
                   <div style={{ position: 'relative' }}>
-                    <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <Icon name="Mail" size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
                     <input
                       type="email"
                       placeholder="Seu e-mail cadastrado"
@@ -444,9 +443,9 @@ export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginPro
                     }}
                   >
                     {loadingReset ? (
-                      <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
+                      <Icon name="Loader2" size={17} style={{ animation: 'spin 1s linear infinite' }} />
                     ) : (
-                      <Mail size={17} />
+                      <Icon name="Mail" size={17} />
                     )}
                     {loadingReset ? 'Enviando...' : 'Enviar link de redefinição'}
                   </button>

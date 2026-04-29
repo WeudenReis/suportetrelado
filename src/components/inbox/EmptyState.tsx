@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { BellOff, CheckCircle2, AtSign, CalendarIcon } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import type { TabFilter } from './InboxTabs'
 
 interface EmptyStateProps {
@@ -8,22 +8,22 @@ interface EmptyStateProps {
 
 const STATES: Record<TabFilter, { icon: React.ReactNode; title: string; desc: string }> = {
   all: {
-    icon: <BellOff size={32} strokeWidth={1.5} />,
+    icon: <Icon name="BellOff" size={32} strokeWidth={1.5} />,
     title: 'Tudo em dia!',
     desc: 'Nenhuma notificação por aqui.',
   },
   unread: {
-    icon: <CheckCircle2 size={32} strokeWidth={1.5} />,
+    icon: <Icon name="CheckCircle2" size={32} strokeWidth={1.5} />,
     title: 'Tudo em dia!',
     desc: 'Você não tem notificações pendentes.',
   },
   mentions: {
-    icon: <AtSign size={32} strokeWidth={1.5} />,
+    icon: <Icon name="AtSign" size={32} strokeWidth={1.5} />,
     title: 'Sem menções',
     desc: 'Quando alguém te @mencionar, aparecerá aqui.',
   },
   planner: {
-    icon: <CalendarIcon size={32} strokeWidth={1.5} />,
+    icon: <Icon name="CalendarIcon" size={32} strokeWidth={1.5} />,
     title: 'Sem pendências',
     desc: 'Nenhum alerta de vencimento por aqui.',
   },

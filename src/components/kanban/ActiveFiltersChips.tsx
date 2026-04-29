@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
-
+import { Icon } from '../../lib/icons'
 interface ActiveFiltersChipsProps {
   filterPriority: string
   filterAssignee: string
@@ -53,7 +52,7 @@ function Chip({ label, value, onClear }: { label: string; value: string; onClear
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.18)'; e.currentTarget.style.color = '#ef4444' }}
         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
       >
-        <X size={10} />
+        <Icon name="X" size={10} />
       </button>
     </motion.span>
   )

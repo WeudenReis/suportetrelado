@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Settings, Bell, Loader2 } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import { fetchPlannerSettings, upsertPlannerSettings } from '../lib/supabase'
 import { useOrg } from '../lib/orgContext'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -76,7 +76,7 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
             {/* Header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Settings size={16} color="#8C96A3" />
+                <Icon name="Settings" size={16} color="#8C96A3" />
                 <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#E5E7EB', fontFamily: font }}>
                   Configurações do Planejador
                 </h3>
@@ -90,20 +90,20 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
               >
-                <X size={14} />
+                <Icon name="X" size={14} />
               </button>
             </div>
 
             {loading ? (
               <div style={{ padding: '40px 20px', display: 'flex', justifyContent: 'center', color: '#8C96A3' }}>
-                <Loader2 size={24} className="animate-spin" />
+                <Icon name="Loader2" size={24} className="animate-spin" />
               </div>
             ) : (
               <div style={{ padding: '20px' }}>
                 
                 <div style={{ marginBottom: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: '#B6C2CF' }}>
-                    <Bell size={14} />
+                    <Icon name="Bell" size={14} />
                     <span style={{ fontSize: 12, fontWeight: 600, fontFamily: font }}>Alertas de Vencimento</span>
                   </div>
                   <p style={{ fontSize: 11, color: '#596773', marginBottom: 12, lineHeight: 1.4, fontFamily: font }}>
@@ -146,7 +146,7 @@ export default function PlannerSettingsPanel({ isOpen, onClose, userEmail }: Pla
                       display: 'flex', alignItems: 'center', gap: 6
                     }}
                   >
-                    {saving && <Loader2 size={12} className="animate-spin" />}
+                    {saving && <Icon name="Loader2" size={12} className="animate-spin" />}
                     Salvar Preferências
                   </button>
                 </div>

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } fro
 import { DndContext, DragOverlay, closestCenter, closestCorners, pointerWithin, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, horizontalListSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, Loader2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, ChevronRight, AlignLeft, Paperclip, Calendar, Check, Filter, AlertTriangle, CheckSquare } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import { clsx } from 'clsx'
 import Card from './Card'
 import ErrorBoundary from './ErrorBoundary'
@@ -560,7 +560,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
               className="board-stale-chip"
               title="Tickets sem resposta há mais de 12 horas"
             >
-              <AlertTriangle size={12} />
+              <Icon name="AlertTriangle" size={12} />
               <span><strong>{staleCount}</strong> sem resposta +12h</span>
             </motion.button>
           )}
@@ -598,7 +598,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                 title="Filtros (F)"
                 style={(showFiltersPopover || activeFilterCount > 0) ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
               >
-                <Filter size={16} />
+                <Icon name="Filter" size={16} />
                 {activeFilterCount > 0 && (
                   <span className="board-filter-badge">{activeFilterCount}</span>
                 )}
@@ -673,7 +673,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
               type="button"
               title="Ver membros"
             >
-              <Users size={16} />
+              <Icon name="Users" size={16} />
             </button>
 
             <AnimatePresence>
@@ -813,7 +813,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
         >
         {loading ? (
           <div className="flex items-center justify-center h-64 gap-3 text-slate-400">
-            <Loader2 size={24} className="animate-spin" />
+            <Icon name="Loader2" size={24} className="animate-spin" />
             <span className="text-sm">Carregando tickets...</span>
           </div>
         ) : (
@@ -895,16 +895,16 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                     {colMenuView === 'main' && (
                                       <>
                                         <button className="col-menu__item" onClick={() => setColMenuView('color')}>
-                                          <Palette size={14} />
+                                          <Icon name="Palette" size={14} />
                                           <span>Cor da lista</span>
                                         </button>
                                         <button className="col-menu__item" onClick={() => setColMenuView('sort')}>
-                                          <ArrowUpDown size={14} />
+                                          <Icon name="ArrowUpDown" size={14} />
                                           <span>Ordenar lista</span>
                                         </button>
                                         <div className="col-menu__sep" />
                                         <button className="col-menu__item" onClick={e => { e.stopPropagation(); setEditingColumnId(col.id); setEditingColumnTitle(col.title); setColorPickerColumnId(null) }}>
-                                          <Pencil size={14} />
+                                          <Icon name="Pencil" size={14} />
                                           <span>Renomear</span>
                                         </button>
                                         <button
@@ -925,7 +925,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                           }}
                                           disabled={!canManageColumns}
                                         >
-                                          <Trash2 size={14} />
+                                          <Icon name="Trash2" size={14} />
                                           <span>Excluir lista</span>
                                         </button>
                                       </>
@@ -935,9 +935,9 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                     {colMenuView === 'color' && (
                                       <>
                                         <div className="col-menu__header">
-                                          <button className="col-menu__back" onClick={() => setColMenuView('main')}><ChevronLeft size={16} /></button>
+                                          <button className="col-menu__back" onClick={() => setColMenuView('main')}><Icon name="ChevronLeft" size={16} /></button>
                                           <span>Cor da lista</span>
-                                          <button className="col-menu__close" onClick={() => setColorPickerColumnId(null)}><X size={14} /></button>
+                                          <button className="col-menu__close" onClick={() => setColorPickerColumnId(null)}><Icon name="X" size={14} /></button>
                                         </div>
                                         <div className="col-menu__colors">
                                           {COL_COLORS.map(c => (
@@ -957,9 +957,9 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                     {colMenuView === 'sort' && (
                                       <>
                                         <div className="col-menu__header">
-                                          <button className="col-menu__back" onClick={() => setColMenuView('main')}><ChevronLeft size={16} /></button>
+                                          <button className="col-menu__back" onClick={() => setColMenuView('main')}><Icon name="ChevronLeft" size={16} /></button>
                                           <span>Ordenar lista</span>
-                                          <button className="col-menu__close" onClick={() => setColorPickerColumnId(null)}><X size={14} /></button>
+                                          <button className="col-menu__close" onClick={() => setColorPickerColumnId(null)}><Icon name="X" size={14} /></button>
                                         </div>
                                         <button className="col-menu__item" onClick={() => handleSortColumn(col.id, 'newest')}>
                                           Data de criação (mais recente primeiro)
@@ -1049,15 +1049,15 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                               />
                               <div className="flex items-center gap-1.5 mt-1.5">
                                 <button onClick={() => handleInlineAdd(col.id as TicketStatus)} disabled={inlineCreating} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white flex items-center gap-1" style={{ background: inlineCreating ? 'rgba(37,208,102,0.5)' : '#25D066', cursor: inlineCreating ? 'wait' : 'pointer' }}>
-                                  {inlineCreating && <Loader2 size={13} className="animate-spin" />}
+                                  {inlineCreating && <Icon name="Loader2" size={13} className="animate-spin" />}
                                   {inlineCreating ? 'Criando...' : 'Adicionar'}
                                 </button>
-                                <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+                                <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><Icon name="X" size={16} style={{ color: 'var(--text-muted)' }} /></button>
                               </div>
                             </div>
                           ) : (
                             <button onClick={() => { setAddingTo(col.id as TicketStatus); setInlineTitle('') }} className="trello-col__add" {...(colIdx === 0 ? { 'data-tour': 'board-add-ticket' } : {})}>
-                              <Plus size={16} /> Adicionar um cartão
+                              <Icon name="Plus" size={16} /> Adicionar um cartão
                             </button>
                           )}
                           </div>
@@ -1114,12 +1114,12 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                     className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white"
                     style={{ background: '#25D066' }}
                   >Adicionar lista</button>
-                  <button onClick={() => { setAddingList(false); setNewListName('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+                  <button onClick={() => { setAddingList(false); setNewListName('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><Icon name="X" size={16} style={{ color: 'var(--text-muted)' }} /></button>
                 </div>
               </div>
             ) : (
               <div className="add-list-ghost" onClick={() => setAddingList(true)}>
-                <Plus size={16} />
+                <Icon name="Plus" size={16} />
                 <span>Adicionar outra lista</span>
               </div>
             )}
@@ -1160,7 +1160,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
         >
           {loading ? (
             <div className="flex items-center justify-center h-64 gap-3 text-slate-400">
-              <Loader2 size={24} className="animate-spin" />
+              <Icon name="Loader2" size={24} className="animate-spin" />
               <span className="text-sm">Carregando tickets...</span>
             </div>
           ) : (
@@ -1231,7 +1231,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                     >
                       <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.15 }}>
-                        <ChevronRight size={16} style={{ color: '#25D066' }} />
+                        <Icon name="ChevronRight" size={16} style={{ color: '#25D066' }} />
                       </motion.div>
                       <div style={{
                         width: 10, height: 10, borderRadius: '50%',
@@ -1348,7 +1348,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                     }}
                                     title={ticket.is_completed ? 'Marcar como incompleto' : 'Marcar como concluído'}
                                   >
-                                    {ticket.is_completed && <Check size={10} strokeWidth={3} color="#fff" />}
+                                    {ticket.is_completed && <Icon name="Check" size={10} strokeWidth={3} color="#fff" />}
                                   </button>
 
                                   {/* Cover thumbnail */}
@@ -1424,24 +1424,24 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                           color: elapsed.isOverdue ? '#ef4444' : '#596773',
                                           fontWeight: elapsed.isOverdue ? 700 : 500,
                                         }}>
-                                          <Clock size={11} />
+                                          <Icon name="Clock" size={11} />
                                           {elapsed.label}
                                         </span>
                                       )}
                                       {createdDate && (
                                         <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3, color: '#596773' }}>
-                                          <Calendar size={11} />
+                                          <Icon name="Calendar" size={11} />
                                           {createdDate}
                                         </span>
                                       )}
                                       {hasDesc && (
                                         <span style={{ display: 'inline-flex', alignItems: 'center', color: '#596773' }} title="Tem descrição">
-                                          <AlignLeft size={11} />
+                                          <Icon name="AlignLeft" size={11} />
                                         </span>
                                       )}
                                       {attCount > 0 && (
                                         <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3, color: '#596773' }} title={`${attCount} anexo(s)`}>
-                                          <Paperclip size={11} />
+                                          <Icon name="Paperclip" size={11} />
                                           {attCount}
                                         </span>
                                       )}
@@ -1451,13 +1451,13 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                           color: checkDone === checkTotal ? '#25D066' : '#596773',
                                           fontWeight: checkDone === checkTotal ? 700 : 500,
                                         }} title={`Checklist: ${checkDone}/${checkTotal}`}>
-                                          <CheckSquare size={11} />
+                                          <Icon name="CheckSquare" size={11} />
                                           {checkDone}/{checkTotal}
                                         </span>
                                       )}
                                       {ticket.instancia && (
                                         <span style={{ fontSize: 11, color: '#596773', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                                          <Plug size={10} />
+                                          <Icon name="Plug" size={10} />
                                           {ticket.instancia}
                                         </span>
                                       )}
@@ -1508,7 +1508,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                           transition: 'background 0.15s, color 0.15s', padding: 0,
                                         }}
                                       >
-                                        <Archive size={13} />
+                                        <Icon name="Archive" size={13} />
                                       </button>
                                     )}
                                     <button
@@ -1527,7 +1527,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                         transition: 'background 0.15s, color 0.15s', padding: 0,
                                       }}
                                     >
-                                      <Pencil size={13} />
+                                      <Icon name="Pencil" size={13} />
                                     </button>
                                   </div>
                                 </div>
@@ -1552,10 +1552,10 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                 />
                                 <div className="flex items-center gap-1.5 mt-1.5">
                                   <button onClick={() => handleInlineAdd(col.id as TicketStatus)} disabled={inlineCreating} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-white flex items-center gap-1" style={{ background: inlineCreating ? 'rgba(37,208,102,0.5)' : '#25D066', cursor: inlineCreating ? 'wait' : 'pointer' }}>
-                                    {inlineCreating && <Loader2 size={13} className="animate-spin" />}
+                                    {inlineCreating && <Icon name="Loader2" size={13} className="animate-spin" />}
                                     {inlineCreating ? 'Criando...' : 'Adicionar'}
                                   </button>
-                                  <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+                                  <button onClick={() => { setAddingTo(null); setInlineTitle('') }} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"><Icon name="X" size={16} style={{ color: 'var(--text-muted)' }} /></button>
                                 </div>
                               </div>
                             ) : (
@@ -1576,7 +1576,7 @@ export default function KanbanBoard({ user, openTicketId, clearOpenTicketId, vie
                                   transition: 'color 0.15s',
                                 }}
                               >
-                                <Plus size={14} />
+                                <Icon name="Plus" size={14} />
                                 Adicionar card
                               </button>
                             )}

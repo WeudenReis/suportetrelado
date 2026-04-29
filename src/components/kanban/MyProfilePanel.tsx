@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Pencil, Check, KeyRound, Eye, EyeOff, CheckCircle2, User, Copy } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
 import { logger } from '../../lib/logger'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
@@ -192,7 +192,7 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 12px rgba(37,208,102,0.2)',
             }}>
-              <User size={18} style={{ color: '#fff' }} />
+              <Icon name="User" size={18} style={{ color: '#fff' }} />
             </div>
             <div>
               <h2 style={{
@@ -217,7 +217,7 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#6B7685' }}
           >
-            <X size={15} />
+            <Icon name="X" size={15} />
           </button>
         </div>
 
@@ -275,13 +275,13 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
                           style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'rgba(37,208,102,0.18)', color: '#25D066', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}
                           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.32)' }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.18)' }}>
-                          <Check size={13} />
+                          <Icon name="Check" size={13} />
                         </button>
                         <button onClick={() => { setEditingName(false); setNameValue(profile.name) }} title="Cancelar"
                           style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'rgba(255,255,255,0.05)', color: '#596773', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}
                           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171' }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#596773' }}>
-                          <X size={13} />
+                          <Icon name="X" size={13} />
                         </button>
                       </div>
                     ) : (
@@ -293,7 +293,7 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
                           style={{ width: 20, height: 20, borderRadius: 5, border: 'none', background: 'transparent', color: '#4B5563', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: 'color 0.15s' }}
                           onMouseEnter={e => { e.currentTarget.style.color = '#25D066' }}
                           onMouseLeave={e => { e.currentTarget.style.color = '#4B5563' }}>
-                          <Pencil size={12} />
+                          <Icon name="Pencil" size={12} />
                         </button>
                       </div>
                     )}
@@ -332,8 +332,8 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     {pwSuccess
-                      ? <CheckCircle2 size={16} style={{ color: '#25D066' }} />
-                      : <KeyRound size={16} style={{ color: '#579DFF' }} />
+                      ? <Icon name="CheckCircle2" size={16} style={{ color: '#25D066' }} />
+                      : <Icon name="KeyRound" size={16} style={{ color: '#579DFF' }} />
                     }
                     <span style={{
                       fontSize: 14, fontWeight: 600,
@@ -382,7 +382,7 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
                             />
                             <button type="button" onClick={() => setShowCurrentPw(p => !p)}
                               style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
-                              {showCurrentPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                              {showCurrentPw ? <Icon name="EyeOff" size={15} /> : <Icon name="Eye" size={15} />}
                             </button>
                           </div>
                         </div>
@@ -409,12 +409,12 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
                             <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 2 }}>
                               <button type="button" onClick={() => setShowNewPw(p => !p)}
                                 style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
-                                {showNewPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                                {showNewPw ? <Icon name="EyeOff" size={15} /> : <Icon name="Eye" size={15} />}
                               </button>
                               {newPassword && (
                                 <button type="button" onClick={() => navigator.clipboard.writeText(newPassword).catch(() => {})} title="Copiar senha"
                                   style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
-                                  <Copy size={15} />
+                                  <Icon name="Copy" size={15} />
                                 </button>
                               )}
                             </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, Download, CalendarDays, Target, Maximize2 } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../lib/supabase'
 import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
 import DashboardExpanded from './DashboardExpanded'
@@ -264,7 +264,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
                 background: 'rgba(37,208,102,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <BarChart3 size={16} style={{ color: '#25D066' }} />
+                <Icon name="BarChart3" size={16} style={{ color: '#25D066' }} />
               </div>
               <div>
                 <h2 style={{
@@ -287,7 +287,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <X size={15} />
+              <Icon name="X" size={15} />
             </button>
           </div>
         </div>
@@ -315,7 +315,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
               background: 'rgba(37,208,102,0.12)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <BarChart3 size={16} style={{ color: '#25D066' }} />
+              <Icon name="BarChart3" size={16} style={{ color: '#25D066' }} />
             </div>
             <div>
               <h2 style={{
@@ -342,7 +342,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(87,157,255,0.22)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(87,157,255,0.1)' }}
             >
-              <Maximize2 size={14} />
+              <Icon name="Maximize2" size={14} />
             </button>
             <button
               onClick={onClose}
@@ -356,7 +356,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
             >
-              <X size={15} />
+              <Icon name="X" size={15} />
             </button>
           </div>
         </div>
@@ -375,42 +375,42 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
         }}>
           <MetricCard
-            icon={<BarChart3 size={14} />}
+            icon={<Icon name="BarChart3" size={14} />}
             label="Total Ativos"
             value={totalActive}
             color="#25D066"
             sub={`${backlogCount} em ${columns[0]?.title ?? 'backlog'}`}
           />
           <MetricCard
-            icon={<AlertTriangle size={14} />}
+            icon={<Icon name="AlertTriangle" size={14} />}
             label="Alta Prioridade"
             value={highPriority}
             color="#ef5c48"
             sub="tickets urgentes"
           />
           <MetricCard
-            icon={<CheckCircle2 size={14} />}
+            icon={<Icon name="CheckCircle2" size={14} />}
             label="Concluídos"
             value={completed}
             color="#1BAD53"
             sub={`de ${totalActive} ativos`}
           />
           <MetricCard
-            icon={<Clock size={14} />}
+            icon={<Icon name="Clock" size={14} />}
             label="Tempo Médio"
             value={`${avgResolutionHours}h`}
             color="#e2b203"
             sub="para resolver"
           />
           <MetricCard
-            icon={<CalendarDays size={14} />}
+            icon={<Icon name="CalendarDays" size={14} />}
             label="Criados Hoje"
             value={createdToday}
             color="#579dff"
             sub={`${completedToday} concluídos hoje`}
           />
           <MetricCard
-            icon={<Target size={14} />}
+            icon={<Icon name="Target" size={14} />}
             label="Produtividade"
             value={`${productivityRate}%`}
             color="#a259ff"
@@ -432,7 +432,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
               transition: 'background 0.15s',
             }}
           >
-            <Download size={13} />
+            <Icon name="Download" size={13} />
             Exportar Relatório CSV
           </button>
         </div>
@@ -497,7 +497,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             fontFamily: "'Space Grotesk', sans-serif",
             display: 'flex', alignItems: 'center', gap: 4,
           }}>
-            <TrendingUp size={11} />
+            <Icon name="TrendingUp" size={11} />
             Criados nos Últimos 7 Dias
           </p>
           <div style={{
@@ -555,7 +555,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
               fontFamily: "'Space Grotesk', sans-serif",
               display: 'flex', alignItems: 'center', gap: 4,
             }}>
-              <Columns3 size={11} />
+              <Icon name="Columns3" size={11} />
               Cartões por Coluna
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -599,7 +599,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             fontFamily: "'Space Grotesk', sans-serif",
             display: 'flex', alignItems: 'center', gap: 4,
           }}>
-            <CheckCircle2 size={11} />
+            <Icon name="CheckCircle2" size={11} />
             Concluir Chamados
           </p>
           {uncompleted.length === 0 ? (
@@ -644,7 +644,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
                       if (icon) icon.style.opacity = '0'
                     }}
                   >
-                    <Check size={12} style={{ color: '#25D066', opacity: 0 }} />
+                    <Icon name="Check" size={12} style={{ color: '#25D066', opacity: 0 }} />
                   </button>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{
@@ -688,7 +688,7 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
             fontFamily: "'Space Grotesk', sans-serif",
             display: 'flex', alignItems: 'center', gap: 4,
           }}>
-            <Users size={11} />
+            <Icon name="Users" size={11} />
             Tickets por Responsável
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

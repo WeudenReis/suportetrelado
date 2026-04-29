@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, CalendarDays, X, Settings, Plus, AlignLeft } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import type { Ticket, PlannerEvent } from '../lib/supabase'
 import { fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent, insertNotification } from '../lib/supabase'
 import { useOrg } from '../lib/orgContext'
@@ -223,7 +223,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
               background: 'rgba(37,208,102,0.12)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <CalendarDays size={16} style={{ color: '#25D066' }} />
+              <Icon name="CalendarDays" size={16} style={{ color: '#25D066' }} />
             </div>
             <div>
               <h2 style={{
@@ -250,7 +250,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
             >
-              <Settings size={15} />
+              <Icon name="Settings" size={15} />
             </button>
             <button
               onClick={onClose}
@@ -264,7 +264,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
             >
-              <X size={15} />
+              <Icon name="X" size={15} />
             </button>
           </div>
         </div>
@@ -286,7 +286,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
         >
-          <ChevronLeft size={14} />
+          <Icon name="ChevronLeft" size={14} />
         </button>
         <span style={{
           fontSize: 13, fontWeight: 700, color: '#E5E7EB', fontFamily: font,
@@ -304,7 +304,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
         >
-          <ChevronRight size={14} />
+          <Icon name="ChevronRight" size={14} />
         </button>
       </div>
 
@@ -385,7 +385,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
             fontFamily: font
           }}
         >
-          <Plus size={12} /> Evento
+          <Icon name="Plus" size={12} /> Evento
         </button>
       </div>
 
@@ -432,7 +432,7 @@ export default function PlannerSidebar({ tickets, onClose, user, onOpenTicket }:
                     </div>
                     {e.description && (
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 4 }}>
-                        <AlignLeft size={10} color="#596773" />
+                        <Icon name="AlignLeft" size={10} color="#596773" />
                         <p style={{ fontSize: 11, color: '#8C96A3', margin: 0, fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {e.description}
                         </p>

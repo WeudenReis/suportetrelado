@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import type { Ticket } from '../lib/supabase'
 
 interface PlannerViewProps {
@@ -85,10 +85,10 @@ export default function PlannerView({ tickets, onCardClick }: PlannerViewProps) 
         </div>
         <div className="flex items-center gap-1">
           <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" style={{ color: 'var(--text-muted)' }}>
-            <ChevronLeft size={18} />
+            <Icon name="ChevronLeft" size={18} />
           </button>
           <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors" style={{ color: 'var(--text-muted)' }}>
-            <ChevronRight size={18} />
+            <Icon name="ChevronRight" size={18} />
           </button>
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function PlannerView({ tickets, onCardClick }: PlannerViewProps) 
 
       {/* Summary bar */}
       <div className="planner-summary">
-        <Clock size={13} style={{ color: 'var(--text-muted)' }} />
+        <Icon name="Clock" size={13} style={{ color: 'var(--text-muted)' }} />
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
           {tickets.filter(t => t.status !== 'resolved').length} tickets abertos &middot; {tickets.filter(t => t.status === 'resolved').length} resolvidos
         </span>

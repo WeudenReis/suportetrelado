@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  MoreHorizontal, RefreshCw, Share2, LayoutGrid, List,
-  Minimize2, Maximize2, ChevronsUpDown, ChevronsDownUp,
-  CheckSquare, Keyboard, Plug, Loader2,
-} from 'lucide-react'
-
+import { Icon } from '../../lib/icons'
 interface MoreActionsMenuProps {
   onRefresh: () => void
   refreshing: boolean
@@ -117,7 +112,7 @@ export default function MoreActionsMenu({
         aria-expanded={open}
         style={open ? { color: '#25D066', background: 'rgba(37,208,102,0.12)' } : undefined}
       >
-        <MoreHorizontal size={16} />
+        <Icon name="MoreHorizontal" size={16} />
       </button>
 
       <AnimatePresence>
@@ -141,12 +136,12 @@ export default function MoreActionsMenu({
           >
             <MenuLabel>Visualização do quadro</MenuLabel>
             <ActionItem
-              icon={viewMode === 'kanban' ? <LayoutGrid size={14} /> : <List size={14} />}
+              icon={viewMode === 'kanban' ? <Icon name="LayoutGrid" size={14} /> : <Icon name="List" size={14} />}
               label={viewMode === 'kanban' ? 'Modo Kanban' : 'Modo Lista'}
               onClick={fire(() => onChangeViewMode(viewMode === 'kanban' ? 'list' : 'kanban'))}
             />
             <ActionItem
-              icon={compactMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              icon={compactMode ? <Icon name="Minimize2" size={14} /> : <Icon name="Maximize2" size={14} />}
               label={compactMode ? 'Modo compacto (ativo)' : 'Modo compacto'}
               hint="C"
               active={compactMode}
@@ -154,7 +149,7 @@ export default function MoreActionsMenu({
             />
             {collapseAllAvailable && (
               <ActionItem
-                icon={allCollapsed ? <ChevronsUpDown size={14} /> : <ChevronsDownUp size={14} />}
+                icon={allCollapsed ? <Icon name="ChevronsUpDown" size={14} /> : <Icon name="ChevronsDownUp" size={14} />}
                 label={allCollapsed ? 'Expandir todas as colunas' : 'Recolher todas as colunas'}
                 onClick={fire(allCollapsed ? onExpandAll : onCollapseAll)}
               />
@@ -163,31 +158,31 @@ export default function MoreActionsMenu({
             <MenuDivider />
             <MenuLabel>Ações</MenuLabel>
             <ActionItem
-              icon={refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              icon={refreshing ? <Icon name="Loader2" size={14} className="animate-spin" /> : <Icon name="RefreshCw" size={14} />}
               label="Atualizar tickets"
               hint="R"
               onClick={fire(onRefresh)}
             />
             <ActionItem
-              icon={<Share2 size={14} />}
+              icon={<Icon name="Share2" size={14} />}
               label="Compartilhar link"
               onClick={fire(onShare)}
             />
             <ActionItem
-              icon={<CheckSquare size={14} />}
+              icon={<Icon name="CheckSquare" size={14} />}
               label={bulkMode ? 'Sair da seleção múltipla' : 'Seleção múltipla'}
               active={bulkMode}
               onClick={fire(onToggleBulk)}
             />
             <ActionItem
-              icon={<Plug size={14} />}
+              icon={<Icon name="Plug" size={14} />}
               label="Configurar instância"
               onClick={fire(onOpenInstance)}
             />
 
             <MenuDivider />
             <ActionItem
-              icon={<Keyboard size={14} />}
+              icon={<Icon name="Keyboard" size={14} />}
               label="Atalhos de teclado"
               hint="?"
               onClick={fire(onShowShortcuts)}

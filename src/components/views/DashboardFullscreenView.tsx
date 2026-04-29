@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../../lib/supabase'
 import { fetchBoardColumns, type BoardColumn } from '../../lib/boardColumns'
 import { logger } from '../../lib/logger'
@@ -72,7 +72,7 @@ export default function DashboardFullscreenView({ user, view, onChangeView }: Da
 
       {loading ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#596773' }}>
-          <Loader2 size={22} className="animate-spin" />
+          <Icon name="Loader2" size={22} className="animate-spin" />
         </div>
       ) : (
         <DashboardExpanded

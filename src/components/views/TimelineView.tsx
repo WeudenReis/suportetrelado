@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { Loader2, RefreshCw, ZoomIn, ZoomOut, GanttChart, Inbox } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { fetchTickets, type Ticket } from '../../lib/supabase'
 import { updateTicket } from '../../lib/api/tickets'
 import { fetchBoardColumns, type BoardColumn } from '../../lib/boardColumns'
@@ -317,7 +317,7 @@ export default function TimelineView({ user, openTicketId, onCloseTicket, onOpen
               background: 'rgba(37,208,102,0.12)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <GanttChart size={15} style={{ color: '#25D066' }} />
+              <Icon name="GanttChart" size={15} style={{ color: '#25D066' }} />
             </div>
             <div>
               <h2 style={{ fontSize: 14, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>
@@ -361,7 +361,7 @@ export default function TimelineView({ user, openTicketId, onCloseTicket, onOpen
             title="Diminuir zoom"
             style={{ ...iconBtnStyle, opacity: zoom === 'compact' ? 0.4 : 1 }}
           >
-            <ZoomOut size={14} />
+            <Icon name="ZoomOut" size={14} />
           </button>
           <button
             onClick={() => setZoom(z => z === 'wide' ? 'wide' : z === 'normal' ? 'wide' : 'normal')}
@@ -369,7 +369,7 @@ export default function TimelineView({ user, openTicketId, onCloseTicket, onOpen
             title="Aumentar zoom"
             style={{ ...iconBtnStyle, opacity: zoom === 'wide' ? 0.4 : 1 }}
           >
-            <ZoomIn size={14} />
+            <Icon name="ZoomIn" size={14} />
           </button>
           <button
             onClick={() => loadData(true)}
@@ -377,18 +377,18 @@ export default function TimelineView({ user, openTicketId, onCloseTicket, onOpen
             title="Atualizar"
             style={{ ...iconBtnStyle, opacity: refreshing ? 0.5 : 1, cursor: refreshing ? 'wait' : 'pointer' }}
           >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
+            <Icon name="RefreshCw" size={14} className={refreshing ? 'animate-spin' : undefined} />
           </button>
         </div>
       </div>
 
       {loading ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#596773' }}>
-          <Loader2 size={22} className="animate-spin" />
+          <Icon name="Loader2" size={22} className="animate-spin" />
         </div>
       ) : spans.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#596773', gap: 10 }}>
-          <Inbox size={28} />
+          <Icon name="Inbox" size={28} />
           <p style={{ fontSize: 13, fontFamily: FONT, margin: 0 }}>
             Nenhum cartão com datas agendadas.
           </p>

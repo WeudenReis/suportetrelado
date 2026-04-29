@@ -1,5 +1,5 @@
 import { useState, lazy, Suspense } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import { motion, AnimatePresence } from 'framer-motion'
 import KanbanBoard from './KanbanBoard'
 import type { WorkView } from './workspace/ViewSwitcher'
@@ -19,7 +19,7 @@ interface WorkspaceProps {
 function ViewSpinner() {
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#596773' }}>
-      <Loader2 size={22} className="animate-spin" />
+      <Icon name="Loader2" size={22} className="animate-spin" />
     </div>
   )
 }

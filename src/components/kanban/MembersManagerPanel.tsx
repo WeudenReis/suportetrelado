@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Users, Shield, Crown, UserCheck, Building2, RefreshCw, AlertCircle, ChevronDown, Check, KeyRound, Eye, EyeOff, Copy, CheckCircle2, UserMinus, Pencil } from 'lucide-react'
+import { Icon, type IconName } from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
 import { useOrg, type OrgRole } from '../../lib/orgContext'
 import { logger } from '../../lib/logger'
@@ -22,10 +22,10 @@ interface MembersManagerPanelProps {
   onClose: () => void
 }
 
-const ROLE_CONFIG: Record<OrgRole, { label: string; color: string; bg: string; icon: typeof Crown }> = {
-  admin: { label: 'Admin', color: '#25D066', bg: 'rgba(37,208,102,0.12)', icon: Crown },
-  supervisor: { label: 'Supervisor', color: '#579DFF', bg: 'rgba(87,157,255,0.12)', icon: Shield },
-  agent: { label: 'Agente', color: '#9FADBC', bg: 'rgba(159,173,188,0.10)', icon: UserCheck },
+const ROLE_CONFIG: Record<OrgRole, { label: string; color: string; bg: string; icon: IconName }> = {
+  admin: { label: 'Admin', color: '#25D066', bg: 'rgba(37,208,102,0.12)', icon: 'Crown' },
+  supervisor: { label: 'Supervisor', color: '#579DFF', bg: 'rgba(87,157,255,0.12)', icon: 'Shield' },
+  agent: { label: 'Agente', color: '#9FADBC', bg: 'rgba(159,173,188,0.10)', icon: 'UserCheck' },
 }
 
 const ROLE_ORDER: OrgRole[] = ['admin', 'supervisor', 'agent']
@@ -429,7 +429,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 4px 12px rgba(37,208,102,0.2)',
               }}>
-                <Users size={18} style={{ color: '#fff' }} />
+                <Icon name="Users" size={18} style={{ color: '#fff' }} />
               </div>
               <div>
                 <h2 style={{ fontSize: 17, fontWeight: 900, color: '#fff', margin: 0, fontFamily: "'Paytone One', sans-serif", letterSpacing: '-0.01em' }}>
@@ -452,7 +452,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#6B7685' }}
                 title="Atualizar"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <Icon name="RefreshCw" size={14} className={loading ? 'animate-spin' : ''} />
               </button>
               <button
                 onClick={onClose}
@@ -464,7 +464,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#6B7685' }}
               >
-                <X size={15} />
+                <Icon name="X" size={15} />
               </button>
             </div>
           </div>
@@ -476,7 +476,6 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                 const count = members.filter(m => m.role === role).length
                 if (count === 0) return null
                 const cfg = ROLE_CONFIG[role]
-                const Icon = cfg.icon
                 return (
                   <div
                     key={role}
@@ -487,7 +486,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                       fontFamily: "'Space Grotesk', sans-serif",
                     }}
                   >
-                    <Icon size={13} style={{ color: cfg.color }} />
+                    <Icon name={cfg.icon} size={13} style={{ color: cfg.color }} />
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#E5E7EB' }}>{count}</span>
                     <span style={{ fontSize: 11, color: '#6B7685' }}>{cfg.label}{count > 1 ? 's' : ''}</span>
                   </div>
@@ -502,7 +501,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
           {/* Loading */}
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0', gap: 12, color: '#6B7685' }}>
-              <RefreshCw size={20} className="animate-spin" style={{ color: '#25D066' }} />
+              <Icon name="RefreshCw" size={20} className="animate-spin" style={{ color: '#25D066' }} />
               <span style={{ fontSize: 13, fontFamily: "'Space Grotesk', sans-serif" }}>Carregando equipe...</span>
             </div>
           )}
@@ -514,7 +513,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
               background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)',
               color: '#f87171', fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
             }}>
-              <AlertCircle size={16} />
+              <Icon name="AlertCircle" size={16} />
               {error}
             </div>
           )}
@@ -522,7 +521,6 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
           {/* Lista de membros */}
           {!loading && !error && grouped.map(group => {
             const cfg = ROLE_CONFIG[group.role]
-            const RoleIcon = cfg.icon
             return (
               <div key={group.role} style={{ marginBottom: 8 }}>
                 {/* Separador de seção */}
@@ -530,7 +528,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '10px 4px 8px',
                 }}>
-                  <RoleIcon size={13} style={{ color: cfg.color }} />
+                  <Icon name={cfg.icon} size={13} style={{ color: cfg.color }} />
                   <span style={{
                     fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px',
                     color: cfg.color, fontFamily: "'Space Grotesk', sans-serif",
@@ -630,7 +628,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.32)' }}
                                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.18)' }}
                               >
-                                <Check size={12} />
+                                <Icon name="Check" size={12} />
                               </button>
                               <button
                                 onClick={() => setEditingNameEmail(null)}
@@ -644,7 +642,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171' }}
                                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#596773' }}
                               >
-                                <X size={12} />
+                                <Icon name="X" size={12} />
                               </button>
                             </div>
                           ) : (
@@ -679,7 +677,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                                   onMouseEnter={e => { e.currentTarget.style.color = '#25D066' }}
                                   onMouseLeave={e => { e.currentTarget.style.color = '#4B5563' }}
                                 >
-                                  <Pencil size={11} />
+                                  <Icon name="Pencil" size={11} />
                                 </button>
                               )}
                             </div>
@@ -697,7 +695,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                               fontSize: 10, color: '#4B5563', fontFamily: "'Space Grotesk', sans-serif",
                               display: 'flex', alignItems: 'center', gap: 3, marginTop: 2,
                             }}>
-                              <Building2 size={9} />
+                              <Icon name="Building2" size={9} />
                               {member.departmentName}
                             </span>
                           )}
@@ -728,7 +726,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
                               title="Remover membro"
                             >
-                              <UserMinus size={14} />
+                              <Icon name="UserMinus" size={14} />
                             </button>
                           )}
 
@@ -747,7 +745,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                               onMouseLeave={e => { if (resetSuccess !== member.email) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' } }}
                               title={resetSuccess === member.email ? 'Senha redefinida!' : 'Redefinir senha'}
                             >
-                              {resetSuccess === member.email ? <CheckCircle2 size={14} /> : <KeyRound size={14} />}
+                              {resetSuccess === member.email ? <Icon name="CheckCircle2" size={14} /> : <Icon name="KeyRound" size={14} />}
                             </button>
                           )}
 
@@ -771,7 +769,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                                 onMouseLeave={e => { e.currentTarget.style.borderColor = `${memberCfg.color}20` }}
                               >
                                 {memberCfg.label}
-                                <ChevronDown size={11} />
+                                <Icon name="ChevronDown" size={11} />
                               </button>
 
                               <AnimatePresence>
@@ -795,7 +793,6 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                                     </div>
                                     {ROLE_ORDER.map(r => {
                                       const rc = ROLE_CONFIG[r]
-                                      const RIcon = rc.icon
                                       const isActive = member.role === r
                                       return (
                                         <button
@@ -815,9 +812,9 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                                           onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
                                           onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
                                         >
-                                          <RIcon size={14} style={{ color: rc.color, flexShrink: 0 }} />
+                                          <Icon name={rc.icon} size={14} style={{ color: rc.color, flexShrink: 0 }} />
                                           <span style={{ flex: 1, textAlign: 'left' }}>{rc.label}</span>
-                                          {isActive && <Check size={14} style={{ color: '#25D066', flexShrink: 0 }} />}
+                                          {isActive && <Icon name="Check" size={14} style={{ color: '#25D066', flexShrink: 0 }} />}
                                         </button>
                                       )
                                     })}
@@ -879,7 +876,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       boxShadow: '0 4px 12px rgba(37,208,102,0.2)',
                     }}>
-                      <KeyRound size={20} style={{ color: '#fff' }} />
+                      <Icon name="KeyRound" size={20} style={{ color: '#fff' }} />
                     </div>
                     <div>
                       <h3 style={{ fontSize: 16, fontWeight: 700, color: '#E5E7EB', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -914,7 +911,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                         />
                         <button type="button" onClick={() => setShowCurrentPassword(p => !p)}
                           style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
-                          {showCurrentPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                          {showCurrentPassword ? <Icon name="EyeOff" size={15} /> : <Icon name="Eye" size={15} />}
                         </button>
                       </div>
                     </div>
@@ -945,12 +942,12 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                         <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 2 }}>
                           <button type="button" onClick={() => setShowNewPassword(p => !p)}
                             style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
-                            {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                            {showNewPassword ? <Icon name="EyeOff" size={15} /> : <Icon name="Eye" size={15} />}
                           </button>
                           {newPassword && (
                             <button type="button" onClick={() => copyToClipboard(newPassword)} title="Copiar senha"
                               style={{ background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
-                              <Copy size={15} />
+                              <Icon name="Copy" size={15} />
                             </button>
                           )}
                         </div>
@@ -983,9 +980,9 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                         ].map((check, i) => (
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                             {check.valid ? (
-                              <CheckCircle2 size={13} style={{ color: '#25D066', flexShrink: 0 }} />
+                              <Icon name="CheckCircle2" size={13} style={{ color: '#25D066', flexShrink: 0 }} />
                             ) : (
-                              <X size={13} style={{ color: '#4B5563', flexShrink: 0 }} />
+                              <Icon name="X" size={13} style={{ color: '#4B5563', flexShrink: 0 }} />
                             )}
                             <span style={{
                               fontSize: 12, fontFamily: "'Space Grotesk', sans-serif",
@@ -1070,7 +1067,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       boxShadow: '0 4px 12px rgba(239,68,68,0.2)',
                     }}>
-                      <UserMinus size={20} style={{ color: '#fff' }} />
+                      <Icon name="UserMinus" size={20} style={{ color: '#fff' }} />
                     </div>
                     <div>
                       <h3 style={{ fontSize: 16, fontWeight: 700, color: '#E5E7EB', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -1093,7 +1090,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                       fontSize: 12, color: '#fca5a5', fontFamily: "'Space Grotesk', sans-serif",
                       display: 'flex', alignItems: 'center', gap: 8,
                     }}>
-                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                      <Icon name="AlertCircle" size={14} style={{ flexShrink: 0 }} />
                       {removeError}
                     </div>
                   )}
@@ -1137,7 +1134,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
           {/* Vazio */}
           {!loading && !error && members.length === 0 && (
             <div style={{ textAlign: 'center', padding: '48px 0' }}>
-              <Users size={32} style={{ color: '#4B5563', marginBottom: 12 }} />
+              <Icon name="Users" size={32} style={{ color: '#4B5563', marginBottom: 12 }} />
               <p style={{ fontSize: 14, color: '#6B7685', fontFamily: "'Space Grotesk', sans-serif", margin: 0 }}>
                 Nenhum membro encontrado
               </p>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Settings, X, RefreshCw, Trash2, Check } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import type { BoardColumn } from '../../lib/boardColumns'
 import { fetchAutoRules, insertAutoRule, updateAutoRule, deleteAutoRule, loadAutoRulesCache, saveLocalRules } from '../../lib/api/templates'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
@@ -111,13 +111,13 @@ export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToa
       >
         <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Settings size={15} style={{ color: '#25D066' }} />
+            <Icon name="Settings" size={15} style={{ color: '#25D066' }} />
           </div>
           <div style={{ flex: 1 }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Regras Automáticas</h3>
             <p style={{ fontSize: 10, color: '#596773', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>Mover cards automaticamente</p>
           </div>
-          <button onClick={onClose} style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8 }}><X size={15} /></button>
+          <button onClick={onClose} style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8 }}><Icon name="X" size={15} /></button>
         </div>
 
         <div className="px-5 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -133,7 +133,7 @@ export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToa
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.15)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
           >
-            <RefreshCw size={12} />
+            <Icon name="RefreshCw" size={12} />
             Executar regras agora
           </button>
         </div>
@@ -157,7 +157,7 @@ export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToa
                     cursor: 'pointer', padding: 0,
                   }}
                 >
-                  {rule.enabled && <Check size={10} strokeWidth={3} color="#000" />}
+                  {rule.enabled && <Icon name="Check" size={10} strokeWidth={3} color="#000" />}
                 </button>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: rule.enabled ? '#E5E7EB' : '#596773', display: 'block' }}>{rule.name}</span>
@@ -170,7 +170,7 @@ export default function AutoRulesModal({ columns, onClose, onRunRules, onShowToa
                   style={{ background: 'transparent', border: 'none', color: '#596773', cursor: 'pointer', padding: 4, borderRadius: 4 }}
                   title="Remover regra"
                 >
-                  <Trash2 size={12} />
+                  <Icon name="Trash2" size={12} />
                 </button>
               </div>
             ))}

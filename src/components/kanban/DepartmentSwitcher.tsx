@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Building2, ChevronDown, Check } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import { useOrg } from '../../lib/orgContext'
 
 /**
@@ -40,9 +40,9 @@ export default function DepartmentSwitcher() {
           fontFamily: "'Space Grotesk', sans-serif",
         }}
       >
-        <Building2 size={14} style={{ color: '#25D066' }} />
+        <Icon name="Building2" size={14} style={{ color: '#25D066' }} />
         <span style={{ maxWidth: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-        <ChevronDown size={12} style={{ color: '#596773' }} />
+        <Icon name="ChevronDown" size={12} style={{ color: '#596773' }} />
       </button>
 
       {open && (
@@ -77,7 +77,7 @@ export default function DepartmentSwitcher() {
                 onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
               >
                 <span style={{ flex: 1 }}>{d.name}</span>
-                {active && <Check size={12} />}
+                {active && <Icon name="Check" size={12} />}
               </button>
             )
           })}

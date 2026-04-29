@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Archive, X, AlertTriangle, UserPlus, ChevronDown } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import type { BoardColumn } from '../../lib/boardColumns'
 import type { TicketPriority, UserProfile } from '../../lib/supabase'
 
@@ -99,9 +99,9 @@ export default function BulkActionsBar({
             fontFamily: "'Space Grotesk', sans-serif",
           }}
         >
-          <AlertTriangle size={12} />
+          <Icon name="AlertTriangle" size={12} />
           Prioridade
-          <ChevronDown size={10} style={{ opacity: 0.7 }} />
+          <Icon name="ChevronDown" size={10} style={{ opacity: 0.7 }} />
         </button>
         <AnimatePresence>
           {popover === 'priority' && (
@@ -154,9 +154,9 @@ export default function BulkActionsBar({
             fontFamily: "'Space Grotesk', sans-serif",
           }}
         >
-          <UserPlus size={12} />
+          <Icon name="UserPlus" size={12} />
           Atribuir
-          <ChevronDown size={10} style={{ opacity: 0.7 }} />
+          <Icon name="ChevronDown" size={10} style={{ opacity: 0.7 }} />
         </button>
         <AnimatePresence>
           {popover === 'assign' && (
@@ -186,7 +186,7 @@ export default function BulkActionsBar({
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
               >
                 <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#454F59', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <X size={11} color="#8C96A3" />
+                  <Icon name="X" size={11} color="#8C96A3" />
                 </span>
                 Sem responsável
               </button>
@@ -236,7 +236,7 @@ export default function BulkActionsBar({
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.18)' }}
         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
       >
-        <Archive size={12} />
+        <Icon name="Archive" size={12} />
         Arquivar
       </button>
       <button
@@ -250,7 +250,7 @@ export default function BulkActionsBar({
         onMouseEnter={e => { e.currentTarget.style.color = '#B6C2CF' }}
         onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
       >
-        <X size={14} />
+        <Icon name="X" size={14} />
       </button>
     </motion.div>
   )

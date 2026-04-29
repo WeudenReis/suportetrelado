@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Trash2, X, ExternalLink, Search, Link2, FolderOpen } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import { fetchUsefulLinks, insertUsefulLink, deleteUsefulLink, type UsefulLink } from '../lib/supabase'
 import { useOrg } from '../lib/orgContext'
 import { logger } from '../lib/logger'
@@ -100,7 +100,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
               background: 'rgba(37,208,102,0.12)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Link2 size={16} style={{ color: '#25D066' }} />
+              <Icon name="Link2" size={16} style={{ color: '#25D066' }} />
             </div>
             <div>
               <h2 style={{
@@ -126,7 +126,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
           >
-            <X size={15} />
+            <Icon name="X" size={15} />
           </button>
         </div>
       </div>
@@ -134,7 +134,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
       {/* BUSCA */}
       <div data-stagger-child style={{ padding: '0 20px 12px' }}>
         <div style={{ position: 'relative' }}>
-          <Search size={14} style={{
+          <Icon name="Search" size={14} style={{
             position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#596773',
           }} />
           <input
@@ -175,7 +175,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
             else e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
           }}
         >
-          {showForm ? <X size={14} /> : <Plus size={14} />}
+          {showForm ? <Icon name="X" size={14} /> : <Icon name="Plus" size={14} />}
           {showForm ? 'Cancelar' : 'Adicionar Link'}
         </button>
       </div>
@@ -293,7 +293,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
               background: 'rgba(37,208,102,0.08)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <FolderOpen size={24} style={{ color: '#25D066', opacity: 0.6 }} />
+              <Icon name="FolderOpen" size={24} style={{ color: '#25D066', opacity: 0.6 }} />
             </div>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#8C96A3', margin: '0 0 4px', fontFamily: font }}>
               {search ? 'Nenhum resultado' : 'Nenhum link salvo'}
@@ -344,7 +344,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
                         background: 'rgba(37,208,102,0.10)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <ExternalLink size={14} style={{ color: '#25D066' }} />
+                        <Icon name="ExternalLink" size={14} style={{ color: '#25D066' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{
@@ -376,7 +376,7 @@ export default function LinksView({ user, onClose }: LinksViewProps) {
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,92,72,0.15)'; e.currentTarget.style.color = '#ef5c48' }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
                       >
-                        <Trash2 size={12} />
+                        <Icon name="Trash2" size={12} />
                       </button>
                     </a>
                   )

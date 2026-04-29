@@ -7,8 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bold, Highlighter } from 'lucide-react'
-
+import { Icon } from '../../lib/icons'
 interface RichTextFieldProps {
   value: string
   onChange: (value: string) => void
@@ -120,10 +119,10 @@ const RichTextField = forwardRef<RichTextFieldHandle, RichTextFieldProps>(functi
               }}
             >
               <ToolbarButton onClick={() => handleWrap('**')} title="Negrito (Ctrl+B)">
-                <Bold size={13} />
+                <Icon name="Bold" size={13} />
               </ToolbarButton>
               <ToolbarButton onClick={() => handleWrap('==')} title="Destaque amarelo">
-                <Highlighter size={13} />
+                <Icon name="Highlighter" size={13} />
               </ToolbarButton>
               <span
                 style={{

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, X, FileText, ChevronDown, Copy, Trash2, Loader2, Paperclip, Image as ImageIcon } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import type { Ticket, TicketStatus } from '../../lib/supabase'
 import type { BoardColumn } from '../../lib/boardColumns'
 import { fetchTemplates, insertTemplate, deleteTemplate, type TicketTemplate } from '../../lib/api/templates'
@@ -40,7 +40,7 @@ function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
         <img src={url} alt={file.name} className="w-full h-12 object-cover" />
       ) : (
         <div className="flex items-center justify-center h-12">
-          <FileText size={16} style={{ color: '#596773' }} />
+          <Icon name="FileText" size={16} style={{ color: '#596773' }} />
         </div>
       )}
       <div className="px-1.5 py-1 flex items-center gap-1">
@@ -53,7 +53,7 @@ function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
         >
-          <X size={10} style={{ color: '#f87171' }} />
+          <Icon name="X" size={10} style={{ color: '#f87171' }} />
         </button>
       </div>
     </div>
@@ -168,7 +168,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
         {/* Header */}
         <div className="px-6 pt-5 pb-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(37,208,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Plus size={18} style={{ color: '#25D066' }} />
+            <Icon name="Plus" size={18} style={{ color: '#25D066' }} />
           </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: 16, fontWeight: 800, color: '#E5E7EB', margin: 0, fontFamily: "'Paytone One', sans-serif" }}>Novo {settings.terminology.ticket_singular}</h2>
@@ -179,7 +179,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
           <button onClick={onClose} className="p-1.5 rounded-lg transition-colors" style={{ color: '#596773', background: 'transparent', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}>
-            <X size={16} />
+            <Icon name="X" size={16} />
           </button>
         </div>
 
@@ -190,8 +190,8 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)' }}
             onMouseLeave={e => { e.currentTarget.style.background = showTemplates ? 'rgba(37,208,102,0.08)' : 'transparent' }}
           >
-            <FileText size={12} /> Templates ({templates.length})
-            <ChevronDown size={12} style={{ transform: showTemplates ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+            <Icon name="FileText" size={12} /> Templates ({templates.length})
+            <Icon name="ChevronDown" size={12} style={{ transform: showTemplates ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
           </button>
           {showTemplates && (
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -207,7 +207,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)'; e.currentTarget.style.borderColor = 'rgba(37,208,102,0.15)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)' }}
                 >
-                  <Copy size={12} style={{ color: '#25D066', flexShrink: 0 }} />
+                  <Icon name="Copy" size={12} style={{ color: '#25D066', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontWeight: 700, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tmpl.name}</span>
                     <span style={{ fontSize: 10, color: '#596773' }}>{tmpl.title}</span>
@@ -217,7 +217,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
                     onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
                     onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
                     title="Remover template"
-                  ><Trash2 size={11} /></button>
+                  ><Icon name="Trash2" size={11} /></button>
                 </div>
               ))}
             </div>
@@ -271,7 +271,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
           {/* Anexos */}
           <div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, color: '#B6C2CF' }}>
-              <Paperclip size={11} /> Anexos{pendingFiles.length > 0 && <span style={{ color: '#25D066' }}>({pendingFiles.length})</span>}
+              <Icon name="Paperclip" size={11} /> Anexos{pendingFiles.length > 0 && <span style={{ color: '#25D066' }}>({pendingFiles.length})</span>}
             </label>
 
             {/* Preview grid de arquivos enfileirados */}
@@ -297,7 +297,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
                 transition: 'all 0.15s',
               }}
             >
-              <ImageIcon size={13} />
+              <Icon name="Image" size={13} />
               {isDragging ? 'Solte os arquivos aqui' : 'Adicionar arquivo'}
             </button>
             <p style={{ textAlign: 'center', fontSize: 10, color: '#3b4755', margin: '4px 0 0', fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -320,7 +320,7 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.06)' }}
             title="Salvar como template"
-          ><FileText size={13} /></button>
+          ><Icon name="FileText" size={13} /></button>
 
           <button onClick={onClose}
             style={{ flex: 1, padding: '11px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#8C96A3', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', transition: 'all 0.15s', fontFamily: "'Space Grotesk', sans-serif" }}
@@ -337,9 +337,9 @@ export default function AddTicketModal({ columns, onAdd, onClose, onShowToast, i
             onMouseLeave={e => { if (newTicket.title.trim() && !isCreating) e.currentTarget.style.background = '#25D066' }}
           >
             {isCreating ? (
-              <><Loader2 size={15} className="inline mr-1 animate-spin" style={{ verticalAlign: '-2px' }} />Criando...</>
+              <><Icon name="Loader2" size={15} className="inline mr-1 animate-spin" style={{ verticalAlign: '-2px' }} />Criando...</>
             ) : (
-              <><Plus size={15} className="inline mr-1" style={{ verticalAlign: '-2px' }} />Criar Ticket{pendingFiles.length > 0 ? ` + ${pendingFiles.length} anexo${pendingFiles.length > 1 ? 's' : ''}` : ''}</>
+              <><Icon name="Plus" size={15} className="inline mr-1" style={{ verticalAlign: '-2px' }} />Criar Ticket{pendingFiles.length > 0 ? ` + ${pendingFiles.length} anexo${pendingFiles.length > 1 ? 's' : ''}` : ''}</>
             )}
           </button>
         </div>
