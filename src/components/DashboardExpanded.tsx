@@ -9,18 +9,22 @@ import {
   AgingBars,
   HeatmapGrid,
   ThroughputBars,
+  TopClientsList,
 } from './dashboard/DashboardCharts'
 import {
   calcAging,
   calcCreationHeatmap,
   calcWeeklyThroughput,
   calcPeriodComparison,
+  calcTopClients,
+  calcForecast,
 } from './dashboard/dashboardMetrics'
 import {
   X, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock,
   Users, Columns3, Target, Download, Filter, SortAsc,
   ArrowUpRight, ShieldAlert, Activity, Inbox, CalendarRange,
   ExternalLink, FileText, Hourglass, CalendarClock, Repeat,
+  Building2, Gauge,
 } from 'lucide-react'
 import type { Ticket, UserProfile } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
@@ -271,6 +275,17 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     () => calcPeriodComparison(active, cutoff, cutoffEnd),
     [active, cutoff, cutoffEnd],
   )
+
+  // Top clientes por volume (respeita filtros para refletir o período).
+  const topClients = useMemo(() => calcTopClients(filtered, 10), [filtered])
+
+  // Forecast: backlog atual ÷ velocidade das últimas 4 semanas.
+  // Usa `active` (todos os abertos, sem filtro de período) para refletir
+  // a fila real, e `throughput` (8 sem) para a velocidade.
+  const forecast = useMemo(() => {
+    const openCount = active.filter(t => !t.is_completed).length
+    return calcForecast(openCount, throughput)
+  }, [active, throughput])
 
   const allAssignees = useMemo(() => {
     const set = new Set<string>()
@@ -642,6 +657,25 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 <KPI icon={<CheckCircle2 size={13} />} label="Taxa resolução" value={`${resolutionRate}%`} color="#4bce97" sub={`${completedCount} concluídos`} delta={periodComparison.delta.resolutionRate} />
                 <KPI icon={<Clock size={13} />}        label="Tempo médio"    value={`${avgHours}h`}        color="#e2b203" sub="para concluir" delta={periodComparison.delta.avgHours} inverted />
                 <KPI icon={<Target size={13} />}       label="Concluídos"     value={completedCount}        color="#a259ff" sub={`de ${total} no filtro`} delta={periodComparison.delta.completed} />
+                <KPI
+                  icon={<Gauge size={13} />}
+                  label="Forecast backlog"
+                  value={
+                    forecast.openCount === 0
+                      ? '0d'
+                      : forecast.daysToZero === null
+                        ? '—'
+                        : `${forecast.daysToZero}d`
+                  }
+                  color="#579dff"
+                  sub={
+                    forecast.openCount === 0
+                      ? 'Backlog em dia'
+                      : forecast.daysToZero === null
+                        ? 'Sem velocidade nas últ. 4 sem'
+                        : `${forecast.weeklyVelocity}/sem · ${forecast.openCount} abertos`
+                  }
+                />
               </div>
 
               {/* Charts 2-column */}
@@ -735,6 +769,18 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                         ) : null
                       })()}
                     </>
+                  )}
+                </div>
+
+                {/* Top Clientes — span ambas colunas */}
+                <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
+                  <SectionH icon={<Building2 size={12} />} title={`Top clientes por volume (${topClients.length})`} />
+                  {topClients.length === 0 ? (
+                    <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
+                      Nenhum cliente identificado nos tickets do filtro.
+                    </p>
+                  ) : (
+                    <TopClientsList clients={topClients} />
                   )}
                 </div>
               </div>

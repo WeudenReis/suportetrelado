@@ -514,6 +514,88 @@ export function ThroughputBars({
   )
 }
 
+// ── Top Clients List (lista compacta de clientes por volume) ──────
+// Cada linha: avatar de iniciais + nome + total + abertos + barra + tempo medio.
+export function TopClientsList({
+  clients,
+}: {
+  clients: { cliente: string; count: number; openCount: number; completedCount: number; avgHours: number }[]
+}) {
+  const max = Math.max(...clients.map(c => c.count), 1)
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
+      {clients.map((c, i) => {
+        const pct = (c.count / max) * 100
+        const fillPct = Math.max(pct, 4)
+        const initials = (c.cliente.match(/\b\w/g) || []).slice(0, 2).join('').toUpperCase() || '?'
+        const bg = avatarColor(c.cliente)
+        return (
+          <motion.div
+            key={c.cliente}
+            initial={{ opacity: 0, x: -4 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.04, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 10px', borderRadius: 10,
+              background: SURFACE_BG, border: '1px solid rgba(255,255,255,0.06)',
+            }}
+          >
+            <div style={{
+              width: 30, height: 30, borderRadius: 8, background: bg,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 800, color: '#fff', fontFamily: fontH,
+              flexShrink: 0,
+              boxShadow: `0 0 10px ${bg}55, inset 0 1px 0 rgba(255,255,255,0.25)`,
+            }}>{initials}</div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{
+                  fontSize: 12, fontWeight: 600, color: '#F1F0F2', fontFamily: font,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+                }}>{c.cliente}</span>
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, flexShrink: 0 }}>
+                  <span style={{
+                    fontSize: 14, fontWeight: 900, color: '#F1F0F2', fontFamily: fontH,
+                    letterSpacing: -0.3, lineHeight: 1,
+                  }}>{c.count}</span>
+                  {c.openCount > 0 && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, color: '#e2b203', fontFamily: font,
+                      padding: '1px 5px', borderRadius: 4,
+                      background: 'rgba(226,178,3,0.12)', border: '1px solid rgba(226,178,3,0.28)',
+                    }}>{c.openCount} aberto{c.openCount === 1 ? '' : 's'}</span>
+                  )}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{
+                  flex: 1, height: 5, borderRadius: 3,
+                  background: TRACK_BG, overflow: 'hidden',
+                  border: '1px solid rgba(255,255,255,0.04)',
+                }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${fillPct}%` }}
+                    transition={{ delay: i * 0.04 + 0.06, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ height: '100%', borderRadius: 3, background: bg, boxShadow: `0 0 6px ${bg}66` }}
+                  />
+                </div>
+                {c.avgHours > 0 && (
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, color: '#8C96A3', fontFamily: font,
+                    flexShrink: 0, letterSpacing: 0.2,
+                  }}>Ø {c.avgHours}h</span>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Member Load Card (avatar + nome/% acima, barra robusta abaixo) ──
 export function MemberLoadCard({ name, count, maxCount, index, onClick, isActive = false }: { name: string; count: number; maxCount: number; index: number; onClick?: () => void; isActive?: boolean }) {
   const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0

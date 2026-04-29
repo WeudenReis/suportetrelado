@@ -163,6 +163,86 @@ function pct(curr: number, prev: number): number | null {
  * `allActiveTickets` deve conter TODOS os tickets validos (filtrados apenas por
  * is_archived/coluna valida), sem filtros de periodo. A funcao mesma fatia.
  */
+// ── Top clientes ────────────────────────────────────────────
+// Agrupa tickets por `cliente` (case-insensitive), retorna os N maiores
+// em volume com contagem aberta/concluida e tempo medio de resolucao.
+
+export interface ClientLoad {
+  /** Nome original do cliente (preserva acentuacao/case do primeiro ocorrencia) */
+  cliente: string
+  /** Total de tickets do cliente (no dataset passado) */
+  count: number
+  /** Tickets ainda abertos (nao-concluidos) */
+  openCount: number
+  /** Tickets concluidos */
+  completedCount: number
+  /** Tempo medio em horas para resolver (apenas resolvidos). 0 se nao houver */
+  avgHours: number
+}
+
+export function calcTopClients(tickets: Ticket[], limit: number = 10): ClientLoad[] {
+  const buckets = new Map<string, {
+    display: string
+    count: number
+    openCount: number
+    completedCount: number
+    totalHours: number
+    resolvedCount: number
+  }>()
+  for (const t of tickets) {
+    const raw = (t.cliente || '').trim()
+    if (!raw) continue
+    const key = raw.toLowerCase()
+    let b = buckets.get(key)
+    if (!b) {
+      b = { display: raw, count: 0, openCount: 0, completedCount: 0, totalHours: 0, resolvedCount: 0 }
+      buckets.set(key, b)
+    }
+    b.count++
+    if (t.is_completed) {
+      b.completedCount++
+      const hours = (new Date(t.updated_at).getTime() - new Date(t.created_at).getTime()) / 3_600_000
+      if (hours >= 0) {
+        b.totalHours += hours
+        b.resolvedCount++
+      }
+    } else {
+      b.openCount++
+    }
+  }
+  return Array.from(buckets.values())
+    .map(b => ({
+      cliente: b.display,
+      count: b.count,
+      openCount: b.openCount,
+      completedCount: b.completedCount,
+      avgHours: b.resolvedCount > 0 ? Math.round(b.totalHours / b.resolvedCount) : 0,
+    }))
+    .sort((a, b) => b.count - a.count || b.openCount - a.openCount)
+    .slice(0, limit)
+}
+
+// ── Forecast de backlog ─────────────────────────────────────
+// Estima quantos dias para zerar o backlog atual ao ritmo das ultimas N semanas.
+
+export interface Forecast {
+  /** Tickets abertos no momento (nao-concluidos) */
+  openCount: number
+  /** Velocidade media semanal (concluidos por semana, nas ultimas 4 semanas) */
+  weeklyVelocity: number
+  /** Dias estimados para zerar o backlog. null quando velocidade = 0 */
+  daysToZero: number | null
+}
+
+export function calcForecast(openCount: number, throughputWeeks: ThroughputWeek[]): Forecast {
+  const recent = throughputWeeks.slice(-4)
+  const totalCompleted = recent.reduce((s, w) => s + w.completed, 0)
+  const avgFloat = recent.length > 0 ? totalCompleted / recent.length : 0
+  const weeklyVelocity = Math.round(avgFloat)
+  const daysToZero = avgFloat > 0 ? Math.max(0, Math.round((openCount / avgFloat) * 7)) : null
+  return { openCount, weeklyVelocity, daysToZero }
+}
+
 export function calcPeriodComparison(
   allActiveTickets: Ticket[],
   cutoff: string | null,
