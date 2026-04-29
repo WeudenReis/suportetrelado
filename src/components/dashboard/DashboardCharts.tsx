@@ -514,6 +514,118 @@ export function ThroughputBars({
   )
 }
 
+// ── Cycle Time Histogram (distribuição de horas até resolução) ────
+// Barras verticais coloridas por bucket + chips inferiores com média/mediana/P90.
+function fmtHours(h: number): string {
+  if (h <= 0) return '0h'
+  if (h < 1) return `${Math.round(h * 60)}m`
+  if (h < 24) return `${Math.round(h)}h`
+  return `${Math.round(h / 24)}d`
+}
+
+export function CycleTimeHistogram({
+  stats,
+}: {
+  stats: {
+    buckets: { key: string; label: string; color: string; count: number }[]
+    total: number
+    mean: number
+    median: number
+    p90: number
+  }
+}) {
+  const { buckets, total, mean, median, p90 } = stats
+  const max = Math.max(...buckets.map(b => b.count), 1)
+  const chips = [
+    { label: 'Média',   value: mean,   color: '#579dff' },
+    { label: 'Mediana', value: median, color: '#25D066' },
+    { label: 'P90',     value: p90,    color: '#ef5c48' },
+  ]
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Barras */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 140, padding: '0 4px' }}>
+        {buckets.map((b, i) => {
+          const h = max > 0 ? (b.count / max) * 100 : 0
+          const fillH = b.count > 0 ? Math.max(h, 4) : 0
+          const share = total > 0 ? Math.round((b.count / total) * 100) : 0
+          return (
+            <div
+              key={b.key}
+              title={`${b.label}: ${b.count} ticket${b.count === 1 ? '' : 's'} (${share}%)`}
+              style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                height: '100%', justifyContent: 'flex-end', minWidth: 36,
+              }}
+            >
+              <span style={{
+                fontSize: 11, fontWeight: 800, fontFamily: fontH,
+                color: b.count > 0 ? b.color : '#454F59', letterSpacing: -0.2, lineHeight: 1,
+              }}>{b.count > 0 ? b.count : ''}</span>
+              <motion.div
+                initial={{ height: 0 }}
+                animate={{ height: `${fillH}%` }}
+                transition={{ delay: i * 0.05, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                style={{
+                  width: '78%', minWidth: 16, borderRadius: '4px 4px 0 0',
+                  background: b.count > 0
+                    ? `linear-gradient(to top, ${b.color}AA, ${b.color})`
+                    : 'rgba(255,255,255,0.04)',
+                  boxShadow: b.count > 0
+                    ? `0 0 8px ${b.color}55, inset 0 1px 0 rgba(255,255,255,0.22)`
+                    : 'none',
+                  border: b.count > 0
+                    ? `1px solid ${b.color}33`
+                    : '1px solid rgba(255,255,255,0.04)',
+                  borderBottom: 'none',
+                }}
+              />
+              <span style={{
+                fontSize: 9, color: '#8C96A3', fontFamily: font, fontWeight: 600,
+              }}>{b.label}</span>
+            </div>
+          )
+        })}
+      </div>
+      {/* Chips estatísticos */}
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+        {chips.map(s => (
+          <div key={s.label} style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+            padding: '6px 14px', borderRadius: 8,
+            background: SURFACE_BG, border: `1px solid ${s.color}33`,
+            minWidth: 76,
+          }}>
+            <span style={{
+              fontSize: 9, fontWeight: 700, color: '#8C96A3', fontFamily: font,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>{s.label}</span>
+            <span style={{
+              fontSize: 16, fontWeight: 900, color: s.color, fontFamily: fontH,
+              letterSpacing: -0.3, lineHeight: 1,
+            }}>{total > 0 ? fmtHours(s.value) : '—'}</span>
+          </div>
+        ))}
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          padding: '6px 14px', borderRadius: 8,
+          background: SURFACE_BG, border: '1px solid rgba(255,255,255,0.08)',
+          minWidth: 76,
+        }}>
+          <span style={{
+            fontSize: 9, fontWeight: 700, color: '#8C96A3', fontFamily: font,
+            textTransform: 'uppercase', letterSpacing: 0.5,
+          }}>Amostra</span>
+          <span style={{
+            fontSize: 16, fontWeight: 900, color: '#D1D1D5', fontFamily: fontH,
+            letterSpacing: -0.3, lineHeight: 1,
+          }}>{total}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Top Clients List (lista compacta de clientes por volume) ──────
 // Cada linha: avatar de iniciais + nome + total + abertos + barra + tempo medio.
 export function TopClientsList({

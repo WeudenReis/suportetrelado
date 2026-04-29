@@ -163,6 +163,64 @@ function pct(curr: number, prev: number): number | null {
  * `allActiveTickets` deve conter TODOS os tickets validos (filtrados apenas por
  * is_archived/coluna valida), sem filtros de periodo. A funcao mesma fatia.
  */
+// ── Cycle time (histograma + estatisticas) ─────────────────
+// Para cada ticket concluido calcula horas entre created_at e updated_at,
+// distribui em buckets logaritmicos e calcula media, mediana e p90.
+//
+// Limitacao: `updated_at` nao e necessariamente o instante de conclusao,
+// mas e a melhor aproximacao com o schema atual (mesma usada em avgHours).
+
+export interface CycleTimeBucket {
+  key: string
+  label: string
+  color: string
+  fromHours: number
+  toHours: number | null
+  count: number
+}
+
+export interface CycleTimeStats {
+  buckets: CycleTimeBucket[]
+  /** Total de tickets resolvidos considerados */
+  total: number
+  /** Tempo medio em horas */
+  mean: number
+  /** Mediana (p50) em horas */
+  median: number
+  /** P90 em horas */
+  p90: number
+}
+
+const CYCLE_BUCKET_DEFS: Omit<CycleTimeBucket, 'count'>[] = [
+  { key: 'lt1h',   label: '<1h',   color: '#4bce97', fromHours: 0,    toHours: 1    },
+  { key: '1to4h',  label: '1-4h',  color: '#7dd87a', fromHours: 1,    toHours: 4    },
+  { key: '4to24h', label: '4-24h', color: '#e2b203', fromHours: 4,    toHours: 24   },
+  { key: '1to3d',  label: '1-3d',  color: '#f5a623', fromHours: 24,   toHours: 72   },
+  { key: '3to7d',  label: '3-7d',  color: '#ef9c4a', fromHours: 72,   toHours: 168  },
+  { key: 'gt7d',   label: '>7d',   color: '#ef5c48', fromHours: 168,  toHours: null },
+]
+
+export function calcCycleTimeStats(tickets: Ticket[]): CycleTimeStats {
+  const buckets: CycleTimeBucket[] = CYCLE_BUCKET_DEFS.map(b => ({ ...b, count: 0 }))
+  const hours: number[] = []
+  for (const t of tickets) {
+    if (!t.is_completed) continue
+    const h = (new Date(t.updated_at).getTime() - new Date(t.created_at).getTime()) / 3_600_000
+    if (h < 0 || !Number.isFinite(h)) continue
+    hours.push(h)
+    const idx = buckets.findIndex(b => h >= b.fromHours && (b.toHours === null || h < b.toHours))
+    if (idx >= 0) buckets[idx].count++
+  }
+  const total = hours.length
+  if (total === 0) return { buckets, total: 0, mean: 0, median: 0, p90: 0 }
+  hours.sort((a, b) => a - b)
+  const sum = hours.reduce((s, v) => s + v, 0)
+  const mean = sum / total
+  const median = hours[Math.floor(total / 2)] ?? 0
+  const p90 = hours[Math.min(total - 1, Math.floor(total * 0.9))] ?? 0
+  return { buckets, total, mean, median, p90 }
+}
+
 // ── Top clientes ────────────────────────────────────────────
 // Agrupa tickets por `cliente` (case-insensitive), retorna os N maiores
 // em volume com contagem aberta/concluida e tempo medio de resolucao.

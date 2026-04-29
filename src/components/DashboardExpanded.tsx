@@ -10,6 +10,7 @@ import {
   HeatmapGrid,
   ThroughputBars,
   TopClientsList,
+  CycleTimeHistogram,
 } from './dashboard/DashboardCharts'
 import {
   calcAging,
@@ -18,13 +19,14 @@ import {
   calcPeriodComparison,
   calcTopClients,
   calcForecast,
+  calcCycleTimeStats,
 } from './dashboard/dashboardMetrics'
 import {
   X, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock,
   Users, Columns3, Target, Download, Filter, SortAsc,
   ArrowUpRight, ShieldAlert, Activity, Inbox, CalendarRange,
   ExternalLink, FileText, Hourglass, CalendarClock, Repeat,
-  Building2, Gauge,
+  Building2, Gauge, Timer,
 } from 'lucide-react'
 import type { Ticket, UserProfile } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
@@ -286,6 +288,10 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     const openCount = active.filter(t => !t.is_completed).length
     return calcForecast(openCount, throughput)
   }, [active, throughput])
+
+  // Histograma de cycle time (tempo até resolver) sobre o filtro de período.
+  // Mostra a distribuição que a média esconde — útil para identificar cauda longa.
+  const cycleStats = useMemo(() => calcCycleTimeStats(filtered), [filtered])
 
   const allAssignees = useMemo(() => {
     const set = new Set<string>()
@@ -899,6 +905,18 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
               <div style={cardStyle}>
                 <SectionH icon={<Repeat size={12} />} title="Throughput — criados vs concluídos por semana" />
                 <ThroughputBars weeks={throughput} />
+              </div>
+
+              {/* Cycle time — distribuição de horas até resolução */}
+              <div style={cardStyle}>
+                <SectionH icon={<Timer size={12} />} title="Cycle time — quanto tempo até resolver" />
+                {cycleStats.total === 0 ? (
+                  <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
+                    Nenhum ticket concluído no filtro.
+                  </p>
+                ) : (
+                  <CycleTimeHistogram stats={cycleStats} />
+                )}
               </div>
 
               {/* Heatmap de criação por dia da semana × hora */}
