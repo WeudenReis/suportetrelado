@@ -17,6 +17,8 @@ import { useKeyboardShortcuts, useShortcutsHelp } from '../hooks/useKeyboardShor
 import type { Ticket, TicketStatus, BoardLabel } from '../lib/supabase'
 import ShortcutsHelpModal from './kanban/ShortcutsHelpModal'
 import BulkActionsBar from './kanban/BulkActionsBar'
+import GroupBySwitcher from './kanban/GroupBySwitcher'
+import { groupTickets, type GroupByMode } from '../lib/kanbanGrouping'
 const AutoRulesModal = lazy(() => import('./kanban/AutoRulesModal'))
 const LabelsManagerModal = lazy(() => import('./kanban/LabelsManagerModal'))
 const SettingsPanel = lazy(() => import('./kanban/SettingsPanel'))
@@ -86,6 +88,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const [showLabelsManager, setShowLabelsManager] = useState(false)
   // Label editing state moved to LabelsManagerModal
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>(() => (localStorage.getItem('chatpro-view-mode') as 'kanban' | 'list') || 'kanban')
+  const [groupBy, setGroupBy] = useState<GroupByMode>(() => (localStorage.getItem('chatpro-group-by') as GroupByMode) || 'none')
+  useEffect(() => { localStorage.setItem('chatpro-group-by', groupBy) }, [groupBy])
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set())
   const [compactMode, setCompactMode] = useState<boolean>(() => localStorage.getItem('chatpro-compact-mode') === 'true')
   const [showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp] = useShortcutsHelp()
@@ -153,6 +157,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     bulkMode, setBulkMode,
     selectedCardIds, setSelectedCardIds,
     toggleBulkSelect, handleBulkMove, handleBulkArchive,
+    handleBulkAssign, handleBulkPriority,
   } = useKanbanBulkActions({ showToast, setTickets })
 
   // Filtros + busca (full-text server-side com fallback local) extraídos para hook
@@ -694,6 +699,9 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
             <CheckSquare size={16} />
           </button>
 
+          {/* Agrupar cards (swimlanes inline) */}
+          <GroupBySwitcher value={groupBy} onChange={setGroupBy} />
+
           <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configurações">
             <Settings size={16} />
           </button>
@@ -1073,23 +1081,47 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
                           <DroppableColumn id={col.id} isOver={overColumn === col.id}>
                             <div className="trello-col__cards">
                               <SortableContext items={colTickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                                  {colTickets.map(ticket => (
-                                    <SortableCard
-                                      key={ticket.id}
-                                      ticket={ticket}
-                                      onClick={handleCardClick}
-                                      onUpdate={handleTicketUpdate}
-                                      onArchive={handleTicketArchive}
-                                      onShowToast={showToast}
-                                      isOverCard={overCardId === ticket.id}
-                                      activeTicket={activeTicket}
-                                      compact={compactMode}
-                                      bulkMode={bulkMode}
-                                      isSelected={selectedCardIds.has(ticket.id)}
-                                      onBulkToggle={toggleBulkSelect}
-                                      isMutating={mutatingIds.has(ticket.id)}
-                                    />
-                                  ))}
+                                  {(() => {
+                                    const groups = groupTickets(colTickets, groupBy, allMembers)
+                                    const renderCard = (ticket: Ticket) => (
+                                      <SortableCard
+                                        key={ticket.id}
+                                        ticket={ticket}
+                                        onClick={handleCardClick}
+                                        onUpdate={handleTicketUpdate}
+                                        onArchive={handleTicketArchive}
+                                        onShowToast={showToast}
+                                        isOverCard={overCardId === ticket.id}
+                                        activeTicket={activeTicket}
+                                        compact={compactMode}
+                                        bulkMode={bulkMode}
+                                        isSelected={selectedCardIds.has(ticket.id)}
+                                        onBulkToggle={toggleBulkSelect}
+                                        isMutating={mutatingIds.has(ticket.id)}
+                                      />
+                                    )
+                                    if (groupBy === 'none') return groups[0].tickets.map(renderCard)
+                                    return groups.map(g => (
+                                      <div key={g.key} style={{ marginBottom: 6 }}>
+                                        <div style={{
+                                          display: 'flex', alignItems: 'center', gap: 6,
+                                          padding: '4px 6px 6px', fontSize: 10.5, fontWeight: 700,
+                                          color: '#9FADBC', textTransform: 'uppercase',
+                                          letterSpacing: '0.04em',
+                                          fontFamily: "'Space Grotesk', sans-serif",
+                                          borderTop: '1px dashed rgba(255,255,255,0.06)',
+                                          marginTop: 4,
+                                        }}>
+                                          {g.color && (
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flexShrink: 0 }} />
+                                          )}
+                                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{g.label}</span>
+                                          <span style={{ color: '#596773', fontWeight: 600 }}>{g.tickets.length}</span>
+                                        </div>
+                                        {g.tickets.map(renderCard)}
+                                      </div>
+                                    ))
+                                  })()}
                               </SortableContext>
                             </div>
                           </DroppableColumn>
@@ -1819,8 +1851,11 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
           <BulkActionsBar
             selectedCount={selectedCardIds.size}
             columns={allColumns}
+            members={allMembers}
             onMove={handleBulkMove}
             onArchive={handleBulkArchive}
+            onAssign={handleBulkAssign}
+            onPriority={handleBulkPriority}
             onCancel={() => { setSelectedCardIds(new Set()); setBulkMode(false) }}
           />
         )}
