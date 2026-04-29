@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { Icon } from '../../lib/icons'
 import Popover from '../ui/Popover'
+import UserAvatar from '../ui/UserAvatar'
 
 interface UserMenuProps {
   user: string
   userName?: string
   role?: string | null
   orgName?: string | null
+  avatarUrl?: string | null
+  avatarColor?: string | null
   onMyProfile: () => void
   onSettings: () => void
   onArchived: () => void
@@ -30,6 +33,8 @@ export default function UserMenu({
   userName,
   role,
   orgName,
+  avatarUrl,
+  avatarColor,
   onMyProfile,
   onSettings,
   onArchived,
@@ -37,9 +42,9 @@ export default function UserMenu({
 }: UserMenuProps) {
   const [open, setOpen] = useState(false)
   const displayName = userName || user.split('@')[0]
-  const initials = displayName.slice(0, 2).toUpperCase()
   const roleLabel = role ? ROLE_LABEL[role] : null
   const roleColor = role ? ROLE_COLOR[role] ?? '#596773' : '#596773'
+  const fallbackColor = avatarColor || '#25D066'
 
   const close = () => setOpen(false)
   const handle = (fn: () => void) => () => { close(); fn() }
@@ -62,46 +67,39 @@ export default function UserMenu({
             width: 30,
             height: 30,
             borderRadius: '50%',
-            background: '#25D066',
-            color: '#0d1417',
+            background: 'transparent',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 11,
-            fontWeight: 800,
-            fontFamily: "'Space Grotesk', sans-serif",
             border: open ? '2px solid rgba(37,208,102,0.55)' : '2px solid transparent',
             cursor: 'pointer',
             transition: 'border-color 0.15s, transform 0.15s',
             outline: 'none',
             padding: 0,
+            overflow: 'hidden',
           }}
           onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)' }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
         >
-          {initials}
+          <UserAvatar
+            name={displayName}
+            avatarColor={fallbackColor}
+            avatarUrl={avatarUrl}
+            size={26}
+            fontSize={11}
+          />
         </button>
       }
     >
       <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              background: '#25D066',
-              color: '#0d1417',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 13,
-              fontWeight: 800,
-              flexShrink: 0,
-            }}
-          >
-            {initials}
-          </div>
+          <UserAvatar
+            name={displayName}
+            avatarColor={fallbackColor}
+            avatarUrl={avatarUrl}
+            size={36}
+            fontSize={13}
+          />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
               style={{

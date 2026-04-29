@@ -128,6 +128,7 @@ export interface UserProfile {
   email: string
   name: string
   avatar_color: string
+  avatar_url?: string | null
   role: string
   last_seen_at: string
   created_at: string

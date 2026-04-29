@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Icon } from '../../lib/icons'
 import IconButton from '../ui/IconButton'
 import Badge from '../ui/Badge'
@@ -8,6 +8,7 @@ import { useNotificationContext } from '../useNotificationContext'
 import { useAnnouncementContext } from '../useAnnouncementContext'
 import { useSearch } from '../SearchContext'
 import { useOrg } from '../../lib/orgContext'
+import { supabase } from '../../lib/supabase'
 
 export type SidebarTab = 'inbox' | 'planner' | 'announcements' | 'links'
 
@@ -60,6 +61,43 @@ export default function AppHeader({
   const announcementCount = announcements.length
   const hasCritical = announcements.some(a => a.severity === 'critical')
   const announcementColor = hasCritical ? 'red' : 'amber'
+
+  // Avatar do usuário atual — busca leve para alimentar UserMenu
+  const [avatar, setAvatar] = useState<{ url: string | null; color: string | null; name: string | null }>({ url: null, color: null, name: null })
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    supabase
+      .from('user_profiles')
+      .select('name, avatar_color, avatar_url')
+      .eq('email', user)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        setAvatar({ url: data.avatar_url ?? null, color: data.avatar_color ?? null, name: data.name ?? null })
+      })
+
+    // Realtime: refletir trocas de avatar feitas no MyProfilePanel
+    const channel = supabase.channel(`user_avatar:${user}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'user_profiles', filter: `email=eq.${user}` },
+        payload => {
+          const next = payload.new as { name?: string; avatar_color?: string; avatar_url?: string | null }
+          setAvatar({
+            url: next.avatar_url ?? null,
+            color: next.avatar_color ?? null,
+            name: next.name ?? null,
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
+  }, [user])
 
   const toggle = (tab: SidebarTab) => {
     onSidebarChange(activeSidebar === tab ? null : tab)
@@ -170,8 +208,11 @@ export default function AppHeader({
 
         <UserMenu
           user={user}
+          userName={avatar.name ?? undefined}
           role={role}
           orgName={permissions?.organization_name ?? null}
+          avatarUrl={avatar.url}
+          avatarColor={avatar.color}
           onMyProfile={onOpenMyProfile}
           onSettings={onOpenSettings}
           onArchived={onOpenArchived}

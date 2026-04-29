@@ -6,12 +6,14 @@ import { supabase } from '../../lib/supabase'
 import { useOrg, type OrgRole } from '../../lib/orgContext'
 import { logger } from '../../lib/logger'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import UserAvatar from '../ui/UserAvatar'
 
 interface MemberDisplay {
   id: string
   email: string
   name: string
   avatarColor: string
+  avatarUrl: string | null
   role: OrgRole
   departmentName: string | null
   lastSeenAt: string | null
@@ -75,7 +77,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
       // Buscar user_profiles primeiro (RLS permite SELECT para qualquer autenticado)
       const { data: profiles, error: profErr } = await supabase
         .from('user_profiles')
-        .select('id, email, name, avatar_color, role, last_seen_at')
+        .select('id, email, name, avatar_color, avatar_url, role, last_seen_at')
         .order('last_seen_at', { ascending: false })
 
       if (profErr) {
@@ -130,6 +132,7 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
           email: p.email,
           name: p.name || p.email.split('@')[0],
           avatarColor: p.avatar_color || '#579DFF',
+          avatarUrl: p.avatar_url ?? null,
           role: resolvedRole,
           departmentName: deptName,
           lastSeenAt: p.last_seen_at,
@@ -570,15 +573,14 @@ export default function MembersManagerPanel({ onClose }: MembersManagerPanelProp
                       >
                         {/* Avatar com indicador online */}
                         <div style={{ position: 'relative', flexShrink: 0 }}>
-                          <div style={{
-                            width: 40, height: 40, borderRadius: 12,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 13, fontWeight: 700, color: '#fff',
-                            background: member.avatarColor,
-                            fontFamily: "'Space Grotesk', sans-serif",
-                          }}>
-                            {member.name.slice(0, 2).toUpperCase()}
-                          </div>
+                          <UserAvatar
+                            name={member.name}
+                            avatarColor={member.avatarColor}
+                            avatarUrl={member.avatarUrl}
+                            size={40}
+                            borderRadius={12}
+                            fontSize={13}
+                          />
                           {/* Status dot */}
                           <div style={{
                             position: 'absolute', bottom: -1, right: -1,

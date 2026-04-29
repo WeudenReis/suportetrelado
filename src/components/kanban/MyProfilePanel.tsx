@@ -4,11 +4,15 @@ import { Icon } from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
 import { logger } from '../../lib/logger'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import UserAvatar from '../ui/UserAvatar'
+import AvatarCropModal from './AvatarCropModal'
+import { uploadUserAvatar, updateUserAvatarUrl, deleteUserAvatarObject } from '../../lib/api/userAvatars'
 
 interface ProfileData {
   name: string
   email: string
   avatarColor: string
+  avatarUrl: string | null
 }
 
 export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
@@ -22,6 +26,12 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
   const nameRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef, true)
+
+  // Avatar customizado
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [savingAvatar, setSavingAvatar] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
 
   // Alteração de senha
   const [showPwSection, setShowPwSection]   = useState(false)
@@ -43,13 +53,14 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
         const email = authData?.user?.email ?? ''
         const { data: prof } = await supabase
           .from('user_profiles')
-          .select('name, email, avatar_color')
+          .select('name, email, avatar_color, avatar_url')
           .eq('email', email)
           .maybeSingle()
         setProfile({
           name:        prof?.name || email.split('@')[0],
           email:       prof?.email || email,
           avatarColor: prof?.avatar_color || '#579DFF',
+          avatarUrl:   prof?.avatar_url || null,
         })
         setNameValue(prof?.name || email.split('@')[0])
       } catch (err) {
@@ -132,6 +143,80 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
     }
   }, [pwValid, currentPassword, newPassword, profile])
 
+  // ── Avatar: upload ──
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // permite re-selecionar o mesmo arquivo
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Selecione uma imagem (JPG, PNG, WebP).')
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setAvatarError('Imagem muito grande (máx. 8MB).')
+      return
+    }
+    setAvatarError(null)
+    setPendingFile(file)
+  }
+
+  const handleSaveCroppedAvatar = useCallback(async (blob: Blob) => {
+    if (!profile) return
+    setSavingAvatar(true)
+    setAvatarError(null)
+    try {
+      const { data: authData } = await supabase.auth.getUser()
+      const userId = authData?.user?.id
+      if (!userId) {
+        setAvatarError('Sessão expirada. Faça login novamente.')
+        return
+      }
+      const previousPath = profile.avatarUrl
+      const uploaded = await uploadUserAvatar(blob, userId, 'webp')
+      if (!uploaded) {
+        setAvatarError('Falha ao enviar a imagem. Tente novamente.')
+        return
+      }
+      const ok = await updateUserAvatarUrl(profile.email, uploaded.storage_path)
+      if (!ok) {
+        setAvatarError('Falha ao salvar a foto no perfil.')
+        return
+      }
+      setProfile(prev => prev ? { ...prev, avatarUrl: uploaded.storage_path } : prev)
+      setPendingFile(null)
+      // Apaga o avatar anterior (se houver) — best-effort
+      if (previousPath && previousPath !== uploaded.storage_path && !/^(https?:|data:|blob:)/i.test(previousPath)) {
+        deleteUserAvatarObject(previousPath)
+      }
+    } catch (err) {
+      setAvatarError('Erro inesperado ao salvar foto.')
+      logger.error('MyProfilePanel', 'Falha ao salvar avatar', { error: String(err) })
+    } finally {
+      setSavingAvatar(false)
+    }
+  }, [profile])
+
+  const handleRemoveAvatar = useCallback(async () => {
+    if (!profile?.avatarUrl) return
+    if (!confirm('Remover sua foto de perfil?')) return
+    setSavingAvatar(true)
+    setAvatarError(null)
+    try {
+      const previousPath = profile.avatarUrl
+      const ok = await updateUserAvatarUrl(profile.email, null)
+      if (!ok) {
+        setAvatarError('Falha ao remover a foto.')
+        return
+      }
+      setProfile(prev => prev ? { ...prev, avatarUrl: null } : prev)
+      if (previousPath && !/^(https?:|data:|blob:)/i.test(previousPath)) {
+        deleteUserAvatarObject(previousPath)
+      }
+    } finally {
+      setSavingAvatar(false)
+    }
+  }, [profile])
+
   function resetPwFields() {
     setCurrentPassword('')
     setNewPassword('')
@@ -140,8 +225,6 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
     setPwError(null)
     setShowPwSection(false)
   }
-
-  const initials = profile?.name.slice(0, 2).toUpperCase() ?? '??'
 
   // ── Estilos compartilhados ──
   const inputStyle: React.CSSProperties = {
@@ -237,15 +320,46 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
               }}>
                 {/* Avatar + nome */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-                    background: profile.avatarColor,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 18, fontWeight: 700, color: '#fff',
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    boxShadow: `0 4px 16px ${profile.avatarColor}40`,
-                  }}>
-                    {initials}
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <UserAvatar
+                      name={profile.name}
+                      avatarColor={profile.avatarColor}
+                      avatarUrl={profile.avatarUrl}
+                      size={52}
+                      borderRadius={16}
+                      fontSize={18}
+                      boxShadow={`0 4px 16px ${profile.avatarColor}40`}
+                    />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      disabled={savingAvatar}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={savingAvatar}
+                      title={profile.avatarUrl ? 'Trocar foto' : 'Adicionar foto'}
+                      style={{
+                        position: 'absolute', right: -4, bottom: -4,
+                        width: 24, height: 24, borderRadius: 8, border: '2px solid #22272B',
+                        background: '#25D066', color: '#1d2125',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: savingAvatar ? 'wait' : 'pointer', padding: 0,
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                        transition: 'transform 0.12s, background 0.12s',
+                      }}
+                      onMouseEnter={e => { if (!savingAvatar) e.currentTarget.style.transform = 'scale(1.08)' }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                    >
+                      {savingAvatar
+                        ? <Icon name="Spinner" size={11} spin />
+                        : <Icon name="Camera" size={11} />
+                      }
+                    </button>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#596773', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -299,6 +413,34 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
                     )}
                   </div>
                 </div>
+
+                {/* Erro de avatar / botão remover foto */}
+                {(avatarError || profile.avatarUrl) && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: -4 }}>
+                    {avatarError ? (
+                      <span style={{ fontSize: 11, color: '#f87171', fontFamily: "'Space Grotesk', sans-serif" }}>
+                        {avatarError}
+                      </span>
+                    ) : <span />}
+                    {profile.avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveAvatar}
+                        disabled={savingAvatar}
+                        style={{
+                          background: 'transparent', border: 'none', color: '#596773',
+                          fontSize: 11, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif",
+                          cursor: savingAvatar ? 'wait' : 'pointer', padding: '2px 4px',
+                          textDecoration: 'underline',
+                        }}
+                        onMouseEnter={e => { if (!savingAvatar) e.currentTarget.style.color = '#f87171' }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
+                      >
+                        Remover foto
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <div style={{ height: 1, background: 'rgba(255,255,255,0.05)' }} />
 
@@ -489,6 +631,14 @@ export default function MyProfilePanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </motion.div>
+
+      {pendingFile && (
+        <AvatarCropModal
+          file={pendingFile}
+          onSave={handleSaveCroppedAvatar}
+          onClose={() => setPendingFile(null)}
+        />
+      )}
     </motion.div>
   )
 }
