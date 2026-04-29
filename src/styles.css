@@ -781,6 +781,83 @@ body {
   border-radius: 10px;
 }
 
+/* Estilos dos elementos formatados (descrição, observação, comentários). */
+.rich-text-content {
+  color: #b6c2cf;
+}
+.rich-text-content .rich-text-paragraph {
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+}
+.rich-text-content .rich-text-paragraph:last-child {
+  margin-bottom: 0;
+}
+.rich-text-content .rich-text-empty {
+  height: 8px;
+}
+.rich-text-content .rich-text-ul,
+.rich-text-content .rich-text-ol {
+  margin: 4px 0 8px;
+  padding-left: 22px;
+}
+.rich-text-content .rich-text-ul {
+  list-style: disc;
+}
+.rich-text-content .rich-text-ol {
+  list-style: decimal;
+}
+.rich-text-content .rich-text-ul li::marker,
+.rich-text-content .rich-text-ol li::marker {
+  color: #25D066;
+}
+.rich-text-content .rich-text-quote {
+  margin: 4px 0 8px;
+  padding: 4px 10px;
+  border-left: 3px solid #25D066;
+  background: rgba(37,208,102,0.06);
+  border-radius: 0 6px 6px 0;
+  color: #c8d2dc;
+  font-style: italic;
+}
+.rich-text-content strong {
+  font-weight: 700;
+  color: #e6e5e8;
+}
+.rich-text-content em {
+  font-style: italic;
+}
+.rich-text-content u {
+  text-decoration: underline;
+  text-decoration-color: rgba(37,208,102,0.6);
+  text-underline-offset: 2px;
+}
+.rich-text-content s {
+  text-decoration: line-through;
+  text-decoration-color: rgba(239,92,72,0.6);
+  color: #8c96a3;
+}
+/* code/link têm classes próprias para também funcionar fora de .rich-text-content (ex.: comentários). */
+.rich-text-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+  color: #f1f0f2;
+  border: 1px solid rgba(166,197,226,0.1);
+}
+.rich-text-link {
+  color: #25D066;
+  text-decoration: underline;
+  text-decoration-color: rgba(37,208,102,0.4);
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+.rich-text-link:hover {
+  text-decoration-color: #25D066;
+  color: #24FF72;
+}
+
 /* =========================================
    Sidebar — Flush Panel (no floating)
    ========================================= */

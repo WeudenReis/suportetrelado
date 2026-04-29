@@ -29,16 +29,37 @@ function renderCommentText(text: string, knownMentions: readonly string[]): Reac
   if (!text) return text
   try {
     return parseRichText(text, { knownMentions }).map((seg, i) => {
-      if (seg.type === 'mention') {
-        return <span key={i} className="mention-highlight">{seg.value}</span>
+      switch (seg.type) {
+        case 'mention':
+          return <span key={i} className="mention-highlight">{seg.value}</span>
+        case 'bold':
+          return <strong key={i}>{seg.value}</strong>
+        case 'italic':
+          return <em key={i}>{seg.value}</em>
+        case 'underline':
+          return <u key={i}>{seg.value}</u>
+        case 'strike':
+          return <s key={i}>{seg.value}</s>
+        case 'code':
+          return <code key={i} className="rich-text-code">{seg.value}</code>
+        case 'highlight':
+          return <span key={i} className="rich-text-highlight">{seg.value}</span>
+        case 'link':
+          return (
+            <a
+              key={i}
+              href={seg.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rich-text-link"
+              onClick={e => e.stopPropagation()}
+            >
+              {seg.value}
+            </a>
+          )
+        default:
+          return <React.Fragment key={i}>{seg.value}</React.Fragment>
       }
-      if (seg.type === 'bold') {
-        return <strong key={i}>{seg.value}</strong>
-      }
-      if (seg.type === 'highlight') {
-        return <span key={i} className="rich-text-highlight">{seg.value}</span>
-      }
-      return <React.Fragment key={i}>{seg.value}</React.Fragment>
     })
   } catch {
     return text

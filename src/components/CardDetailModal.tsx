@@ -16,7 +16,7 @@ import RichTextField from './ui/RichTextField'
 import { useOrg } from '../lib/orgContext'
 import { useDepartmentSettings } from '../hooks/useDepartmentSettings'
 import { logger } from '../lib/logger'
-import { parseRichText, extractMentionDisplayNames } from '../lib/textFormatting'
+import { parseRichText, parseRichTextBlocks, extractMentionDisplayNames, type RichTextSegment } from '../lib/textFormatting'
 import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel, CommentReaction } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import { parseTag } from '../lib/tagUtils'
@@ -55,21 +55,95 @@ function avatarColor(name: string) {
   return avatarPalette[name.charCodeAt(0) % avatarPalette.length]
 }
 
+function renderInlineSegment(seg: RichTextSegment, key: React.Key): React.ReactNode {
+  switch (seg.type) {
+    case 'mention':
+      return <span key={key} className="mention-highlight">{seg.value}</span>
+    case 'bold':
+      return <strong key={key}>{seg.value}</strong>
+    case 'italic':
+      return <em key={key}>{seg.value}</em>
+    case 'underline':
+      return <u key={key}>{seg.value}</u>
+    case 'strike':
+      return <s key={key}>{seg.value}</s>
+    case 'code':
+      return <code key={key} className="rich-text-code">{seg.value}</code>
+    case 'highlight':
+      return <span key={key} className="rich-text-highlight">{seg.value}</span>
+    case 'link':
+      return (
+        <a
+          key={key}
+          href={seg.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rich-text-link"
+          onClick={e => e.stopPropagation()}
+        >
+          {seg.value}
+        </a>
+      )
+    default:
+      return <React.Fragment key={key}>{seg.value}</React.Fragment>
+  }
+}
+
 function renderCommentText(text: string, knownMentions: readonly string[]): React.ReactNode {
   if (!text) return text
   try {
-    return parseRichText(text, { knownMentions }).map((seg, i) => {
-      if (seg.type === 'mention') {
-        return <span key={i} className="mention-highlight">{seg.value}</span>
+    return parseRichText(text, { knownMentions }).map((seg, i) => renderInlineSegment(seg, i))
+  } catch {
+    return text
+  }
+}
+
+/** Renderiza texto com blocks (paragraphs, listas, citacoes) — usado em descricao/observacoes. */
+function renderRichBlocks(text: string, knownMentions: readonly string[]): React.ReactNode {
+  if (!text) return null
+  try {
+    const blocks = parseRichTextBlocks(text, { knownMentions })
+    const out: React.ReactNode[] = []
+    let i = 0
+    while (i < blocks.length) {
+      const block = blocks[i]
+      if (block.type === 'bullet' || block.type === 'numbered') {
+        const tag = block.type === 'numbered' ? 'ol' : 'ul'
+        const items: React.ReactNode[] = []
+        while (i < blocks.length && blocks[i].type === block.type) {
+          const cur = blocks[i] as { type: typeof block.type; segments: RichTextSegment[] }
+          items.push(
+            <li key={i}>
+              {cur.segments.map((seg, j) => renderInlineSegment(seg, j))}
+            </li>,
+          )
+          i++
+        }
+        out.push(React.createElement(tag, { key: `list-${i}`, className: `rich-text-${tag}` }, items))
+        continue
       }
-      if (seg.type === 'bold') {
-        return <strong key={i}>{seg.value}</strong>
+      if (block.type === 'quote') {
+        out.push(
+          <blockquote key={i} className="rich-text-quote">
+            {block.segments.map((seg, j) => renderInlineSegment(seg, j))}
+          </blockquote>,
+        )
+        i++
+        continue
       }
-      if (seg.type === 'highlight') {
-        return <span key={i} className="rich-text-highlight">{seg.value}</span>
+      if (block.type === 'empty') {
+        out.push(<div key={i} className="rich-text-empty" />)
+        i++
+        continue
       }
-      return <React.Fragment key={i}>{seg.value}</React.Fragment>
-    })
+      out.push(
+        <p key={i} className="rich-text-paragraph">
+          {block.segments.map((seg, j) => renderInlineSegment(seg, j))}
+        </p>,
+      )
+      i++
+    }
+    return out
   } catch {
     return text
   }
@@ -990,11 +1064,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   placeholder="Adicione uma descrição mais detalhada..."
                   minHeight={60}
                   ariaLabel="Descrição do ticket"
-                  renderPreview={v => renderCommentText(v, knownMentions)}
+                  renderPreview={v => renderRichBlocks(v, knownMentions)}
                 />
               ) : (
-                <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>
-                  {renderCommentText(description, knownMentions)}
+                <div className="rich-text-preview rich-text-content" style={{ marginTop: 6 }}>
+                  {renderRichBlocks(description, knownMentions)}
                 </div>
               )}
             </section>
@@ -1098,11 +1172,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   minHeight={80}
                   rows={4}
                   ariaLabel={fieldCfg.observacao.label ?? 'Observação'}
-                  renderPreview={v => renderCommentText(v, knownMentions)}
+                  renderPreview={v => renderRichBlocks(v, knownMentions)}
                 />
               ) : (
-                <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>
-                  {renderCommentText(observacaoNotes, knownMentions)}
+                <div className="rich-text-preview rich-text-content" style={{ marginTop: 6 }}>
+                  {renderRichBlocks(observacaoNotes, knownMentions)}
                 </div>
               )}
             </section>
