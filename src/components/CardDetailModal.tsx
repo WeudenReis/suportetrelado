@@ -5,7 +5,7 @@ import {
   X, MessageSquare, Trash2, Send, Loader2,
   ArrowRight, ExternalLink, MoreHorizontal,
   AlignLeft, CreditCard, Paperclip, Check, User, Calendar, Smile,
-  CheckSquare, Square, Plus, Link2, Pencil, Lock, Bold, Highlighter
+  CheckSquare, Square, Plus, Link2, Pencil, Lock
 } from 'lucide-react'
 import {
   supabase, updateTicket, deleteTicket,
@@ -17,6 +17,7 @@ import {
 } from '../lib/supabase'
 import { compressCover, compressThumbnail } from '../lib/imageUtils'
 import CardAttachments from './card/CardAttachments'
+import RichTextField from './ui/RichTextField'
 import { useOrg } from '../lib/orgContext'
 import { useDepartmentSettings } from '../hooks/useDepartmentSettings'
 import { logger } from '../lib/logger'
@@ -146,8 +147,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
 
   const commentRef = useRef<HTMLTextAreaElement>(null)
-  const descriptionRef = useRef<HTMLTextAreaElement>(null)
-  const observacaoRef = useRef<HTMLTextAreaElement>(null)
   const commentsEndRef = useRef<HTMLDivElement>(null)
 
   // Mention autocomplete state
@@ -161,28 +160,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     const checkLines = observacao.split('\n').filter(l => l.startsWith('☐') || l.startsWith('☑'))
     const merged = [...(notes ? [notes] : []), ...checkLines].join('\n')
     setObservacao(merged)
-  }
-
-  const wrapTextareaFormatting = (
-    ref: React.RefObject<HTMLTextAreaElement>,
-    marker: string,
-    value: string,
-    setter: (value: string) => void,
-  ) => {
-    const textarea = ref.current
-    if (!textarea) return
-
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const selected = value.slice(start, end)
-    const wrapped = value.slice(0, start) + marker + selected + marker + value.slice(end)
-
-    setter(wrapped)
-    setTimeout(() => {
-      textarea.focus()
-      textarea.selectionStart = start + marker.length
-      textarea.selectionEnd = end + marker.length
-    }, 0)
   }
 
   const knownMentions = useMemo(() => {
@@ -209,32 +186,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     }
     return out
   }, [allUsers])
-
-  const renderFormattingToolbar = (
-    ref: React.RefObject<HTMLTextAreaElement>,
-    value: string,
-    setter: (value: string) => void,
-  ) => (
-    <div className="flex items-center gap-2 mb-1">
-      <button
-        type="button"
-        onClick={() => wrapTextareaFormatting(ref, '**', value, setter)}
-        className="px-2 py-1 rounded-md text-xs font-semibold"
-        style={{ background: 'rgba(255,255,255,0.06)', color: '#dfe1e6', border: '1px solid rgba(166,197,226,0.12)' }}
-      >
-        <Bold size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => wrapTextareaFormatting(ref, '==', value, setter)}
-        className="px-2 py-1 rounded-md text-xs font-semibold"
-        style={{ background: 'rgba(245,166,35,0.12)', color: '#f5a623', border: '1px solid rgba(245,166,35,0.24)' }}
-      >
-        <Highlighter size={14} />
-      </button>
-      <span style={{ fontSize: 11, color: '#596773' }}>**negrito** / ==amarelo==</span>
-    </div>
-  )
 
   // GSAP refs
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -762,7 +713,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         </div>
 
         {/* ── Action quick bar ── */}
-        <div className="flex items-center gap-1.5 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center gap-1.5 px-5 py-1 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           {canManageLabels
             ? <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
             : tags.length > 0 && <div className="flex flex-wrap gap-1 items-center">
@@ -780,7 +731,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         </div>
 
         {/* ── Creation info ── */}
-        <div className="flex items-center gap-3 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center gap-3 px-5 py-1 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#596773' }}>
             <User size={12} />
             <span>Criado por <strong style={{ color: '#8c9bab' }}>{(() => {
@@ -1037,23 +988,15 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 Descrição
               </div>
               {canEditDetails ? (
-                <>
-                  {renderFormattingToolbar(descriptionRef, description, setDescription)}
-                  <textarea
-                    ref={descriptionRef}
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    onBlur={saveOnBlur}
-                    className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                    style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 60 }}
-                    placeholder="Adicione uma descrição mais detalhada..."
-                  />
-                  {description && (
-                    <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 10 }}>
-                      {renderCommentText(description, knownMentions)}
-                    </div>
-                  )}
-                </>
+                <RichTextField
+                  value={description}
+                  onChange={setDescription}
+                  onBlur={saveOnBlur}
+                  placeholder="Adicione uma descrição mais detalhada..."
+                  minHeight={60}
+                  ariaLabel="Descrição do ticket"
+                  renderPreview={v => renderCommentText(v, knownMentions)}
+                />
               ) : (
                 <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>
                   {renderCommentText(description, knownMentions)}
@@ -1152,24 +1095,16 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                 {fieldCfg.observacao.label ?? 'Observação'}
               </div>
               {canEditDetails ? (
-                <>
-                  {renderFormattingToolbar(observacaoRef, observacaoNotes, setObservacaoNotes)}
-                  <textarea
-                    ref={observacaoRef}
-                    value={observacaoNotes}
-                    onChange={e => setObservacaoNotes(e.target.value)}
-                    onBlur={saveOnBlur}
-                    className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                    style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 80 }}
-                    rows={4}
-                    placeholder="Notas adicionais"
-                  />
-                  {observacaoNotes && (
-                    <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 10 }}>
-                      {renderCommentText(observacaoNotes, knownMentions)}
-                    </div>
-                  )}
-                </>
+                <RichTextField
+                  value={observacaoNotes}
+                  onChange={setObservacaoNotes}
+                  onBlur={saveOnBlur}
+                  placeholder="Notas adicionais"
+                  minHeight={80}
+                  rows={4}
+                  ariaLabel={fieldCfg.observacao.label ?? 'Observação'}
+                  renderPreview={v => renderCommentText(v, knownMentions)}
+                />
               ) : (
                 <div className="rich-text-preview" style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>
                   {renderCommentText(observacaoNotes, knownMentions)}
