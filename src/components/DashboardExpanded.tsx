@@ -5,12 +5,22 @@ import {
   AnimatedNumber,
   MiniStatLine,
   MemberLoadCard,
+  DeltaPill,
+  AgingBars,
+  HeatmapGrid,
+  ThroughputBars,
 } from './dashboard/DashboardCharts'
+import {
+  calcAging,
+  calcCreationHeatmap,
+  calcWeeklyThroughput,
+  calcPeriodComparison,
+} from './dashboard/dashboardMetrics'
 import {
   X, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock,
   Users, Columns3, Target, Download, Filter, SortAsc,
   ArrowUpRight, ShieldAlert, Activity, Inbox, CalendarRange,
-  ExternalLink, FileText,
+  ExternalLink, FileText, Hourglass, CalendarClock, Repeat,
 } from 'lucide-react'
 import type { Ticket, UserProfile } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
@@ -42,10 +52,21 @@ function ticketEndDate(t: { is_completed?: boolean; updated_at: string }): strin
 }
 
 // ── KPI Card (Paytone One nos números, Space Grotesk nos labels) ──
-function KPI({ label, value, sub, color, icon }: { label: string; value: string | number; sub?: string; color: string; icon: React.ReactNode }) {
+// Quando `delta` é fornecido, mostra um pill com a variação % vs período anterior.
+// Para KPIs onde MENOR é melhor (alta prio, tempo médio), passar `inverted`.
+function KPI({ label, value, sub, color, icon, delta, inverted }: {
+  label: string
+  value: string | number
+  sub?: string
+  color: string
+  icon: React.ReactNode
+  delta?: number | null
+  inverted?: boolean
+}) {
   const parsed = typeof value === 'number'
     ? { num: value, suffix: '' }
     : (() => { const m = String(value).match(/^(-?\d+(?:\.\d+)?)(.*)$/); return m ? { num: parseFloat(m[1]), suffix: m[2] } : null })()
+  const showDelta = delta !== undefined
   return (
     <motion.div
       whileHover={{ scale: 1.01, y: -1 }}
@@ -56,9 +77,12 @@ function KPI({ label, value, sub, color, icon }: { label: string; value: string 
         {icon}
         <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: font }}>{label}</span>
       </div>
-      {parsed
-        ? <AnimatedNumber value={parsed.num} suffix={parsed.suffix} style={{ fontSize: 30, fontWeight: 900, color, margin: 0, fontFamily: fontH, lineHeight: 1, letterSpacing: -0.5 }} />
-        : <p style={{ fontSize: 30, fontWeight: 900, color, margin: 0, fontFamily: fontH, lineHeight: 1, letterSpacing: -0.5 }}>{value}</p>}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+        {parsed
+          ? <AnimatedNumber value={parsed.num} suffix={parsed.suffix} style={{ fontSize: 30, fontWeight: 900, color, margin: 0, fontFamily: fontH, lineHeight: 1, letterSpacing: -0.5 }} />
+          : <p style={{ fontSize: 30, fontWeight: 900, color, margin: 0, fontFamily: fontH, lineHeight: 1, letterSpacing: -0.5 }}>{value}</p>}
+        {showDelta && <DeltaPill delta={delta ?? null} inverted={inverted} size="sm" />}
+      </div>
       {sub && <p style={{ fontSize: 10, color: '#8C96A3', margin: 0, fontFamily: font, fontWeight: 500 }}>{sub}</p>}
     </motion.div>
   )
@@ -230,6 +254,23 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     })
   }, [active, days])
   const maxTrend = Math.max(...trendData.map(d => d.count), 1)
+
+  // ── Métricas avançadas (Dashboard Plus) ─────────────────
+  // Aging: idade dos abertos (não-concluídos) — usa `active` para refletir
+  // todo o backlog atual independente do date range, já que são cards "no agora".
+  const agingBuckets = useMemo(() => calcAging(active), [active])
+
+  // Heatmap (weekday × hour) baseado em `filtered` para respeitar o período.
+  const heatmap = useMemo(() => calcCreationHeatmap(filtered), [filtered])
+
+  // Throughput semanal: 8 semanas considerando todos os ativos (cobre histórico).
+  const throughput = useMemo(() => calcWeeklyThroughput(active, 8), [active])
+
+  // Comparação período atual vs anterior (mesma duração).
+  const periodComparison = useMemo(
+    () => calcPeriodComparison(active, cutoff, cutoffEnd),
+    [active, cutoff, cutoffEnd],
+  )
 
   const allAssignees = useMemo(() => {
     const set = new Set<string>()
@@ -596,11 +637,11 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* KPIs */}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <KPI icon={<Activity size={13} />}    label="Total ativos"   value={filtered.length}      color="#25D066" sub={`${backlogCount} em ${columns[0]?.title ?? 'backlog'}`} />
-                <KPI icon={<ShieldAlert size={13} />} label="Alta prioridade" value={highCount}            color="#ef5c48" sub="tickets urgentes" />
-                <KPI icon={<CheckCircle2 size={13} />} label="Taxa resolução" value={`${resolutionRate}%`} color="#4bce97" sub={`${completedCount} concluídos`} />
-                <KPI icon={<Clock size={13} />}        label="Tempo médio"    value={`${avgHours}h`}        color="#e2b203" sub="para concluir" />
-                <KPI icon={<Target size={13} />}       label="Concluídos"     value={completedCount}        color="#a259ff" sub={`de ${total} no filtro`} />
+                <KPI icon={<Activity size={13} />}    label="Total ativos"   value={filtered.length}      color="#25D066" sub={`${backlogCount} em ${columns[0]?.title ?? 'backlog'}`} delta={periodComparison.delta.total} />
+                <KPI icon={<ShieldAlert size={13} />} label="Alta prioridade" value={highCount}            color="#ef5c48" sub="tickets urgentes" delta={periodComparison.delta.high} inverted />
+                <KPI icon={<CheckCircle2 size={13} />} label="Taxa resolução" value={`${resolutionRate}%`} color="#4bce97" sub={`${completedCount} concluídos`} delta={periodComparison.delta.resolutionRate} />
+                <KPI icon={<Clock size={13} />}        label="Tempo médio"    value={`${avgHours}h`}        color="#e2b203" sub="para concluir" delta={periodComparison.delta.avgHours} inverted />
+                <KPI icon={<Target size={13} />}       label="Concluídos"     value={completedCount}        color="#a259ff" sub={`de ${total} no filtro`} delta={periodComparison.delta.completed} />
               </div>
 
               {/* Charts 2-column */}
@@ -673,23 +714,28 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                   </div>
                 </div>
 
-                {/* Por coluna */}
+                {/* Aging Report — idade dos tickets abertos */}
                 <div style={cardStyle}>
-                  <SectionH icon={<Columns3 size={12} />} title="Tickets por coluna" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                    {columns.map(col => {
-                      const count = filtered.filter(t => t.status === col.id).length
-                      const pct = filtered.length > 0 ? Math.round(count / filtered.length * 100) : 0
-                      return (
-                        <div key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: col.dot_color || '#579dff' }} />
-                          <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#E5E7EB', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.title}</span>
-                          <span style={{ fontSize: 11, color: '#6B7A8D', fontFamily: font, minWidth: 30, textAlign: 'right' }}>{pct}%</span>
-                          <span style={{ fontSize: 14, fontWeight: 900, color: count > 0 ? '#25D066' : '#454F59', fontFamily: fontH, minWidth: 24, textAlign: 'right' }}>{count}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <SectionH icon={<Hourglass size={12} />} title="Idade dos tickets abertos" />
+                  {agingBuckets.every(b => b.count === 0) ? (
+                    <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
+                      Nenhum ticket aberto no momento.
+                    </p>
+                  ) : (
+                    <>
+                      <AgingBars buckets={agingBuckets} />
+                      {(() => {
+                        const stale = agingBuckets.find(b => b.key === 'stale')?.count ?? 0
+                        const twoWeek = agingBuckets.find(b => b.key === 'two')?.count ?? 0
+                        const risk = stale + twoWeek
+                        return risk > 0 ? (
+                          <p style={{ marginTop: 10, fontSize: 10, color: '#ef5c48', fontFamily: font, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <AlertTriangle size={11} /> {risk} ticket{risk === 1 ? '' : 's'} aberto{risk === 1 ? '' : 's'} há mais de 1 semana
+                          </p>
+                        ) : null
+                      })()}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -803,6 +849,24 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
           {/* ═══ TRENDS ═══ */}
           {activeTab === 'trends' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Throughput semanal: criados vs concluídos */}
+              <div style={cardStyle}>
+                <SectionH icon={<Repeat size={12} />} title="Throughput — criados vs concluídos por semana" />
+                <ThroughputBars weeks={throughput} />
+              </div>
+
+              {/* Heatmap de criação por dia da semana × hora */}
+              <div style={cardStyle}>
+                <SectionH icon={<CalendarClock size={12} />} title="Atividade por dia da semana × hora" />
+                {heatmap.total === 0 ? (
+                  <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
+                    Sem tickets no período selecionado.
+                  </p>
+                ) : (
+                  <HeatmapGrid matrix={heatmap.matrix} max={heatmap.max} />
+                )}
+              </div>
+
               <div style={cardStyle}>
                 <SectionH icon={<TrendingUp size={12} />} title="Tickets criados por dia" />
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 130, padding: '0 4px' }}>
