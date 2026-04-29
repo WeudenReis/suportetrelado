@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } fro
 import { DndContext, DragOverlay, closestCenter, closestCorners, pointerWithin, PointerSensor, useSensor, useSensors, type CollisionDetection, type DragStartEvent, type DragEndEvent, type DragOverEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, horizontalListSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, LogOut, RefreshCw, Settings, X, Loader2, Search, Share2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, LayoutGrid, List, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
+import { Plus, RefreshCw, X, Loader2, Share2, Plug, Trash2, Users, Archive, Pencil, ArrowUpDown, Palette, ChevronLeft, Clock, LayoutGrid, List, ChevronRight, AlignLeft, Paperclip, CheckSquare, Calendar, Check, Filter, Keyboard, Minimize2, Maximize2, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { clsx } from 'clsx'
 import Card from './Card'
 import ErrorBoundary from './ErrorBoundary'
@@ -30,6 +30,7 @@ import FilterPanel from './kanban/FilterPanel'
 import DepartmentSwitcher from './kanban/DepartmentSwitcher'
 import { DroppableColumn, SortableCard, SortableBoardColumn } from './kanban/DndComponents'
 import { useOrg } from '../lib/orgContext'
+import { useSearch } from './SearchContext'
 import { logger } from '../lib/logger'
 import { fetchAutoRules } from '../lib/api/templates'
 import { useKanbanFilters } from '../hooks/useKanbanFilters'
@@ -41,7 +42,7 @@ import { useKanbanColumnsCRUD } from '../hooks/useKanbanColumnsCRUD'
 import { useKanbanBulkActions } from '../hooks/useKanbanBulkActions'
 import { useKanbanRealtime } from '../hooks/useKanbanRealtime'
 
-interface KanbanBoardProps { user: string; onLogout: () => void; openTicketId?: string | null; clearOpenTicketId?: () => void }
+interface KanbanBoardProps { user: string; openTicketId?: string | null; clearOpenTicketId?: () => void }
 
 function buildLocalColumn(title: string, position: number): BoardColumn {
   return {
@@ -58,7 +59,7 @@ function buildLocalColumn(title: string, position: number): BoardColumn {
 
 // DroppableColumn, SortableCard e SortableBoardColumn extraídos para ./kanban/DndComponents.tsx
 
-export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTicketId }: KanbanBoardProps) {
+export default function KanbanBoard({ user, openTicketId, clearOpenTicketId }: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null)
@@ -135,7 +136,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     }
   }, [tickets, user, departmentId, setTickets, showToast])
   const dragOriginalStatusRef = useRef<string | null>(null)
-  const searchInputRef = useRef<HTMLInputElement | null>(null)
 
   // Hooks extraídos
   const { onlineUsers } = useKanbanPresence(user)
@@ -175,6 +175,50 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
     uniqueLabels,
     clearAllFilters,
   } = useKanbanFilters({ tickets, allMembers })
+
+  // Busca centralizada no AppHeader: sincroniza valor + estado para o input global.
+  const {
+    query: globalSearchQuery,
+    setQuery: setGlobalSearchQuery,
+    setLoading: setGlobalSearchLoading,
+    setResultsCount: setGlobalSearchResultsCount,
+    focusInput: focusGlobalSearch,
+  } = useSearch()
+  useEffect(() => {
+    if (globalSearchQuery !== searchQuery) setSearchQuery(globalSearchQuery)
+  }, [globalSearchQuery, searchQuery, setSearchQuery])
+  useEffect(() => {
+    setGlobalSearchLoading(searchLoading)
+  }, [searchLoading, setGlobalSearchLoading])
+  useEffect(() => {
+    if (!searchQuery.trim()) setGlobalSearchResultsCount(null)
+    else setGlobalSearchResultsCount(serverSearchResults?.length ?? null)
+  }, [searchQuery, serverSearchResults, setGlobalSearchResultsCount])
+  useEffect(() => {
+    return () => {
+      setGlobalSearchQuery('')
+      setGlobalSearchLoading(false)
+      setGlobalSearchResultsCount(null)
+    }
+  }, [setGlobalSearchQuery, setGlobalSearchLoading, setGlobalSearchResultsCount])
+
+  // Custom events disparados pelo AppHeader (UserMenu / botão Criar).
+  useEffect(() => {
+    const onAdd = () => setShowAddModal(true)
+    const onSettings = () => setShowSettings(true)
+    const onMyProfile = () => setShowMyProfile(true)
+    const onArchived = () => setShowArchivedPanel(true)
+    window.addEventListener('chatpro:open-add-ticket', onAdd)
+    window.addEventListener('chatpro:open-settings', onSettings)
+    window.addEventListener('chatpro:open-my-profile', onMyProfile)
+    window.addEventListener('chatpro:open-archived', onArchived)
+    return () => {
+      window.removeEventListener('chatpro:open-add-ticket', onAdd)
+      window.removeEventListener('chatpro:open-settings', onSettings)
+      window.removeEventListener('chatpro:open-my-profile', onMyProfile)
+      window.removeEventListener('chatpro:open-archived', onArchived)
+    }
+  }, [])
 
   // Wallpaper + uploads/gallery extraídos para hook
   const {
@@ -430,8 +474,8 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
   const shortcutActions = useMemo(() => [
     { key: 'n', description: 'Novo ticket', action: () => { if (noModalOpen) { setShowAddModal(true) } } },
     { key: 'f', description: 'Filtros avançados', action: () => { if (noModalOpen) setShowFilters(p => !p) } },
-    { key: 'k', ctrl: true, description: 'Pesquisar', action: () => { searchInputRef.current?.focus() } },
-    { key: '/', description: 'Pesquisar', action: () => { if (noModalOpen) searchInputRef.current?.focus() } },
+    { key: 'k', ctrl: true, description: 'Pesquisar', action: () => { focusGlobalSearch() } },
+    { key: '/', description: 'Pesquisar', action: () => { if (noModalOpen) focusGlobalSearch() } },
     { key: 'r', description: 'Atualizar tickets', action: () => { if (noModalOpen) handleRefresh() } },
     { key: 'c', description: 'Modo compacto', action: () => { if (noModalOpen) { setCompactMode(p => { localStorage.setItem('chatpro-compact-mode', String(!p)); return !p }) } } },
     { key: '?', shift: true, description: 'Atalhos de teclado', action: () => openShortcutsHelp() },
@@ -443,7 +487,7 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
       if (showSettings) { setShowSettings(false); return }
       if (showArchivedPanel) { setShowArchivedPanel(false); return }
     }},
-  ], [noModalOpen, showAddModal, selectedTicket, showSettings, showFilters, showArchivedPanel, showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp, handleRefresh, setShowFilters])
+  ], [noModalOpen, showAddModal, selectedTicket, showSettings, showFilters, showArchivedPanel, showShortcutsHelp, openShortcutsHelp, closeShortcutsHelp, handleRefresh, setShowFilters, focusGlobalSearch])
 
   useKeyboardShortcuts(shortcutActions)
 
@@ -540,42 +584,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
               {staleCount} sem resposta +12h
             </motion.div>
           )}
-        </div>
-
-        <div className="trello-board-header__center">
-          <div className="header-search" data-tour="board-search">
-            {searchLoading ? (
-              <Loader2 size={14} className="animate-spin" style={{ color: '#25D066', flexShrink: 0 }} />
-            ) : (
-              <Search size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
-            )}
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Pesquisar (/ ou Ctrl+K)"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm flex-1"
-              style={{ color: '#B6C2CF' }}
-              role="searchbox"
-              aria-label="Pesquisar tickets"
-            />
-            {searchQuery.trim() && !searchLoading && (
-              <span style={{ fontSize: 11, color: serverSearchResults ? '#25D066' : '#6B7280', fontFamily: "'Space Grotesk', sans-serif", flexShrink: 0 }}>
-                {serverSearchResults ? `${serverSearchResults.length} resultados` : 'local'}
-              </span>
-            )}
-            {searchQuery.trim() && (
-              <button
-                onClick={() => { setSearchQuery('') }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', alignItems: 'center', padding: 2, flexShrink: 0 }}
-                type="button"
-                aria-label="Limpar busca"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
         </div>
 
         <div className="trello-board-header__right">
@@ -701,18 +709,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
 
           {/* Agrupar cards (swimlanes inline) */}
           <GroupBySwitcher value={groupBy} onChange={setGroupBy} />
-
-          <button onClick={() => setShowSettings(true)} className="trello-icon-btn" type="button" title="Configurações">
-            <Settings size={16} />
-          </button>
-
-          <button onClick={() => setShowMyProfile(true)} className="trello-icon-btn" type="button" title="Meu Perfil">
-            <Users size={16} />
-          </button>
-
-          <button onClick={() => setShowAddModal(true)} className="trello-create-btn" type="button">
-            Criar
-          </button>
 
           <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
 
@@ -847,14 +843,6 @@ export default function KanbanBoard({ user, onLogout, openTicketId, clearOpenTic
           </div>
 
           <DepartmentSwitcher />
-
-          <button onClick={() => setShowArchivedPanel(true)} className="trello-icon-btn" type="button" title="Itens arquivados">
-            <Archive size={16} />
-          </button>
-
-          <button onClick={onLogout} className="trello-icon-btn trello-icon-btn--danger" type="button" title="Sair">
-            <LogOut size={16} />
-          </button>
         </div>
       </header>
 

@@ -11,7 +11,6 @@ const DashboardFullscreenView = lazy(() => import('./views/DashboardFullscreenVi
 
 interface WorkspaceProps {
   user: string
-  onLogout: () => void
   openTicketId: string | null
   clearOpenTicketId: () => void
   setOpenTicketId: (id: string) => void
@@ -25,7 +24,7 @@ function ViewSpinner() {
   )
 }
 
-export default function Workspace({ user, onLogout, openTicketId, clearOpenTicketId, setOpenTicketId }: WorkspaceProps) {
+export default function Workspace({ user, openTicketId, clearOpenTicketId, setOpenTicketId }: WorkspaceProps) {
   const [view, setView] = useState<WorkView>('board')
 
   return (
@@ -44,7 +43,6 @@ export default function Workspace({ user, onLogout, openTicketId, clearOpenTicke
           {view === 'board' && (
             <KanbanBoard
               user={user}
-              onLogout={onLogout}
               openTicketId={openTicketId}
               clearOpenTicketId={clearOpenTicketId}
             />

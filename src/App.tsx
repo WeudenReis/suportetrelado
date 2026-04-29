@@ -9,6 +9,7 @@ import { useOrg } from './lib/orgContext'
 import { NotificationProvider } from './components/NotificationContext'
 import { useNotificationContext } from './components/useNotificationContext'
 import { AnnouncementProvider } from './components/AnnouncementContext'
+import { SearchProvider } from './components/SearchContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import { initSentry, setSentryUser, captureException } from './lib/sentry'
 import { logger } from './lib/logger'
@@ -475,15 +476,17 @@ export default function App() {
                 <OrgGate user={user!} onLogout={handleLogout}>
                   <NotificationProvider user={user!}>
                     <AnnouncementProvider>
-                      <AppContent
-                        activeTab={activeTab}
-                        setActiveTab={setActiveTab}
-                        user={user!}
-                        plannerTickets={plannerTickets}
-                        openTicketId={openTicketId}
-                        setOpenTicketId={setOpenTicketId}
-                        onLogout={handleLogout}
-                      />
+                      <SearchProvider>
+                        <AppContent
+                          activeTab={activeTab}
+                          setActiveTab={setActiveTab}
+                          user={user!}
+                          plannerTickets={plannerTickets}
+                          openTicketId={openTicketId}
+                          setOpenTicketId={setOpenTicketId}
+                          onLogout={handleLogout}
+                        />
+                      </SearchProvider>
                     </AnnouncementProvider>
                   </NotificationProvider>
                 </OrgGate>
@@ -587,12 +590,30 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
 
   const showSidebar = activeTab !== 'board'
   const activeSidebar: SidebarTab | null = activeTab === 'board' ? null : activeTab
+  const showBoardActions = activeTab === 'board'
+
+  const dispatchAfterBoard = useCallback((eventName: string) => {
+    if (activeTab !== 'board') {
+      handleTabChange('board')
+      // Aguarda KanbanBoard montar antes de despachar.
+      setTimeout(() => window.dispatchEvent(new Event(eventName)), 60)
+    } else {
+      window.dispatchEvent(new Event(eventName))
+    }
+  }, [activeTab, handleTabChange])
 
   return (
     <div className="app-shell">
       <AppHeader
         activeSidebar={activeSidebar}
         onSidebarChange={(tab) => handleTabChange(tab ?? 'board')}
+        user={user}
+        showBoardActions={showBoardActions}
+        onCreateTicket={() => dispatchAfterBoard('chatpro:open-add-ticket')}
+        onOpenMyProfile={() => dispatchAfterBoard('chatpro:open-my-profile')}
+        onOpenSettings={() => dispatchAfterBoard('chatpro:open-settings')}
+        onOpenArchived={() => dispatchAfterBoard('chatpro:open-archived')}
+        onLogout={onLogout}
       />
 
       <div className="app-layout">
@@ -646,7 +667,6 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
             >
               <Workspace
                 user={user}
-                onLogout={onLogout}
                 openTicketId={openTicketId}
                 setOpenTicketId={setOpenTicketId}
                 clearOpenTicketId={() => setOpenTicketId(null)}
