@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { BarChart3, Clock, CheckCircle2, AlertTriangle, TrendingUp, Users, X, Check, Columns3, Download, CalendarDays, Target, Maximize2 } from 'lucide-react'
+import { BarChart3, Clock, CheckCircle2, CheckCheck, AlertTriangle, TrendingUp, Users, X, Check, Columns3, Download, CalendarDays, Target, Maximize2 } from 'lucide-react'
 import { supabase, fetchTickets, fetchUserProfiles, type Ticket, type UserProfile } from '../lib/supabase'
 import { fetchBoardColumns, type BoardColumn } from '../lib/boardColumns'
 import DashboardExpanded from './DashboardExpanded'
@@ -104,16 +104,13 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
     return () => { supabase.removeChannel(channel) }
   }, [departmentId])
 
-  // Painel compacto = "Raio-X de Hoje": apenas tickets ativos, em coluna existente
-  // e com movimentação no dia (criados ou atualizados hoje). Histórico completo
-  // segue disponível no DashboardExpanded, que recebe `tickets` integralmente.
+  // Tickets ativos = não arquivados em coluna existente. As métricas "de hoje"
+  // (createdToday / completedToday) abaixo já recortam por data quando preciso.
   const active = useMemo(() => {
     const validColIds = new Set(columns.map(c => c.id))
-    const todayStr = new Date().toISOString().slice(0, 10)
     return tickets.filter(t =>
       !t.is_archived &&
-      validColIds.has(t.status) &&
-      (t.created_at.startsWith(todayStr) || t.updated_at.startsWith(todayStr))
+      validColIds.has(t.status)
     )
   }, [tickets, columns])
 
@@ -241,6 +238,13 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
       .filter(t => !t.is_completed)
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, 10)
+  }, [active])
+
+  // ── Tickets concluídos (cards com checkbox marcada) ──
+  const completedTickets = useMemo(() => {
+    return active
+      .filter(t => !!t.is_completed)
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
   }, [active])
 
   const handleConclude = useCallback(async (ticketId: string) => {
@@ -674,6 +678,81 @@ export default function DashboardView({ user, onClose }: DashboardViewProps) {
                   }}>
                     {t.priority === 'high' ? 'ALTA' : t.priority === 'medium' ? 'MÉDIA' : 'BAIXA'}
                   </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Cards Concluídos (checkbox marcada) ── */}
+        <div data-stagger-child>
+          <p style={{
+            fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.05em', color: '#6B7A8D', margin: '0 0 10px',
+            fontFamily: "'Space Grotesk', sans-serif",
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            <CheckCheck size={11} />
+            Cards Concluídos ({completedTickets.length})
+          </p>
+          {completedTickets.length === 0 ? (
+            <p style={{
+              fontSize: 11, color: '#596773', textAlign: 'center', padding: '16px 0',
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}>
+              Nenhum card concluído ainda
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {completedTickets.map(t => (
+                <div
+                  key={t.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 10px', borderRadius: 10,
+                    background: 'rgba(37,208,102,0.06)',
+                    border: '1px solid rgba(37,208,102,0.18)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span
+                    title="Concluído"
+                    style={{
+                      width: 22, height: 22, borderRadius: 6,
+                      background: '#25D066', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 0 8px rgba(37,208,102,0.45)',
+                    }}
+                  >
+                    <Check size={13} style={{ color: '#0d1417' }} />
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontSize: 12, fontWeight: 600, color: '#E5E7EB', margin: 0,
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      textDecoration: 'line-through',
+                      textDecorationColor: 'rgba(37,208,102,0.5)',
+                    }}>
+                      {t.title}
+                    </p>
+                    <p style={{
+                      fontSize: 10, color: '#8C96A3', margin: '2px 0 0',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                      <span>
+                        {(() => {
+                          if (!t.assignee) return 'Sem responsável'
+                          const first = t.assignee.split(',')[0].trim()
+                          const p = profiles.find(pr => pr.email === first || pr.name === first)
+                          return p?.name || (first.includes('@') ? first.split('@')[0] : first)
+                        })()}
+                      </span>
+                      <span style={{ color: '#454F59' }}>·</span>
+                      <span>{colLabelMap[t.status] || t.status}</span>
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
