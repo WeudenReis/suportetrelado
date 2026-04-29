@@ -19,15 +19,16 @@ import type { TicketInsert } from './lib/supabase'
 import { isSuperAdmin } from './lib/superAdmins'
 import Login from './components/Login'
 import Workspace from './components/Workspace'
-import BottomNav from './components/BottomNav'
+import AppHeader, { type SidebarTab } from './components/layout/AppHeader'
 import { fetchTickets, upsertUserProfile, updateLastSeen, checkAuthorizedUser } from './lib/supabase'
 import type { Ticket } from './lib/supabase'
+
+type AppTab = SidebarTab | 'board'
 
 const InboxSidebar = lazy(() => import('./components/InboxView'))
 const PlannerSidebar = lazy(() => import('./components/PlannerSidebar'))
 const AnnouncementsView = lazy(() => import('./components/AnnouncementsView'))
 const LinksView = lazy(() => import('./components/LinksView'))
-const DashboardView = lazy(() => import('./components/DashboardView'))
 const Onboarding = lazy(() => import('./components/Onboarding'))
 
 function SidebarSpinner() {
@@ -366,7 +367,7 @@ function OrgGate({ user, onLogout, children }: { user: string; onLogout: () => v
 export default function App() {
   const [user, setUser] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'>('board')
+  const [activeTab, setActiveTab] = useState<AppTab>('board')
 
   const [plannerTickets, setPlannerTickets] = useState<Ticket[]>([])
   const [openTicketId, setOpenTicketId] = useState<string | null>(null)
@@ -497,8 +498,8 @@ export default function App() {
 
 /* ── Inner component that has access to NotificationContext ── */
 interface AppContentProps {
-  activeTab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard'
-  setActiveTab: (tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => void
+  activeTab: AppTab
+  setActiveTab: (tab: AppTab) => void
   user: string
   plannerTickets: Ticket[]
   openTicketId: string | null
@@ -512,7 +513,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
   const isAnimating = useRef(false)
   const sidebarWidth = 520
 
-  const handleTabChange = useCallback((tab: 'inbox' | 'planner' | 'board' | 'announcements' | 'links' | 'dashboard') => {
+  const handleTabChange = useCallback((tab: AppTab) => {
     if (isAnimating.current) return
 
     // Clicking the active sidebar tab → close then go to board
@@ -553,8 +554,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
   useEffect(() => {
     const onOpenTab = (event: Event) => {
       const detail = (event as CustomEvent<{ tab?: string }>).detail
-      if (!detail?.tab) return
-      if (detail.tab !== 'inbox' && detail.tab !== 'announcements') return
+      if (detail?.tab !== 'inbox' && detail?.tab !== 'announcements') return
       setActiveTab(detail.tab)
       if (detail.tab === 'announcements') dismissToast()
     }
@@ -586,78 +586,74 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
   }, [activeTab])
 
   const showSidebar = activeTab !== 'board'
+  const activeSidebar: SidebarTab | null = activeTab === 'board' ? null : activeTab
 
   return (
-    <div className="app-layout">
-      {/* ── Sidebar Panel (icons inside) ── */}
-      {showSidebar && (
-        <div ref={sidebarRef} className="sidebar-panel" style={{ width: sidebarWidth, transition: 'width 0.3s ease' }}>
-          {/* ▸ Nav icons row (moved to top) */}
-          <div className="sidebar-panel__nav hidden-nav-bar-top" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+    <div className="app-shell">
+      <AppHeader
+        activeSidebar={activeSidebar}
+        onSidebarChange={(tab) => handleTabChange(tab ?? 'board')}
+      />
 
-            {/* Spacer */}
-            <span style={{ flex: 1 }} />
+      <div className="app-layout">
+        {showSidebar && (
+          <div ref={sidebarRef} className="sidebar-panel" style={{ width: sidebarWidth, transition: 'width 0.3s ease' }}>
+            <div className="sidebar-panel__content">
+              <Suspense fallback={<SidebarSpinner />}>
+                <ErrorBoundary>
+                  {activeTab === 'inbox' && (
+                    <InboxSidebar
+                      user={user}
+                      onClose={() => handleTabChange('board')}
+                      onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
+                    />
+                  )}
+                  {activeTab === 'planner' && (
+                    <PlannerSidebar
+                      tickets={plannerTickets}
+                      onClose={() => handleTabChange('board')}
+                      user={user}
+                      onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
+                    />
+                  )}
+                  {activeTab === 'announcements' && (
+                    <AnnouncementsView
+                      user={user}
+                      onClose={() => handleTabChange('board')}
+                    />
+                  )}
+                  {activeTab === 'links' && (
+                    <LinksView
+                      user={user}
+                      onClose={() => handleTabChange('board')}
+                    />
+                  )}
+                </ErrorBoundary>
+              </Suspense>
+            </div>
           </div>
+        )}
 
-          {/* ▸ Sidebar content */}
-          <div className="sidebar-panel__content">
-            <Suspense fallback={<SidebarSpinner />}>
-              <ErrorBoundary>
-                {activeTab === 'inbox' && (
-                  <InboxSidebar
-                    user={user}
-                    onClose={() => handleTabChange('board')}
-                    onOpenTicket={(ticketId) => {
-                      setOpenTicketId(ticketId)
-                    }}
-                  />
-                )}
-                {activeTab === 'planner' && (
-                  <PlannerSidebar
-                    tickets={plannerTickets}
-                    onClose={() => handleTabChange('board')}
-                    user={user}
-                    onOpenTicket={(ticketId) => setOpenTicketId(ticketId)}
-                  />
-                )}
-                {activeTab === 'announcements' && (
-                  <AnnouncementsView
-                    user={user}
-                    onClose={() => handleTabChange('board')}
-                  />
-                )}
-                {activeTab === 'links' && (
-                  <LinksView
-                    user={user}
-                    onClose={() => handleTabChange('board')}
-                  />
-                )}
-                {activeTab === 'dashboard' && (
-                  <DashboardView
-                    user={user}
-                    onClose={() => handleTabChange('board')}
-                  />
-                )}
-              </ErrorBoundary>
-            </Suspense>
-          </div>
+        <div className="app-layout__main">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key="workspace"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex-1 flex flex-col min-h-0"
+            >
+              <Workspace
+                user={user}
+                onLogout={onLogout}
+                openTicketId={openTicketId}
+                setOpenTicketId={setOpenTicketId}
+                clearOpenTicketId={() => setOpenTicketId(null)}
+              />
+            </motion.div>
+          </AnimatePresence>
         </div>
-      )}
-
-      <div className="app-layout__main">
-        <AnimatePresence mode="wait">
-          <motion.div key="workspace" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-            className="flex-1 flex flex-col min-h-0">
-            <Workspace
-              user={user}
-              onLogout={onLogout}
-              openTicketId={openTicketId}
-              setOpenTicketId={setOpenTicketId}
-              clearOpenTicketId={() => setOpenTicketId(null)}
-            />
-          </motion.div>
-        </AnimatePresence>
-        <BottomNav active={activeTab} onChange={handleTabChange} />
       </div>
 
       {/* ── Toast de notificação on-screen ── */}
@@ -668,7 +664,7 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
             onDismiss={dismissToast}
             onClickOpen={() => {
               dismissToast()
-              const targetTab = toastNotification.type === 'announcement' ? 'announcements' : 'inbox'
+              const targetTab: SidebarTab = toastNotification.type === 'announcement' ? 'announcements' : 'inbox'
               if (activeTab !== targetTab) handleTabChange(targetTab)
             }}
           />
