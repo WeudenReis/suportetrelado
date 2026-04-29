@@ -566,13 +566,13 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
           : { position: 'fixed', inset: 0, zIndex: 9999, background: '#111720', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
       >
         {/* ── HEADER ── */}
-        <div style={{ padding: '14px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, background: '#0e1520' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(37,208,102,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon name="BarChart3" size={16} color="#25D066" />
+        <div style={{ padding: '12px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, background: '#0e1520' }}>
+          <div style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(37,208,102,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="BarChart3" size={15} color="#25D066" />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#E5E7EB', fontFamily: fontH }}>Dashboard Executivo</h2>
-            <p style={{ margin: 0, fontSize: 10, color: '#596773', fontFamily: font }}>{total} tickets no período selecionado</p>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#E5E7EB', fontFamily: fontH, letterSpacing: -0.2 }}>Dashboard Executivo</h2>
+            <p className="font-data" style={{ margin: 0, fontSize: 10, color: '#596773', fontVariantNumeric: 'tabular-nums' }}>{total} tickets no período selecionado</p>
           </div>
 
           <div style={{ flex: 1 }} />
@@ -617,46 +617,48 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
           )}
         </div>
 
-        {/* ── TABS ── */}
-        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '0 28px', flexShrink: 0, background: '#0e1520' }}>
-          {TABS.map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '11px 16px 13px', border: 'none',
-              background: 'transparent', cursor: 'pointer', position: 'relative', fontFamily: font,
-              fontSize: 12, fontWeight: 600, color: activeTab === tab.key ? '#25D066' : '#8C96A3',
-              transition: 'color 0.15s',
-            }}>
-              {tab.icon}{tab.label}
-              {activeTab === tab.key && (
-                <motion.div layoutId="dtab" style={{ position: 'absolute', bottom: -1, left: 0, right: 0, height: 2, background: '#25D066', borderRadius: 1 }} />
-              )}
-            </button>
-          ))}
-        </div>
+        {/* ── TABS + FILTERS (linha unificada) ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 28px', borderBottom: '1px solid rgba(255,255,255,0.05)', flexShrink: 0, background: '#0e1520' }}>
+          <div style={{ display: 'flex' }}>
+            {TABS.map(tab => (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px 12px', border: 'none',
+                background: 'transparent', cursor: 'pointer', position: 'relative', fontFamily: font,
+                fontSize: 12, fontWeight: 600, color: activeTab === tab.key ? '#25D066' : '#8C96A3',
+                transition: 'color 0.15s',
+              }}>
+                {tab.icon}{tab.label}
+                {activeTab === tab.key && (
+                  <motion.div layoutId="dtab" style={{ position: 'absolute', bottom: -1, left: 0, right: 0, height: 2, background: '#25D066', borderRadius: 1 }} />
+                )}
+              </button>
+            ))}
+          </div>
 
-        {/* ── FILTER BAR ── */}
-        <div style={{ display: 'flex', gap: 8, padding: '10px 28px', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', flexShrink: 0, background: '#0d1520' }}>
-          <Icon name="Filter" size={12} color="#596773" />
-          <span style={{ fontSize: 11, color: '#596773', fontFamily: font }}>Filtrar:</span>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
-            <option value="all">Todos status</option>
-            {columns.map(col => <option key={col.id} value={col.id}>{col.title}</option>)}
-          </select>
-          <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
-            <option value="all">Todas prioridades</option>
-            {Object.entries(PRIORITY_L).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-          <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
-            <option value="all">Todos responsáveis</option>
-            {allAssignees.map(a => <option key={a} value={a}>{a.split('@')[0]}</option>)}
-          </select>
-          <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 11, color: '#596773', fontFamily: font }}>{total} resultados</span>
-          {(filterStatus !== 'all' || filterPriority !== 'all' || filterAssignee !== 'all') && (
-            <button onClick={() => { setFilterStatus('all'); setFilterPriority('all'); setFilterAssignee('all') }} style={{ fontSize: 11, color: '#ef5c48', background: 'rgba(239,92,72,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: font }}>
-              Limpar
-            </button>
-          )}
+          <span style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flex: 1, overflowX: 'auto' }}>
+            <Icon name="Filter" size={11} color="#596773" />
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
+              <option value="all">Todos status</option>
+              {columns.map(col => <option key={col.id} value={col.id}>{col.title}</option>)}
+            </select>
+            <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
+              <option value="all">Todas prioridades</option>
+              {Object.entries(PRIORITY_L).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} style={{ background: '#1a2230', border: '1px solid rgba(255,255,255,0.08)', color: '#B6C2CF', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontFamily: font, cursor: 'pointer', outline: 'none' }}>
+              <option value="all">Todos responsáveis</option>
+              {allAssignees.map(a => <option key={a} value={a}>{a.split('@')[0]}</option>)}
+            </select>
+            {(filterStatus !== 'all' || filterPriority !== 'all' || filterAssignee !== 'all') && (
+              <button onClick={() => { setFilterStatus('all'); setFilterPriority('all'); setFilterAssignee('all') }} style={{ fontSize: 11, color: '#ef5c48', background: 'rgba(239,92,72,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: font }}>
+                Limpar
+              </button>
+            )}
+          </div>
+
+          <span className="font-data" style={{ fontSize: 11, color: '#596773', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{total} resultados</span>
         </div>
 
         {/* ── CONTENT ── */}
@@ -909,9 +911,13 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
 
           {/* ═══ TRENDS ═══ */}
           {activeTab === 'trends' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {/* CFD — fluxo cumulativo aproximado */}
-              <div style={cardStyle}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(12, 1fr)',
+              gap: 14,
+            }}>
+              {/* CFD — fluxo cumulativo aproximado (12 cols) */}
+              <div style={{ ...cardStyle, gridColumn: 'span 12' }}>
                 <SectionH icon={<Icon name="AreaChart" size={12} />} title={`CFD — fluxo cumulativo (últimos ${cfdDays}d)`} />
                 {cfdPoints.every(p => p.total === 0) ? (
                   <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
@@ -921,7 +927,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                   <>
                     <CFDChart points={cfdPoints} columns={columns} />
                     <p style={{
-                      marginTop: 10, fontSize: 9, color: '#596773', fontFamily: font,
+                      marginTop: 8, fontSize: 9, color: '#596773', fontFamily: font,
                       display: 'flex', alignItems: 'flex-start', gap: 5, fontStyle: 'italic',
                     }}>
                       <Icon name="Info" size={10} style={{ marginTop: 1, flexShrink: 0 }} />
@@ -931,14 +937,14 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 )}
               </div>
 
-              {/* Throughput semanal: criados vs concluídos */}
-              <div style={cardStyle}>
+              {/* Throughput semanal: criados vs concluídos (6 cols) */}
+              <div style={{ ...cardStyle, gridColumn: 'span 6' }}>
                 <SectionH icon={<Icon name="Repeat" size={12} />} title="Throughput — criados vs concluídos por semana" />
                 <ThroughputBars weeks={throughput} />
               </div>
 
-              {/* Cycle time — distribuição de horas até resolução */}
-              <div style={cardStyle}>
+              {/* Cycle time — distribuição de horas até resolução (6 cols) */}
+              <div style={{ ...cardStyle, gridColumn: 'span 6' }}>
                 <SectionH icon={<Icon name="Timer" size={12} />} title="Cycle time — quanto tempo até resolver" />
                 {cycleStats.total === 0 ? (
                   <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
@@ -949,8 +955,8 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 )}
               </div>
 
-              {/* Heatmap de criação por dia da semana × hora */}
-              <div style={cardStyle}>
+              {/* Heatmap (7 cols) */}
+              <div style={{ ...cardStyle, gridColumn: 'span 7' }}>
                 <SectionH icon={<Icon name="CalendarClock" size={12} />} title="Atividade por dia da semana × hora" />
                 {heatmap.total === 0 ? (
                   <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
@@ -961,14 +967,15 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 )}
               </div>
 
-              <div style={cardStyle}>
+              {/* Tickets por dia (5 cols) */}
+              <div style={{ ...cardStyle, gridColumn: 'span 5' }}>
                 <SectionH icon={<Icon name="TrendingUp" size={12} />} title="Tickets criados por dia" />
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 130, padding: '0 4px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 110, padding: '0 4px' }}>
                   {trendData.map((d, i) => {
                     const h = maxTrend > 0 ? (d.count / maxTrend) * 100 : 0
                     return (
                       <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: d.count > 0 ? '#25D066' : '#454F59', fontFamily: font }}>{d.count > 0 ? d.count : ''}</span>
+                        <span className="font-numeric" style={{ fontSize: 9, fontWeight: 700, color: d.count > 0 ? '#25D066' : '#454F59' }}>{d.count > 0 ? d.count : ''}</span>
                         <div style={{ width: '70%', borderRadius: '4px 4px 0 0', minHeight: 3, height: `${Math.max(h, 3)}%`, background: d.count > 0 ? 'linear-gradient(to top, #1BAD53, #25D066)' : 'rgba(255,255,255,0.05)', transition: 'height 0.5s ease' }} />
                         <span style={{ fontSize: 8, color: '#596773', fontFamily: font, transform: 'rotate(-30deg)', whiteSpace: 'nowrap' }}>{d.label}</span>
                       </div>
@@ -977,24 +984,23 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                {[
-                  { title: 'Mais antigos sem resolução', color: '#ef5c48', items: active.filter(t => !t.is_completed).sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(0, 6) },
-                  { title: 'Resolvidos recentemente', color: '#4bce97', items: active.filter(t => !!t.is_completed).sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6) },
-                ].map(s => (
-                  <div key={s.title} style={cardStyle}>
-                    <SectionH icon={<Icon name="ArrowUpRight" size={12} />} title={s.title} />
-                    {s.items.length === 0 ? <p style={{ fontSize: 12, color: '#596773', fontFamily: font }}>—</p> : s.items.map(t => (
-                      <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}
-                        onClick={() => setSelectedTicket(t)}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: s.color }} />
-                        <span style={{ flex: 1, fontSize: 12, fontWeight: 500, color: '#B6C2CF', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: s.color, fontFamily: fontH }}>{daysBetween(t.created_at, ticketEndDate(t))}d</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+              {/* Listas pareadas (6+6) */}
+              {[
+                { title: 'Mais antigos sem resolução', color: '#ef5c48', items: active.filter(t => !t.is_completed).sort((a, b) => a.created_at.localeCompare(b.created_at)).slice(0, 6) },
+                { title: 'Resolvidos recentemente', color: '#4bce97', items: active.filter(t => !!t.is_completed).sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6) },
+              ].map(s => (
+                <div key={s.title} style={{ ...cardStyle, gridColumn: 'span 6' }}>
+                  <SectionH icon={<Icon name="ArrowUpRight" size={12} />} title={s.title} />
+                  {s.items.length === 0 ? <p style={{ fontSize: 12, color: '#596773', fontFamily: font }}>—</p> : s.items.map(t => (
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}
+                      onClick={() => setSelectedTicket(t)}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: s.color }} />
+                      <span style={{ flex: 1, fontSize: 12, fontWeight: 500, color: '#B6C2CF', fontFamily: font, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
+                      <span className="font-numeric" style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{daysBetween(t.created_at, ticketEndDate(t))}d</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           )}
         </div>

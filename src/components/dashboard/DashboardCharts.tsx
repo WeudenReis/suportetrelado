@@ -459,7 +459,7 @@ export function ThroughputBars({
   const max = Math.max(...weeks.flatMap(w => [w.created, w.completed]), 1)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 140, padding: '0 4px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, padding: '0 4px' }}>
         {weeks.map((w, i) => {
           const hCreated = max > 0 ? (w.created / max) * 100 : 0
           const hCompleted = max > 0 ? (w.completed / max) * 100 : 0
@@ -527,8 +527,8 @@ export function CFDChart({
 }) {
   if (points.length === 0 || columns.length === 0) return null
 
-  const W = 800, H = 240
-  const padL = 40, padR = 20, padT = 16, padB = 32
+  const W = 800, H = 200
+  const padL = 36, padR = 16, padT = 12, padB = 28
   const innerW = W - padL - padR
   const innerH = H - padT - padB
 
@@ -572,7 +572,7 @@ export function CFDChart({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        style={{ width: '100%', height: 240, display: 'block' }}
+        style={{ width: '100%', height: 200, display: 'block' }}
       >
         {/* Grid horizontal + tick labels */}
         {ticks.map(t => (
@@ -661,7 +661,7 @@ export function CycleTimeHistogram({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Barras */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 140, padding: '0 4px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, padding: '0 4px' }}>
         {buckets.map((b, i) => {
           const h = max > 0 ? (b.count / max) * 100 : 0
           const fillH = b.count > 0 ? Math.max(h, 4) : 0
