@@ -163,6 +163,62 @@ function pct(curr: number, prev: number): number | null {
  * `allActiveTickets` deve conter TODOS os tickets validos (filtrados apenas por
  * is_archived/coluna valida), sem filtros de periodo. A funcao mesma fatia.
  */
+// ── CFD (Cumulative Flow Diagram) aproximado ───────────────
+// Snapshot diario do pipeline para os ultimos N dias. Para cada dia D
+// e cada coluna C, conta tickets que:
+//   - foram criados ate D (created_at <= fim de D)
+//   - E (nao concluidos OU concluidos depois de D)
+//   - distribuidos pelo status ATUAL (aproximacao: assume que sempre estiveram
+//     na coluna em que estao hoje).
+//
+// Limitacao honesta: sem historico de transicoes nao da pra reconstruir
+// movimentacoes passadas. O CFD mostra acumulo total e onde estao parados,
+// mas as faixas internas nao refletem trocas de coluna no passado.
+
+export interface CFDPoint {
+  /** YYYY-MM-DD */
+  day: string
+  /** DD/MM */
+  label: string
+  /** count[statusId] = numero de tickets na coluna naquele dia */
+  counts: Record<string, number>
+  /** Soma de todas as colunas no dia */
+  total: number
+}
+
+export function calcCFD(tickets: Ticket[], columnIds: string[], days: number): CFDPoint[] {
+  const points: CFDPoint[] = []
+  const validIds = new Set(columnIds)
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const ms = d.getTime()
+    const day = d.toISOString().slice(0, 10)
+    const label = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`
+
+    const counts: Record<string, number> = {}
+    for (const id of columnIds) counts[id] = 0
+
+    for (const t of tickets) {
+      const created = new Date(t.created_at).getTime()
+      if (!Number.isFinite(created) || created > ms) continue
+      if (t.is_completed) {
+        const completed = new Date(t.updated_at).getTime()
+        if (Number.isFinite(completed) && completed <= ms) continue
+      }
+      if (validIds.has(t.status)) counts[t.status]++
+    }
+
+    const total = Object.values(counts).reduce((s, v) => s + v, 0)
+    points.push({ day, label, counts, total })
+  }
+
+  return points
+}
+
 // ── Cycle time (histograma + estatisticas) ─────────────────
 // Para cada ticket concluido calcula horas entre created_at e updated_at,
 // distribui em buckets logaritmicos e calcula media, mediana e p90.

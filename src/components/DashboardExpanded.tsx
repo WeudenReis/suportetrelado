@@ -11,6 +11,7 @@ import {
   ThroughputBars,
   TopClientsList,
   CycleTimeHistogram,
+  CFDChart,
 } from './dashboard/DashboardCharts'
 import {
   calcAging,
@@ -20,13 +21,14 @@ import {
   calcTopClients,
   calcForecast,
   calcCycleTimeStats,
+  calcCFD,
 } from './dashboard/dashboardMetrics'
 import {
   X, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock,
   Users, Columns3, Target, Download, Filter, SortAsc,
   ArrowUpRight, ShieldAlert, Activity, Inbox, CalendarRange,
   ExternalLink, FileText, Hourglass, CalendarClock, Repeat,
-  Building2, Gauge, Timer,
+  Building2, Gauge, Timer, AreaChart, Info,
 } from 'lucide-react'
 import type { Ticket, UserProfile } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
@@ -292,6 +294,19 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
   // Histograma de cycle time (tempo até resolver) sobre o filtro de período.
   // Mostra a distribuição que a média esconde — útil para identificar cauda longa.
   const cycleStats = useMemo(() => calcCycleTimeStats(filtered), [filtered])
+
+  // CFD aproximado: usa `active` (todos os abertos sem filtro de data, já que
+  // o CFD olha o estado em cada dia passado) e respeita o range quando faz sentido.
+  // Default 30 dias para 'all'/'custom' (caso contrário ficaria pesado).
+  const cfdDays = useMemo(() => {
+    if (dateRange === '7d') return 7
+    if (dateRange === '90d') return 90
+    return 30
+  }, [dateRange])
+  const cfdPoints = useMemo(
+    () => calcCFD(active, columns.map(c => c.id), cfdDays),
+    [active, columns, cfdDays],
+  )
 
   const allAssignees = useMemo(() => {
     const set = new Set<string>()
@@ -901,6 +916,27 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
           {/* ═══ TRENDS ═══ */}
           {activeTab === 'trends' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* CFD — fluxo cumulativo aproximado */}
+              <div style={cardStyle}>
+                <SectionH icon={<AreaChart size={12} />} title={`CFD — fluxo cumulativo (últimos ${cfdDays}d)`} />
+                {cfdPoints.every(p => p.total === 0) ? (
+                  <p style={{ fontSize: 11, color: '#596773', fontFamily: font, margin: 0 }}>
+                    Sem tickets no pipeline para o período.
+                  </p>
+                ) : (
+                  <>
+                    <CFDChart points={cfdPoints} columns={columns} />
+                    <p style={{
+                      marginTop: 10, fontSize: 9, color: '#596773', fontFamily: font,
+                      display: 'flex', alignItems: 'flex-start', gap: 5, fontStyle: 'italic',
+                    }}>
+                      <Info size={10} style={{ marginTop: 1, flexShrink: 0 }} />
+                      Aproximação: usa o status atual de cada ticket. Movimentações passadas entre colunas não são reconstruídas — para fluxo histórico fiel, seria preciso persistir transições de status.
+                    </p>
+                  </>
+                )}
+              </div>
+
               {/* Throughput semanal: criados vs concluídos */}
               <div style={cardStyle}>
                 <SectionH icon={<Repeat size={12} />} title="Throughput — criados vs concluídos por semana" />

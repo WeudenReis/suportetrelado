@@ -514,6 +514,123 @@ export function ThroughputBars({
   )
 }
 
+// ── CFD Chart (Cumulative Flow Diagram aproximado) ────────
+// SVG stacked-area: cada coluna do board vira uma faixa empilhada.
+// Eixo X = dias do range; Eixo Y = total de tickets no pipeline naquele dia.
+// A primeira coluna fica na base, cada coluna subsequente empilha por cima.
+export function CFDChart({
+  points,
+  columns,
+}: {
+  points: { day: string; label: string; counts: Record<string, number>; total: number }[]
+  columns: { id: string; title: string; dot_color?: string | null }[]
+}) {
+  if (points.length === 0 || columns.length === 0) return null
+
+  const W = 800, H = 240
+  const padL = 40, padR = 20, padT = 16, padB = 32
+  const innerW = W - padL - padR
+  const innerH = H - padT - padB
+
+  const maxTotal = Math.max(...points.map(p => p.total), 1)
+  // Para cada ponto, calcula o topo cumulativo de cada coluna.
+  const tops = points.map(p => {
+    let acc = 0
+    const t: Record<string, number> = {}
+    for (const col of columns) {
+      acc += p.counts[col.id] || 0
+      t[col.id] = acc
+    }
+    return t
+  })
+
+  const xAt = (i: number) => padL + (points.length === 1 ? innerW / 2 : (i / (points.length - 1)) * innerW)
+  const yAt = (v: number) => padT + innerH - (v / maxTotal) * innerH
+
+  // Constrói os paths empilhados (de baixo para cima).
+  const areas: { d: string; color: string; title: string }[] = []
+  let prev = points.map(() => 0)
+  for (const col of columns) {
+    const curr = points.map((_, i) => tops[i][col.id])
+    let d = `M ${xAt(0)} ${yAt(prev[0])}`
+    for (let i = 1; i < points.length; i++) d += ` L ${xAt(i)} ${yAt(prev[i])}`
+    for (let i = points.length - 1; i >= 0; i--) d += ` L ${xAt(i)} ${yAt(curr[i])}`
+    d += ' Z'
+    areas.push({ d, color: safeAccent(col.dot_color || '#579dff'), title: col.title })
+    prev = curr
+  }
+
+  // Ticks do eixo Y (4 níveis: 0, 33%, 66%, max).
+  const niceMax = Math.max(maxTotal, 1)
+  const ticks = [0, Math.round(niceMax / 3), Math.round((niceMax * 2) / 3), niceMax]
+
+  // Mostra ~7 labels no eixo X distribuídos uniformemente.
+  const labelEvery = Math.max(1, Math.ceil(points.length / 7))
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        style={{ width: '100%', height: 240, display: 'block' }}
+      >
+        {/* Grid horizontal + tick labels */}
+        {ticks.map(t => (
+          <g key={`tick-${t}`}>
+            <line x1={padL} y1={yAt(t)} x2={W - padR} y2={yAt(t)} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
+            <text x={padL - 6} y={yAt(t) + 3} textAnchor="end" fontSize={9} fill="#596773" fontFamily={font}>
+              {t}
+            </text>
+          </g>
+        ))}
+        {/* Áreas empilhadas */}
+        {areas.map((a, i) => (
+          <motion.path
+            key={`area-${i}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: i * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            d={a.d}
+            fill={a.color}
+            fillOpacity={0.78}
+            stroke={a.color}
+            strokeWidth={1}
+            strokeOpacity={0.85}
+          >
+            <title>{a.title}</title>
+          </motion.path>
+        ))}
+        {/* Labels do eixo X */}
+        {points.map((p, i) => i % labelEvery === 0 || i === points.length - 1 ? (
+          <text
+            key={`xl-${i}`}
+            x={xAt(i)} y={H - 12}
+            textAnchor="middle" fontSize={9} fill="#596773" fontFamily={font}
+          >
+            {p.label}
+          </text>
+        ) : null)}
+      </svg>
+      {/* Legenda */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+        {columns.map(col => (
+          <span key={col.id} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            fontSize: 10, color: '#D1D1D5', fontFamily: font, fontWeight: 600,
+          }}>
+            <span style={{
+              width: 12, height: 12, borderRadius: 3,
+              background: safeAccent(col.dot_color || '#579dff'),
+              boxShadow: `0 0 6px ${safeAccent(col.dot_color || '#579dff')}55`,
+            }} />
+            {col.title}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Cycle Time Histogram (distribuição de horas até resolução) ────
 // Barras verticais coloridas por bucket + chips inferiores com média/mediana/P90.
 function fmtHours(h: number): string {
