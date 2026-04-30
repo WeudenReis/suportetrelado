@@ -64,8 +64,8 @@ export default function UserMenu({
           aria-expanded={open}
           title={user}
           style={{
-            width: 30,
-            height: 30,
+            width: 38,
+            height: 38,
             borderRadius: '50%',
             background: 'transparent',
             display: 'inline-flex',
@@ -85,8 +85,8 @@ export default function UserMenu({
             name={displayName}
             avatarColor={fallbackColor}
             avatarUrl={avatarUrl}
-            size={26}
-            fontSize={11}
+            size={32}
+            fontSize={13}
           />
         </button>
       }
