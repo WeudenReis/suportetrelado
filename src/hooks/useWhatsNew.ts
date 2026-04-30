@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
  * novidades para mostrar — usuarios que ja viram a versao anterior verao a
  * proxima ao logar de novo.
  */
-export const WHATS_NEW_VERSION = 'v1-2026-04-30'
+export const WHATS_NEW_VERSION = 'v2-2026-04-30'
 
 const ONBOARDING_KEY = 'chatpro-onboarding-completed'
 const WHATS_NEW_KEY = 'chatpro-whats-new'

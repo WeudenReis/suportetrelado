@@ -212,6 +212,191 @@ export function LineChartBlock({ data }: { data: ChartDataPoint[] }) {
   )
 }
 
+export function HBarChartBlock({ data }: { data: ChartDataPoint[] }) {
+  if (data.length === 0) return <EmptyChart />
+  const max = Math.max(...data.map(d => d.value), 1)
+  const visible = data.slice(0, 10)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 0' }}>
+      {visible.map((d, i) => {
+        const pct = (d.value / max) * 100
+        return (
+          <div key={`${d.label}-${i}`} style={{
+            display: 'grid', gridTemplateColumns: '110px 1fr 36px',
+            alignItems: 'center', gap: 8, fontFamily: FONT,
+          }}>
+            <span style={{
+              fontSize: 11, color: '#D1D1D5', fontWeight: 600,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }} title={d.label}>
+              {d.label}
+            </span>
+            <div style={{
+              position: 'relative', height: 18, borderRadius: 6,
+              background: 'rgba(255,255,255,0.04)', overflow: 'hidden',
+            }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.max(pct, d.value > 0 ? 1.5 : 0)}%` }}
+                transition={{ delay: i * 0.04, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                style={{
+                  height: '100%',
+                  background: `linear-gradient(to right, ${d.color}cc, ${d.color})`,
+                  boxShadow: `0 0 8px ${d.color}33, inset 0 1px 0 rgba(255,255,255,0.12)`,
+                  borderRadius: 6,
+                }}
+                title={`${d.label}: ${d.value}`}
+              />
+            </div>
+            <span className="font-numeric" style={{
+              fontSize: 11, color: d.color, fontWeight: 700, textAlign: 'right',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {d.value}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function DonutChartBlock({ data }: { data: ChartDataPoint[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0)
+  if (total === 0) return <EmptyChart />
+  const radius = 70
+  const strokeWidth = 16 // mais fino que o pie -> "miolo" maior
+  const circumference = 2 * Math.PI * radius
+  const segments = data.reduce<Array<ChartDataPoint & { dasharray: string; dashoffset: number }>>((acc, d) => {
+    const len = (d.value / total) * circumference
+    const offset = acc.reduce((s, prev) => s + (prev.value / total) * circumference, 0)
+    acc.push({ ...d, dasharray: `${len} ${circumference - len}`, dashoffset: -offset })
+    return acc
+  }, [])
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 20, justifyContent: 'center', padding: '8px 4px' }}>
+      <div style={{ position: 'relative', width: 180, height: 180 }}>
+        <svg width={180} height={180} viewBox="0 0 180 180" style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={90} cy={90} r={radius} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={strokeWidth} />
+          {segments.map((s, i) => (
+            <motion.circle
+              key={`${s.label}-${i}`}
+              cx={90} cy={90} r={radius} fill="none"
+              stroke={s.color}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              strokeDasharray={s.dasharray}
+              strokeDashoffset={s.dashoffset}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: i * 0.06, duration: 0.4 }}
+            />
+          ))}
+        </svg>
+        {/* Total no centro */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          fontFamily: FONT, pointerEvents: 'none',
+        }}>
+          <span style={{
+            fontSize: 28, fontWeight: 900, color: '#E6E5E8',
+            fontFamily: "'Paytone One', sans-serif", letterSpacing: -0.5, lineHeight: 1,
+          }}>
+            {total}
+          </span>
+          <span style={{ fontSize: 10, color: '#8C96A3', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>
+            Total
+          </span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0, maxHeight: 180, overflowY: 'auto' }}>
+        {data.filter(d => d.value > 0).map((d, i) => {
+          const pct = Math.round((d.value / total) * 100)
+          return (
+            <div key={`${d.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: FONT }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: d.color, flexShrink: 0, boxShadow: `0 0 6px ${d.color}88` }} />
+              <span style={{ fontSize: 11, color: '#D1D1D5', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.label}>{d.label}</span>
+              <span style={{ fontSize: 11, color: '#8C96A3', fontWeight: 600 }}>{d.value} <span style={{ color: '#596773' }}>({pct}%)</span></span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function FunnelChartBlock({ data }: { data: ChartDataPoint[] }) {
+  if (data.length === 0) return <EmptyChart />
+  const max = Math.max(...data.map(d => d.value), 1)
+  const items = data.filter(d => d.value > 0).length > 0 ? data : data.slice(0, 0)
+  if (items.length === 0) return <EmptyChart />
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 4px' }}>
+      {items.map((d, i) => {
+        const pct = (d.value / max) * 100
+        const prev = i > 0 ? items[i - 1].value : null
+        const dropPct = prev && prev > 0 ? Math.round(((prev - d.value) / prev) * 100) : null
+        return (
+          <div key={`${d.label}-${i}`}>
+            {dropPct !== null && dropPct > 0 && (
+              <div style={{
+                display: 'flex', justifyContent: 'center', fontSize: 9, color: '#8C96A3',
+                fontFamily: FONT, fontWeight: 600, padding: '2px 0',
+              }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '1px 8px', borderRadius: 10,
+                  background: 'rgba(239,92,72,0.10)', color: '#ef5c48',
+                }}>
+                  <Icon name="ArrowDown" size={9} />
+                  -{dropPct}%
+                </span>
+              </div>
+            )}
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                margin: '0 auto', padding: '8px 14px',
+                width: `${Math.max(pct, 12)}%`,
+                minWidth: 140,
+                background: `linear-gradient(135deg, ${d.color}dd, ${d.color}aa)`,
+                borderRadius: 8,
+                boxShadow: `0 0 12px ${d.color}44, inset 0 1px 0 rgba(255,255,255,0.18)`,
+                color: '#0d1417',
+                fontFamily: FONT, fontWeight: 700,
+              }}
+              title={`${d.label}: ${d.value}`}
+            >
+              <motion.span
+                initial={{ scaleX: 0, opacity: 0 }}
+                animate={{ scaleX: 1, opacity: 1 }}
+                transition={{ delay: i * 0.08, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                style={{
+                  flex: 1, fontSize: 12,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  transformOrigin: 'left',
+                }}
+              >
+                {d.label}
+              </motion.span>
+              <span className="font-numeric" style={{
+                fontSize: 13, fontWeight: 900,
+                fontFamily: "'Paytone One', sans-serif",
+              }}>
+                {d.value}
+              </span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function EmptyChart() {
   return (
     <div style={{
@@ -251,6 +436,9 @@ const CHART_LABEL: Record<ChartType, string> = {
   bar: 'Barras',
   pie: 'Pizza',
   line: 'Linhas',
+  hbar: 'Barras horizontais',
+  donut: 'Donut',
+  funnel: 'Funil',
 }
 
 const DIMENSION_LABEL: Record<BlockDimension, string> = {
@@ -421,6 +609,9 @@ export function DashboardBlockCard({
       {block.chart_type === 'bar' && <BarChartBlock data={data} />}
       {block.chart_type === 'pie' && <PieChartBlock data={data} />}
       {block.chart_type === 'line' && <LineChartBlock data={data} />}
+      {block.chart_type === 'hbar' && <HBarChartBlock data={data} />}
+      {block.chart_type === 'donut' && <DonutChartBlock data={data} />}
+      {block.chart_type === 'funnel' && <FunnelChartBlock data={data} />}
     </motion.div>
   )
 }

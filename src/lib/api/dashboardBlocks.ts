@@ -1,7 +1,7 @@
 import { supabase } from '../supabase'
 import { logger } from '../logger'
 
-export type ChartType = 'bar' | 'pie' | 'line'
+export type ChartType = 'bar' | 'pie' | 'line' | 'hbar' | 'donut' | 'funnel'
 export type BlockDimension = 'column' | 'tag' | 'assignee' | 'priority' | 'due_date'
 
 export interface DashboardBlock {

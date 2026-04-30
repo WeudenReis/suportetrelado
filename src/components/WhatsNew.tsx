@@ -32,7 +32,7 @@ const NEWS: NewsItem[] = [
     icon: 'LayoutGrid',
     iconColor: '#25D066',
     title: 'Painel personalizado no Dashboard',
-    description: 'Monte gráficos próprios escolhendo tipo (barras, pizza ou linhas) e dimensão (lista, etiqueta, responsável, prioridade ou data de entrega).',
+    description: 'Monte gráficos próprios escolhendo tipo e dimensão. Agora com 6 tipos de gráfico: barras, barras horizontais, pizza, donut, linhas e funil.',
     hint: 'Dashboard > aba "Meu Painel" > "Adicionar bloco"',
   },
 ]

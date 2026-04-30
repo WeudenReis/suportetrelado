@@ -13,9 +13,12 @@ interface ChartTypeOption {
 }
 
 const CHART_TYPES: ChartTypeOption[] = [
-  { type: 'bar', label: 'Gráfico de barras', icon: 'BarChart3', description: 'Comparar quantidades entre categorias' },
-  { type: 'pie', label: 'Gráfico de pizza', icon: 'GanttChart', description: 'Mostrar proporções de um total' },
-  { type: 'line', label: 'Gráfico de linhas', icon: 'TrendingUp', description: 'Visualizar tendência ao longo de etapas' },
+  { type: 'bar', label: 'Barras', icon: 'BarChart3', description: 'Comparar quantidades entre categorias' },
+  { type: 'pie', label: 'Pizza', icon: 'GanttChart', description: 'Mostrar proporções de um total' },
+  { type: 'line', label: 'Linhas', icon: 'TrendingUp', description: 'Visualizar tendência ao longo de etapas' },
+  { type: 'hbar', label: 'Barras horizontais', icon: 'AlignLeft', description: 'Ideal para listas com muitos itens ou nomes longos' },
+  { type: 'donut', label: 'Donut', icon: 'Disc', description: 'Pizza vazada com o total no centro' },
+  { type: 'funnel', label: 'Funil', icon: 'Filter', description: 'Visualiza a conversão entre etapas do pipeline' },
 ]
 
 interface DimensionOption {
@@ -184,7 +187,7 @@ export default function AddBlockModal({ open, onClose, onConfirm }: AddBlockModa
 
 function Step1({ selected, onSelect }: { selected: ChartType; onSelect: (t: ChartType) => void }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
       {CHART_TYPES.map(opt => {
         const active = selected === opt.type
         return (
@@ -193,13 +196,14 @@ function Step1({ selected, onSelect }: { selected: ChartType; onSelect: (t: Char
             type="button"
             onClick={() => onSelect(opt.type)}
             style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-              padding: '20px 12px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+              padding: '14px 10px',
               background: active ? 'rgba(37,208,102,0.08)' : 'rgba(255,255,255,0.02)',
               border: `2px solid ${active ? '#25D066' : 'rgba(166,197,226,0.12)'}`,
               borderRadius: 10, cursor: 'pointer', textAlign: 'center',
               transition: 'all 0.15s ease',
               fontFamily: FONT,
+              minHeight: 150,
             }}
             onMouseOver={e => {
               if (!active) e.currentTarget.style.borderColor = 'rgba(166,197,226,0.28)'
@@ -209,18 +213,18 @@ function Step1({ selected, onSelect }: { selected: ChartType; onSelect: (t: Char
             }}
           >
             <span style={{
-              width: 56, height: 56, borderRadius: 12,
+              width: 44, height: 44, borderRadius: 10,
               background: active ? 'rgba(37,208,102,0.18)' : 'rgba(255,255,255,0.04)',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               color: active ? '#25D066' : '#9FADBC',
               transition: 'background 0.15s, color 0.15s',
             }}>
-              <Icon name={opt.icon} size={26} />
+              <Icon name={opt.icon} size={20} />
             </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: active ? '#E6E5E8' : '#D1D1D5' }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: active ? '#E6E5E8' : '#D1D1D5' }}>
               {opt.label}
             </span>
-            <span style={{ fontSize: 10.5, color: '#8C96A3', lineHeight: 1.4 }}>
+            <span style={{ fontSize: 10, color: '#8C96A3', lineHeight: 1.4 }}>
               {opt.description}
             </span>
           </button>

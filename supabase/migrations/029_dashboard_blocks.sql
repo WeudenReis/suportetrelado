@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.user_dashboard_blocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_email TEXT NOT NULL REFERENCES public.user_profiles(email) ON DELETE CASCADE,
   department_id UUID REFERENCES public.departments(id) ON DELETE CASCADE,
-  chart_type TEXT NOT NULL CHECK (chart_type IN ('bar', 'pie', 'line')),
+  chart_type TEXT NOT NULL CHECK (chart_type IN ('bar', 'pie', 'line', 'hbar', 'donut', 'funnel')),
   dimension TEXT NOT NULL CHECK (dimension IN ('column', 'tag', 'assignee', 'priority', 'due_date')),
   title TEXT NOT NULL,
   block_order INTEGER NOT NULL DEFAULT 0,
@@ -85,6 +85,7 @@ NOTIFY pgrst, 'reload schema';
 -- ║  NOTAS                                                   ║
 -- ║                                                          ║
 -- ║  - chart_type: 'bar' | 'pie' | 'line'                    ║
+-- ║                | 'hbar' | 'donut' | 'funnel'             ║
 -- ║  - dimension: 'column' | 'tag' | 'assignee'              ║
 -- ║                | 'priority' | 'due_date'                 ║
 -- ║  - block_order controla a ordem dos blocos no grid.      ║
