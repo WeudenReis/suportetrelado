@@ -12,3 +12,11 @@ export { fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel 
 export { fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent, fetchPlannerSettings, upsertPlannerSettings } from './planner'
 export { fetchTemplates, insertTemplate, deleteTemplate, fetchAutoRules, insertAutoRule, updateAutoRule, deleteAutoRule } from './templates'
 export type { TicketTemplate, AutoRule } from './templates'
+export {
+  fetchUserDashboardBlocks,
+  insertUserDashboardBlock,
+  updateUserDashboardBlock,
+  deleteUserDashboardBlock,
+  reorderUserDashboardBlocks,
+} from './dashboardBlocks'
+export type { DashboardBlock, NewDashboardBlock, ChartType, BlockDimension } from './dashboardBlocks'
