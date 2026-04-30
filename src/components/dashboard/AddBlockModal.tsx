@@ -77,6 +77,13 @@ export default function AddBlockModal({ open, onClose, onConfirm }: AddBlockModa
               zIndex: 1000, backdropFilter: 'blur(2px)',
             }}
           />
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1001,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 16, pointerEvents: 'none',
+            }}
+          >
           <motion.div
             key="add-block-modal"
             initial={{ opacity: 0, y: 12, scale: 0.97 }}
@@ -87,11 +94,11 @@ export default function AddBlockModal({ open, onClose, onConfirm }: AddBlockModa
             aria-modal="true"
             aria-labelledby="add-block-title"
             style={{
-              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-              zIndex: 1001, width: 'min(560px, 92vw)',
+              width: 'min(560px, 92vw)',
               background: '#22272b', border: '1px solid rgba(166,197,226,0.14)',
               borderRadius: 14, boxShadow: '0 18px 50px rgba(0,0,0,0.55)',
               fontFamily: FONT, color: '#E6E5E8', overflow: 'hidden',
+              pointerEvents: 'auto',
             }}
           >
             <header style={{
@@ -168,6 +175,7 @@ export default function AddBlockModal({ open, onClose, onConfirm }: AddBlockModa
               </button>
             </footer>
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

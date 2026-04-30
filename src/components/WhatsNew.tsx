@@ -60,6 +60,13 @@ export default function WhatsNew() {
               background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)',
             }}
           />
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 10001,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 16, pointerEvents: 'none',
+            }}
+          >
           <motion.div
             key="whatsnew-modal"
             initial={{ opacity: 0, y: 16, scale: 0.96 }}
@@ -70,9 +77,6 @@ export default function WhatsNew() {
             aria-modal="true"
             aria-labelledby="whatsnew-title"
             style={{
-              position: 'fixed', top: '50%', left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 10001,
               width: 'min(540px, 92vw)',
               maxHeight: '88vh',
               display: 'flex', flexDirection: 'column',
@@ -82,6 +86,7 @@ export default function WhatsNew() {
               boxShadow: '0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(37,208,102,0.06)',
               overflow: 'hidden',
               fontFamily: FONT,
+              pointerEvents: 'auto',
             }}
           >
             <header style={{
@@ -211,6 +216,7 @@ export default function WhatsNew() {
               </button>
             </footer>
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
