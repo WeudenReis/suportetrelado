@@ -9,6 +9,7 @@ export const WHATS_NEW_VERSION = 'v1-2026-04-30'
 
 const ONBOARDING_KEY = 'chatpro-onboarding-completed'
 const WHATS_NEW_KEY = 'chatpro-whats-new'
+const REOPEN_EVENT = 'chatpro:whats-new:open'
 
 /**
  * Mostra um popover de novidades para usuarios *existentes* (que ja completaram
@@ -23,13 +24,19 @@ export function useWhatsNew() {
     const lastSeen = localStorage.getItem(WHATS_NEW_KEY)
 
     // Usuario novo (sem onboarding) -> deixa o tour assumir, nao mostra novidades
-    if (!onboardingDone) return
-    // Ja viu esta versao
-    if (lastSeen === WHATS_NEW_VERSION) return
+    // Ja viu esta versao -> nao abre automaticamente (mas pode reabrir manualmente)
+    if (onboardingDone && lastSeen !== WHATS_NEW_VERSION) {
+      // Espera um pouco para nao competir com a renderizacao inicial
+      const timer = setTimeout(() => setOpen(true), 1200)
+      return () => clearTimeout(timer)
+    }
+  }, [])
 
-    // Espera um pouco para nao competir com a renderizacao inicial
-    const timer = setTimeout(() => setOpen(true), 1200)
-    return () => clearTimeout(timer)
+  // Permite reabrir o popover sob demanda (ex.: item "Ver novidades" no menu)
+  useEffect(() => {
+    const handler = () => setOpen(true)
+    window.addEventListener(REOPEN_EVENT, handler)
+    return () => window.removeEventListener(REOPEN_EVENT, handler)
   }, [])
 
   const dismiss = useCallback(() => {
@@ -38,6 +45,12 @@ export function useWhatsNew() {
   }, [])
 
   return { open, dismiss }
+}
+
+/** Reabre o popover de novidades manualmente. Pode ser chamado de qualquer
+ *  lugar (ex.: item de menu) — emite um evento que o hook escuta. */
+export function openWhatsNew() {
+  window.dispatchEvent(new CustomEvent(REOPEN_EVENT))
 }
 
 /** Marca a versao atual como vista — chamado quando o tour de onboarding termina,

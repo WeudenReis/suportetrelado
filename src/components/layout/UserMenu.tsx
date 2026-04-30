@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Icon } from '../../lib/icons'
 import Popover from '../ui/Popover'
 import UserAvatar from '../ui/UserAvatar'
+import { openWhatsNew } from '../../hooks/useWhatsNew'
 
 interface UserMenuProps {
   user: string
@@ -156,6 +157,7 @@ export default function UserMenu({
         <MenuItem icon={<Icon name="User" size={14} />} label="Meu perfil" onClick={handle(onMyProfile)} />
         <MenuItem icon={<Icon name="Settings" size={14} />} label="Configurações" onClick={handle(onSettings)} />
         <MenuItem icon={<Icon name="Archive" size={14} />} label="Itens arquivados" onClick={handle(onArchived)} />
+        <MenuItem icon={<Icon name="Sparkles" size={14} />} label="Ver novidades" onClick={handle(openWhatsNew)} />
         <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '6px 4px' }} />
         <MenuItem icon={<Icon name="LogOut" size={14} />} label="Sair" onClick={handle(onLogout)} danger />
       </div>
