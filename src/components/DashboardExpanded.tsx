@@ -24,9 +24,23 @@ import {
   calcCFD,
 } from './dashboard/dashboardMetrics'
 import { Icon } from '../lib/icons'
-import type { Ticket, UserProfile } from '../lib/supabase'
+import { fetchBoardLabels } from '../lib/supabase'
+import type { Ticket, UserProfile, BoardLabel } from '../lib/supabase'
 import type { BoardColumn } from '../lib/boardColumns'
 import CardDetailModal from './CardDetailModal'
+import { DashboardBlockCard } from './dashboard/DashboardBlock'
+import AddBlockModal from './dashboard/AddBlockModal'
+import {
+  fetchUserDashboardBlocks,
+  insertUserDashboardBlock,
+  updateUserDashboardBlock,
+  deleteUserDashboardBlock,
+  reorderUserDashboardBlocks,
+  type DashboardBlock,
+  type NewDashboardBlock,
+} from '../lib/api/dashboardBlocks'
+import { useOrg } from '../lib/orgContext'
+import { logger } from '../lib/logger'
 
 const font = "'Space Grotesk', sans-serif"
 const fontH = "'Paytone One', sans-serif"
@@ -140,8 +154,61 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
   const [filterAssignee, setFilterAssignee] = useState('all')
   const [sortKey, setSortKey] = useState<SortKey>('created_at')
   const [sortAsc, setSortAsc] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'tickets' | 'team' | 'trends'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'tickets' | 'team' | 'trends' | 'custom'>('overview')
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const { departmentId } = useOrg()
+  const [customBlocks, setCustomBlocks] = useState<DashboardBlock[]>([])
+  const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
+  const [addBlockOpen, setAddBlockOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchUserDashboardBlocks(user, departmentId ?? null).then(blocks => {
+      if (!cancelled) setCustomBlocks(blocks)
+    })
+    fetchBoardLabels(departmentId ?? undefined).then(labels => {
+      if (!cancelled) setBoardLabels(labels)
+    }).catch(err => logger.error('DashboardExpanded', 'Falha ao buscar labels', { error: String(err) }))
+    return () => { cancelled = true }
+  }, [user, departmentId])
+
+  const handleAddBlock = useCallback(async (payload: NewDashboardBlock) => {
+    const created = await insertUserDashboardBlock(user, {
+      ...payload,
+      department_id: departmentId ?? null,
+    })
+    if (created) setCustomBlocks(prev => [...prev, created])
+  }, [user, departmentId])
+
+  const handleDeleteBlock = useCallback(async (id: string) => {
+    setCustomBlocks(prev => prev.filter(b => b.id !== id))
+    const ok = await deleteUserDashboardBlock(id)
+    if (!ok) {
+      // Reverte em caso de erro
+      const blocks = await fetchUserDashboardBlocks(user, departmentId ?? null)
+      setCustomBlocks(blocks)
+    }
+  }, [user, departmentId])
+
+  const handleRenameBlock = useCallback(async (id: string, title: string) => {
+    setCustomBlocks(prev => prev.map(b => b.id === id ? { ...b, title } : b))
+    await updateUserDashboardBlock(id, { title })
+  }, [])
+
+  const handleMoveBlock = useCallback(async (id: string, direction: -1 | 1) => {
+    setCustomBlocks(prev => {
+      const idx = prev.findIndex(b => b.id === id)
+      if (idx < 0) return prev
+      const target = idx + direction
+      if (target < 0 || target >= prev.length) return prev
+      const next = [...prev]
+      const [moved] = next.splice(idx, 1)
+      next.splice(target, 0, moved)
+      const renumbered = next.map((b, i) => ({ ...b, position: i }))
+      reorderUserDashboardBlocks(renumbered.map(b => ({ id: b.id, position: b.position })))
+      return renumbered
+    })
+  }, [])
   const [localTickets, setLocalTickets] = useState<Ticket[]>(tickets)
 
   // Mantém localTickets em sync quando o prop tickets muda (realtime do DashboardView)
@@ -530,6 +597,7 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
     { key: 'tickets' as const, label: `Tickets (${total})`, icon: <Icon name="Inbox" size={13} /> },
     { key: 'team' as const, label: 'Equipe', icon: <Icon name="Users" size={13} /> },
     { key: 'trends' as const, label: 'Tendências', icon: <Icon name="TrendingUp" size={13} /> },
+    { key: 'custom' as const, label: `Meu Painel${customBlocks.length > 0 ? ` (${customBlocks.length})` : ''}`, icon: <Icon name="LayoutGrid" size={13} /> },
   ]
 
   const cardStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 18 }
@@ -1003,7 +1071,97 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
               ))}
             </div>
           )}
+
+          {/* ═══ MEU PAINEL ═══ */}
+          {activeTab === 'custom' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.025)',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#E5E7EB', fontFamily: font }}>
+                    Painel personalizado
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10.5, color: '#8C96A3', fontFamily: font }}>
+                    Adicione gráficos para acompanhar os dados que importam pra você.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddBlockOpen(true)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: '#25D066', color: '#0d1417',
+                    padding: '7px 14px', borderRadius: 7, border: 'none',
+                    fontFamily: font, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    boxShadow: '0 0 12px rgba(37,208,102,0.35)',
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseOver={e => { e.currentTarget.style.background = '#1BAD53' }}
+                  onMouseOut={e => { e.currentTarget.style.background = '#25D066' }}
+                >
+                  <Icon name="Plus" size={13} />
+                  Adicionar bloco
+                </button>
+              </div>
+
+              {customBlocks.length === 0 ? (
+                <div style={{
+                  padding: '40px 24px', textAlign: 'center',
+                  border: '1.5px dashed rgba(166,197,226,0.18)', borderRadius: 14,
+                  background: 'rgba(255,255,255,0.015)',
+                  fontFamily: font, color: '#8C96A3',
+                }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 12, margin: '0 auto 12px',
+                    background: 'rgba(37,208,102,0.10)', color: '#25D066',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Icon name="LayoutGrid" size={20} />
+                  </div>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#D1D1D5' }}>
+                    Seu painel está vazio
+                  </p>
+                  <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#8C96A3' }}>
+                    Comece adicionando um bloco — barras, pizza ou linhas.
+                  </p>
+                </div>
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+                  gap: 14,
+                }}>
+                  {customBlocks.map((block, i) => (
+                    <DashboardBlockCard
+                      key={block.id}
+                      block={block}
+                      tickets={localTickets}
+                      columns={columns}
+                      profiles={profiles}
+                      boardLabels={boardLabels}
+                      onDelete={handleDeleteBlock}
+                      onRename={handleRenameBlock}
+                      onMoveUp={() => handleMoveBlock(block.id, -1)}
+                      onMoveDown={() => handleMoveBlock(block.id, 1)}
+                      canMoveUp={i > 0}
+                      canMoveDown={i < customBlocks.length - 1}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
+        <AddBlockModal
+          open={addBlockOpen}
+          onClose={() => setAddBlockOpen(false)}
+          onConfirm={handleAddBlock}
+        />
 
         {/* ── Ticket detail modal on top ── */}
         {selectedTicket && (
