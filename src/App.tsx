@@ -31,6 +31,7 @@ const PlannerSidebar = lazy(() => import('./components/PlannerSidebar'))
 const AnnouncementsView = lazy(() => import('./components/AnnouncementsView'))
 const LinksView = lazy(() => import('./components/LinksView'))
 const Onboarding = lazy(() => import('./components/Onboarding'))
+const WhatsNew = lazy(() => import('./components/WhatsNew'))
 
 function SidebarSpinner() {
   return (
@@ -694,6 +695,11 @@ function AppContent({ activeTab, setActiveTab, user, plannerTickets, openTicketI
       {/* ── Onboarding tour para novos usuários ── */}
       <Suspense fallback={null}>
         <Onboarding />
+      </Suspense>
+
+      {/* ── Popover de novidades para usuários existentes ── */}
+      <Suspense fallback={null}>
+        <WhatsNew />
       </Suspense>
     </div>
   )

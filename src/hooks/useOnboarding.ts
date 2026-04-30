@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { markWhatsNewSeen } from './useWhatsNew'
 
 const STORAGE_KEY = 'chatpro-onboarding-completed'
 
@@ -52,6 +53,8 @@ export function useOnboarding() {
   const completeTour = useCallback(() => {
     setIsActive(false)
     localStorage.setItem(STORAGE_KEY, 'true')
+    // Usuario que acabou de ver o tour ja conhece tudo da versao atual
+    markWhatsNewSeen()
   }, [])
 
   const nextStep = useCallback(() => {
@@ -71,6 +74,7 @@ export function useOnboarding() {
   const skipTour = useCallback(() => {
     setIsActive(false)
     localStorage.setItem(STORAGE_KEY, 'true')
+    markWhatsNewSeen()
   }, [])
 
   return {
