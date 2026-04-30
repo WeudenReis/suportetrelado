@@ -13,6 +13,7 @@ import {
 import { compressCover, compressThumbnail } from '../lib/imageUtils'
 import CardAttachments from './card/CardAttachments'
 import RichTextField from './ui/RichTextField'
+import SlackEscalationModal from './SlackEscalationModal'
 import { useOrg } from '../lib/orgContext'
 import { useDepartmentSettings } from '../hooks/useDepartmentSettings'
 import { logger } from '../lib/logger'
@@ -209,6 +210,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   // Multi-member state
   const [showMemberPicker, setShowMemberPicker] = useState(false)
+  const [escalationOpen, setEscalationOpen] = useState(false)
   const [members, setMembers] = useState<string[]>(() => {
     const raw = ticket.assignee || ''
     return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
@@ -797,6 +799,15 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               <Icon name="Link2" size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Vincular
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setEscalationOpen(true)}
+            className="elite-action-chip"
+            style={{ borderColor: 'rgba(236,178,46,0.45)', color: '#ECB22E' }}
+            title="Notifica o destinatário no Slack"
+          >
+            <Icon name="Send" size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Escalonar para TI
+          </button>
         </div>
 
         {/* ── Creation info ── */}
@@ -1459,6 +1470,33 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           </button>
         </div>
       </div>
+
+      <SlackEscalationModal
+        open={escalationOpen}
+        onClose={() => setEscalationOpen(false)}
+        ticket={{
+          id: ticket.id,
+          title: ticket.title,
+          cliente: ticket.cliente,
+          instancia: ticket.instancia,
+          link_retaguarda: ticket.link_retaguarda,
+          description: description,
+        }}
+        escalatedBy={user}
+        onSuccess={async ({ targetLabel }) => {
+          try {
+            await insertActivityLog(
+              ticket.id, user,
+              `escalou este cartao para ${targetLabel} via Slack`,
+              ticket.department_id,
+            )
+            const log = await fetchActivityLog(ticket.id)
+            setActivities(log)
+          } catch (err) {
+            logger.warn('SlackEscalation', 'Falha ao registrar activity_log', { error: String(err) })
+          }
+        }}
+      />
     </div>
   )
 }
