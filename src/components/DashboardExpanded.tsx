@@ -204,8 +204,8 @@ export default function DashboardExpanded({ tickets, profiles, columns, user, on
       const next = [...prev]
       const [moved] = next.splice(idx, 1)
       next.splice(target, 0, moved)
-      const renumbered = next.map((b, i) => ({ ...b, position: i }))
-      reorderUserDashboardBlocks(renumbered.map(b => ({ id: b.id, position: b.position })))
+      const renumbered = next.map((b, i) => ({ ...b, block_order: i }))
+      reorderUserDashboardBlocks(renumbered.map(b => ({ id: b.id, block_order: b.block_order })))
       return renumbered
     })
   }, [])

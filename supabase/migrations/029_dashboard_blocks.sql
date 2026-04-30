@@ -20,13 +20,13 @@ CREATE TABLE IF NOT EXISTS public.user_dashboard_blocks (
   chart_type TEXT NOT NULL CHECK (chart_type IN ('bar', 'pie', 'line')),
   dimension TEXT NOT NULL CHECK (dimension IN ('column', 'tag', 'assignee', 'priority', 'due_date')),
   title TEXT NOT NULL,
-  position INTEGER NOT NULL DEFAULT 0,
+  block_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_dashboard_blocks_owner
-  ON public.user_dashboard_blocks(user_email, department_id, position);
+  ON public.user_dashboard_blocks(user_email, department_id, block_order);
 
 -- ╔══════════════════════════════════════════════════════════╗
 -- ║  2) Trigger updated_at                                   ║
@@ -87,7 +87,7 @@ NOTIFY pgrst, 'reload schema';
 -- ║  - chart_type: 'bar' | 'pie' | 'line'                    ║
 -- ║  - dimension: 'column' | 'tag' | 'assignee'              ║
 -- ║                | 'priority' | 'due_date'                 ║
--- ║  - position controla a ordem dos blocos no grid.         ║
+-- ║  - block_order controla a ordem dos blocos no grid.      ║
 -- ║  - department_id NULL = bloco "global" do usuario        ║
 -- ║    (visivel em todos os departamentos).                  ║
 -- ╚══════════════════════════════════════════════════════════╝

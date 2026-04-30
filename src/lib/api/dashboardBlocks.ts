@@ -11,7 +11,7 @@ export interface DashboardBlock {
   chart_type: ChartType
   dimension: BlockDimension
   title: string
-  position: number
+  block_order: number
   created_at: string
   updated_at: string
 }
@@ -32,7 +32,7 @@ export async function fetchUserDashboardBlocks(
     .from('user_dashboard_blocks')
     .select('*')
     .eq('user_email', email)
-    .order('position', { ascending: true })
+    .order('block_order', { ascending: true })
 
   if (departmentId) {
     query = query.or(`department_id.eq.${departmentId},department_id.is.null`)
@@ -48,7 +48,7 @@ export async function fetchUserDashboardBlocks(
   return (data ?? []) as DashboardBlock[]
 }
 
-/** Insere um novo bloco ao final da lista (position = max+1). */
+/** Insere um novo bloco ao final da lista (block_order = max+1). */
 export async function insertUserDashboardBlock(
   email: string,
   block: NewDashboardBlock,
@@ -56,12 +56,12 @@ export async function insertUserDashboardBlock(
   // Calcula proxima posicao
   const { data: existing } = await supabase
     .from('user_dashboard_blocks')
-    .select('position')
+    .select('block_order')
     .eq('user_email', email)
-    .order('position', { ascending: false })
+    .order('block_order', { ascending: false })
     .limit(1)
 
-  const nextPosition = existing && existing.length > 0 ? (existing[0].position as number) + 1 : 0
+  const nextOrder = existing && existing.length > 0 ? (existing[0].block_order as number) + 1 : 0
 
   const { data, error } = await supabase
     .from('user_dashboard_blocks')
@@ -71,7 +71,7 @@ export async function insertUserDashboardBlock(
       dimension: block.dimension,
       title: block.title,
       department_id: block.department_id ?? null,
-      position: nextPosition,
+      block_order: nextOrder,
     })
     .select()
     .single()
@@ -83,10 +83,10 @@ export async function insertUserDashboardBlock(
   return data as DashboardBlock
 }
 
-/** Atualiza titulo, tipo, dimensao ou posicao de um bloco. */
+/** Atualiza titulo, tipo, dimensao ou ordem de um bloco. */
 export async function updateUserDashboardBlock(
   id: string,
-  patch: Partial<Pick<DashboardBlock, 'title' | 'chart_type' | 'dimension' | 'position'>>,
+  patch: Partial<Pick<DashboardBlock, 'title' | 'chart_type' | 'dimension' | 'block_order'>>,
 ): Promise<boolean> {
   const { error } = await supabase
     .from('user_dashboard_blocks')
@@ -112,13 +112,13 @@ export async function deleteUserDashboardBlock(id: string): Promise<boolean> {
   return true
 }
 
-/** Atualiza positions em batch (usado para reordenacao). */
+/** Atualiza block_order em batch (usado para reordenacao). */
 export async function reorderUserDashboardBlocks(
-  updates: Array<{ id: string; position: number }>,
+  updates: Array<{ id: string; block_order: number }>,
 ): Promise<boolean> {
   const results = await Promise.all(
     updates.map(u =>
-      supabase.from('user_dashboard_blocks').update({ position: u.position }).eq('id', u.id),
+      supabase.from('user_dashboard_blocks').update({ block_order: u.block_order }).eq('id', u.id),
     ),
   )
   const failed = results.filter(r => r.error)
