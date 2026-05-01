@@ -1,16 +1,16 @@
 /**
  * Destinatários disponíveis no select "Escalonar para TI".
  *
- * Cada entrada pode ser:
- *   - 'channel'  → <!channel>  notifica todos os membros do canal
- *   - 'here'     → <!here>     notifica apenas membros ativos no momento
- *   - 'U...'     → <@U...>     menciona um usuário específico
- *   - 'S...'     → <!subteam^S...> menciona um grupo
+ * slackId:
+ *   'channel' → <!channel>  notifica todos os membros do canal
+ *   'here'    → <!here>     notifica apenas membros ativos
+ *   'U...'    → <@U...>     menciona usuário específico
+ *   'S...'    → <!subteam^S...> menciona grupo
  *
- * Para adicionar um novo canal: crie um Incoming Webhook no Slack para
- * esse canal, adicione a URL como secret SLACK_WEBHOOK_URL_<KEY> no
- * Supabase, e adicione uma entrada com webhookKey apontando para esse secret.
- * Se webhookKey for omitido, usa o SLACK_WEBHOOK_URL padrão.
+ * webhookKey: nome do secret no Supabase com a URL do webhook.
+ *   Se omitido, usa SLACK_WEBHOOK_URL (padrão).
+ *   Para adicionar canal: crie webhook no Slack → adicione secret no Supabase
+ *   → adicione entrada aqui com webhookKey apontando para o secret.
  */
 
 export interface SlackTarget {
@@ -27,6 +27,7 @@ export const SLACK_TARGETS: SlackTarget[] = [
     slackId: 'channel',
     label: '#suporte-teste',
     description: 'Notificar todo o canal',
+    webhookKey: 'SLACK_WEBHOOK_URL_DEVS',
   },
 ]
 
