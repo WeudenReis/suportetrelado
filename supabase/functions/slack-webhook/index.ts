@@ -13,14 +13,15 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 
 interface EscalationPayload {
-  targetSlackUserId: string   // ex.: 'U0XXX' ou 'S0YYY' (usergroup)
-  targetLabel: string          // ex.: 'Pedro Saddi' (apenas para auditoria)
+  targetSlackUserId: string
+  targetLabel: string
+  webhookKey?: string           // ex.: 'SLACK_WEBHOOK_URL_DEVS' — omitir usa o padrão
   customer: string
   instance: string
   backendUrl?: string
   problem: string
   logs?: string
-  escalatedBy: string          // email do agente que escalou
+  escalatedBy: string
   ticketTitle?: string
   ticketUrl?: string
 }
@@ -107,11 +108,6 @@ serve(async (req: Request) => {
     return jsonResponse({ error: 'Método não permitido' }, 405)
   }
 
-  const webhookUrl = Deno.env.get('SLACK_WEBHOOK_URL')
-  if (!webhookUrl) {
-    return jsonResponse({ error: 'SLACK_WEBHOOK_URL não configurado' }, 500)
-  }
-
   let payload: EscalationPayload
   try {
     payload = await req.json()
@@ -122,6 +118,12 @@ serve(async (req: Request) => {
   // Validacoes basicas
   if (!payload.targetSlackUserId || !payload.problem || !payload.escalatedBy) {
     return jsonResponse({ error: 'Campos obrigatórios ausentes (targetSlackUserId, problem, escalatedBy)' }, 400)
+  }
+
+  const webhookEnvKey = payload.webhookKey ?? 'SLACK_WEBHOOK_URL'
+  const webhookUrl = Deno.env.get(webhookEnvKey) ?? Deno.env.get('SLACK_WEBHOOK_URL')
+  if (!webhookUrl) {
+    return jsonResponse({ error: `${webhookEnvKey} não configurado` }, 500)
   }
 
   const blocks = buildBlocks(payload)

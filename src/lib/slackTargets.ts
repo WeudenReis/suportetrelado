@@ -1,37 +1,32 @@
 /**
- * Lista de destinatarios disponiveis no select "Escalonar para TI".
+ * Destinatários disponíveis no select "Escalonar para TI".
  *
- * Como obter o `slackId`:
- *   - Usuario individual: abrir o perfil do membro no Slack > More > Copy member ID
- *     (formato 'U...').
- *   - User group/grupo: nas configuracoes do grupo > Copy group ID (formato 'S...').
- *     A Edge Function envolve esses em <!subteam^ID> automaticamente.
- *   - Mencionar todo o canal: usar 'channel' ou 'here' como slackId.
+ * Cada entrada pode ser:
+ *   - 'channel'  → <!channel>  notifica todos os membros do canal
+ *   - 'here'     → <!here>     notifica apenas membros ativos no momento
+ *   - 'U...'     → <@U...>     menciona um usuário específico
+ *   - 'S...'     → <!subteam^S...> menciona um grupo
+ *
+ * Para adicionar um novo canal: crie um Incoming Webhook no Slack para
+ * esse canal, adicione a URL como secret SLACK_WEBHOOK_URL_<KEY> no
+ * Supabase, e adicione uma entrada com webhookKey apontando para esse secret.
+ * Se webhookKey for omitido, usa o SLACK_WEBHOOK_URL padrão.
  */
 
 export interface SlackTarget {
-  /** Identificador interno usado no select. */
   key: string
-  /** ID do Slack — `U...` (usuario), `S...` (grupo), `channel`, ou `here`. */
   slackId: string
-  /** Nome exibido no select e gravado no activity_log. */
   label: string
-  /** Texto auxiliar no select (cargo, descricao). */
   description?: string
+  webhookKey?: string
 }
 
 export const SLACK_TARGETS: SlackTarget[] = [
   {
-    key: 'pedro_saddi',
-    slackId: 'U_REPLACE_WITH_REAL_ID',
-    label: 'Pedro Saddi',
-    description: 'CTO',
-  },
-  {
-    key: 'time_tecnico',
-    slackId: 'S_REPLACE_WITH_GROUP_ID',
-    label: 'Time Técnico',
-    description: 'Grupo @time-tecnico',
+    key: 'suporte_teste',
+    slackId: 'channel',
+    label: '#suporte-teste',
+    description: 'Notificar todo o canal',
   },
 ]
 

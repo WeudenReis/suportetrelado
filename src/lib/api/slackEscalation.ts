@@ -4,6 +4,7 @@ import { logger } from '../logger'
 export interface EscalateToSlackPayload {
   targetSlackUserId: string
   targetLabel: string
+  webhookKey?: string
   customer: string
   instance: string
   backendUrl?: string | null

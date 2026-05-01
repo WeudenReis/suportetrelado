@@ -64,6 +64,7 @@ export default function SlackEscalationModal({
     const result = await escalateToSlack({
       targetSlackUserId: target.slackId,
       targetLabel: target.label,
+      webhookKey: target.webhookKey,
       customer: customer.trim(),
       instance: instance.trim(),
       backendUrl: backendUrl.trim() || null,
