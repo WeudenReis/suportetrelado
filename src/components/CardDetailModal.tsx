@@ -15,6 +15,7 @@ import {
   fetchUserProfiles,
   fetchBoardLabels, updateBoardLabel, deleteBoardLabel
 } from '../lib/supabase'
+import EscalonarModal from './EscalonarModal'
 import { compressCover, compressThumbnail, compressAttachment } from '../lib/imageUtils'
 import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
 
@@ -98,6 +99,8 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [showEscalonarModal, setShowEscalonarModal] = useState(false)
+  const [slackSent, setSlackSent] = useState(false)
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [showActivities, setShowActivities] = useState(false)
@@ -431,6 +434,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     }
   }
 
+  const handleSlackSent = async () => {
+    setShowEscalonarModal(false)
+    setSlackSent(true)
+    await insertActivityLog(ticket.id, user, 'escalou este cartão para o Slack')
+    setTimeout(() => setSlackSent(false), 4000)
+  }
+
   const handleDelete = async () => {
     if (!confirm('Tem certeza que deseja excluir este cartao?')) return
     await deleteTicket(ticket.id)
@@ -452,7 +462,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     >
       <div
         ref={modalRef}
-        className={`elite-modal modal-content ${isVisible ? 'modal-content--visible' : ''}`}
+        className={`elite-modal modal-content relative ${isVisible ? 'modal-content--visible' : ''}`}
       >
         {/* ── Cover image banner ── */}
         {coverImage && (
@@ -521,6 +531,16 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           {!coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
           <button onClick={() => setShowMemberPicker(p => !p)} className="elite-action-chip" style={showMemberPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>
             <Link2 size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Vincular
+          </button>
+          <button
+            onClick={() => setShowEscalonarModal(true)}
+            className="elite-action-chip"
+            style={slackSent ? { borderColor: 'rgba(75,206,151,0.5)', color: '#4bce97' } : {}}
+          >
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" className="inline mr-1" style={{ verticalAlign: '-1px' }}>
+              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+            </svg>
+            {slackSent ? 'Enviado!' : 'Slack'}
           </button>
         </div>
 
@@ -1071,6 +1091,19 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           </button>
         </div>
       </div>
+
+      {showEscalonarModal && (
+        <EscalonarModal
+          ticket={ticket}
+          attachments={attachments}
+          cliente={cliente}
+          instancia={instancia}
+          linkRetaguarda={linkRetaguarda}
+          description={description}
+          onClose={() => setShowEscalonarModal(false)}
+          onSent={handleSlackSent}
+        />
+      )}
     </div>
   )
 }
