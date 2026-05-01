@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Loader2, Plug, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Icon } from '../lib/icons'
 import { supabase } from '../lib/supabase'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface InstanceModalProps {
   open: boolean
@@ -52,20 +53,10 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
   const [loadingExisting, setLoadingExisting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const firstInputRef = useRef<HTMLInputElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, open)
 
-  // Auto-focus first field when modal opens
-  useEffect(() => {
-    if (open) {
-      setValidation('idle')
-      setErrorMsg('')
-      loadExistingConfig()
-      // Delay auto-focus to after animation
-      const timer = setTimeout(() => firstInputRef.current?.focus(), 200)
-      return () => clearTimeout(timer)
-    }
-  }, [open])
-
-  async function loadExistingConfig() {
+  const loadExistingConfig = useCallback(async () => {
     setLoadingExisting(true)
     try {
       const { data, error } = await supabase
@@ -87,7 +78,19 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
     } finally {
       setLoadingExisting(false)
     }
-  }
+  }, [user])
+
+  // Auto-focus first field when modal opens
+  useEffect(() => {
+    if (open) {
+      setValidation('idle')
+      setErrorMsg('')
+      loadExistingConfig()
+      // Delay auto-focus to after animation
+      const timer = setTimeout(() => firstInputRef.current?.focus(), 200)
+      return () => clearTimeout(timer)
+    }
+  }, [open, loadExistingConfig])
 
   async function handleValidate() {
     if (!config.instance_code.trim()) {
@@ -136,8 +139,8 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
         if (error) throw error
       }
       onClose()
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Erro ao salvar configuração')
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Erro ao salvar configuração')
     } finally {
       setSaving(false)
     }
@@ -163,6 +166,7 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
           onClick={e => e.target === e.currentTarget && onClose()}
         >
           <motion.div
+            ref={modalRef}
             className="instance-modal"
             variants={modalVariants}
             initial="hidden"
@@ -175,8 +179,8 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
             {/* Header */}
             <div className="instance-modal__header">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.15)' }}>
-                  <Plug size={16} className="text-blue-400" />
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(37,208,102,0.15)' }}>
+                  <Icon name="Plug" size={16} style={{ color: '#25D066' }} />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white leading-tight">Configurar Instância</h2>
@@ -187,7 +191,7 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
                 onClick={onClose}
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
               >
-                <X size={16} />
+                <Icon name="X" size={16} />
               </button>
             </div>
 
@@ -195,7 +199,7 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
             <div className="instance-modal__body modal-scroll">
               {loadingExisting ? (
                 <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
-                  <Loader2 size={18} className="animate-spin" />
+                  <Icon name="Loader2" size={18} className="animate-spin" />
                   <span className="text-sm">Carregando configuração...</span>
                 </div>
               ) : (
@@ -225,10 +229,10 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
                         className="instance-modal__input pr-10"
                       />
                       {validation === 'success' && (
-                        <CheckCircle2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-green-400" />
+                        <Icon name="CheckCircle2" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-green-400" />
                       )}
                       {validation === 'error' && (
-                        <AlertCircle size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400" />
+                        <Icon name="AlertCircle" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400" />
                       )}
                     </div>
                   </div>
@@ -267,7 +271,7 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
                         className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm"
                         style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5' }}
                       >
-                        <AlertCircle size={14} /> {errorMsg}
+                        <Icon name="AlertCircle" size={14} /> {errorMsg}
                       </motion.div>
                     )}
                     {validation === 'success' && (
@@ -278,7 +282,7 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
                         className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm"
                         style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', color: '#86efac' }}
                       >
-                        <CheckCircle2 size={14} /> Instância validada com sucesso!
+                        <Icon name="CheckCircle2" size={14} /> Instância validada com sucesso!
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -295,7 +299,7 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
               >
                 {validation === 'validating' ? (
                   <>
-                    <Loader2 size={14} className="animate-spin" />
+                    <Icon name="Loader2" size={14} className="animate-spin" />
                     Validando...
                   </>
                 ) : (
@@ -313,7 +317,7 @@ export default function InstanceModal({ open, onClose, user }: InstanceModalProp
                 >
                   {saving ? (
                     <>
-                      <Loader2 size={14} className="animate-spin" />
+                      <Icon name="Loader2" size={14} className="animate-spin" />
                       Salvando...
                     </>
                   ) : (

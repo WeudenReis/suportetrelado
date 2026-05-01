@@ -3,14 +3,22 @@
 @tailwind utilities;
 
 :root {
+  /* chatPro brand */
   --cp-green: #25D066;
-  --cp-green2: #1BAD53;
-  --cp-green3: #24FF72;
-  --cp-green4: #EEFCF3;
+  --cp-green-hover: #1BAD53;
+  --cp-green-neon: #24FF72;
+  --cp-green-light: #EEFCF3;
+  --cp-green-bg: rgba(37, 208, 102, 0.08);
+  --cp-green-border: rgba(37, 208, 102, 0.15);
   --cp-black: #000000;
   --cp-gray1: #D1D1D5;
   --cp-gray2: #E6E5E8;
   --cp-gray3: #F1F0F2;
+
+  /* Legacy aliases (deprecated — use --cp-green-hover etc.) */
+  --cp-green2: var(--cp-green-hover);
+  --cp-green3: var(--cp-green-neon);
+  --cp-green4: var(--cp-green-light);
 
   /* Trello Dark palette */
   --bg-app: #1d2125;
@@ -19,6 +27,7 @@
   --bg-primary: #1d2125;
   --bg-secondary: #0c1317;
   --bg-card: #22272b;
+  --bg-card-hover: #282e33;
   --bg-input: #22272b;
   --border-subtle: rgba(166, 197, 226, 0.16);
   --text-primary: #b6c2cf;
@@ -27,6 +36,11 @@
   --accent: #579dff;
   --accent-hover: #85b8ff;
 
+  /* Priority colors */
+  --priority-high: #ef5c48;
+  --priority-medium: #f5a623;
+  --priority-low: #4bce97;
+
   /* Layout system */
   --float-gap: 16px;
   --float-radius: 12px;
@@ -34,16 +48,42 @@
   --float-shadow-hover: 0 6px 16px rgba(0,0,0,0.35);
   --float-bg: #282e33;
   --float-border: 1px solid rgba(166,197,226,0.12);
+
+  /* Typography — chatPro brand + Inter para superfícies de dados densos */
+  --font-display: 'Paytone One', sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+  --font-data: 'Inter', 'Space Grotesk', sans-serif;
+}
+
+/* Inter com algarismos tabulares e variantes estilísticas para legibilidade
+   em dashboards (KPIs, tabelas, números). Aplicar via classe ou inline. */
+.font-data,
+.font-numeric {
+  font-family: var(--font-data);
+  font-feature-settings: 'tnum' 1, 'cv11' 1, 'ss01' 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced motion — desabilita animações CSS para acessibilidade */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, 'Droid Sans', 'Helvetica Neue', sans-serif;
   background-color: var(--bg-app);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   scrollbar-gutter: stable;
 }
 
@@ -223,13 +263,18 @@ body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: color-mix(in srgb, var(--col-accent, #101204) 35%, #101204);
+  background: color-mix(in srgb, var(--col-accent, #101204) 25%, #101204);
   border-radius: 12px;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 165px);
   padding-bottom: 0;
-  border: none;
-  box-shadow: none;
+  border: 1px solid rgba(255,255,255,0.04);
+  border-top: 2px solid var(--col-accent, #25D066);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
   overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+.trello-col:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 .trello-col--drag {
   opacity: 0.85;
@@ -426,17 +471,144 @@ body {
   text-align: left;
 }
 .trello-col__add:hover {
-  background: rgba(255,255,255,0.08);
-  color: var(--text-secondary);
+  background: rgba(37,208,102,0.08);
+  color: #25D066;
 }
 
 
 /* =========================================
    App Layout (Sidebar + Main) — Floating
    ========================================= */
+/* ===== APP SHELL (Header global + corpo) ===== */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: #1D2125;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 16px;
+  background: rgba(34, 39, 43, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 50;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.app-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-header__logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(37, 208, 102, 0.16) 0%, rgba(37, 208, 102, 0.06) 100%);
+  border: 1px solid rgba(37, 208, 102, 0.24);
+  flex-shrink: 0;
+}
+.app-header__brand-name {
+  font-family: 'Paytone One', sans-serif;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: #E6E5E8;
+}
+.app-header__spacer {
+  flex: 1;
+  min-width: 0;
+}
+.app-header__utilities {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.app-header__divider {
+  display: inline-block;
+  width: 1px;
+  height: 22px;
+  margin: 0 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.app-header__search {
+  flex: 1 1 0;
+  max-width: 480px;
+  min-width: 200px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  margin: 0 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.app-header__search:focus-within {
+  border-color: rgba(37, 208, 102, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 3px rgba(37, 208, 102, 0.08);
+}
+.app-header__search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #B6C2CF;
+  font-size: 13px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.app-header__search input::placeholder {
+  color: #6B7280;
+}
+.app-header__search-count {
+  font-size: 11px;
+  font-family: 'Space Grotesk', sans-serif;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.app-header__search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B7280;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+}
+.app-header__search-clear:hover {
+  color: #E6E5E8;
+  background: rgba(255, 255, 255, 0.06);
+}
+.app-header__create {
+  flex-shrink: 0;
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ===== Layout: sidebar + main (abaixo do header) ===== */
 .app-layout {
   display: flex;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   background: #1D2125;
   padding: 0;
@@ -451,81 +623,6 @@ body {
   position: relative;
   gap: 0;
   overflow: hidden;
-}
-
-/* ===== BOTTOM BAR FLUTUANTE (TRELLO STYLE) ===== */
-.bottom-bar-outer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 200;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  pointer-events: none;
-}
-.bottom-bar {
-  pointer-events: all;
-  background: #1d2125;
-  border-radius: 12px 12px 0 0;
-  display: flex;
-  align-items: center;
-  height: 50px;
-  padding: 0;
-  overflow: hidden;
-  box-shadow:
-    0 -1px 0 rgba(166,197,226,0.12),
-    0 -6px 24px rgba(0,0,0,0.55);
-}
-.nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 0 24px;
-  height: 100%;
-  color: #9fadbc;
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  cursor: pointer;
-  text-decoration: none;
-  background: transparent;
-  border: none;
-  position: relative;
-  transition: color 0.12s;
-}
-.nav-item svg {
-  width: 18px;
-  height: 18px;
-  stroke-width: 1.6;
-  flex-shrink: 0;
-}
-.nav-item:hover {
-  color: #b6c2cf;
-}
-.nav-item-active {
-  color: #579dff !important;
-}
-.nav-item-active svg {
-  color: #579dff;
-}
-.nav-item-active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  background: #579dff;
-  border-radius: 2px 2px 0 0;
-}
-.nav-item + .nav-item {
-  border-left: 1px solid rgba(166,197,226,0.06);
 }
 
 /* =========================================
@@ -669,6 +766,98 @@ body {
   font-weight: 600;
 }
 
+.rich-text-highlight {
+  color: #000000;
+  background: rgba(245,219,102,0.32);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.rich-text-preview {
+  color: #dfe1e6;
+  border: 1px solid rgba(166,197,226,0.12);
+  background: rgba(255,255,255,0.03);
+  padding: 12px;
+  border-radius: 10px;
+}
+
+/* Estilos dos elementos formatados (descrição, observação, comentários). */
+.rich-text-content {
+  color: #b6c2cf;
+}
+.rich-text-content .rich-text-paragraph {
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+}
+.rich-text-content .rich-text-paragraph:last-child {
+  margin-bottom: 0;
+}
+.rich-text-content .rich-text-empty {
+  height: 8px;
+}
+.rich-text-content .rich-text-ul,
+.rich-text-content .rich-text-ol {
+  margin: 4px 0 8px;
+  padding-left: 22px;
+}
+.rich-text-content .rich-text-ul {
+  list-style: disc;
+}
+.rich-text-content .rich-text-ol {
+  list-style: decimal;
+}
+.rich-text-content .rich-text-ul li::marker,
+.rich-text-content .rich-text-ol li::marker {
+  color: #25D066;
+}
+.rich-text-content .rich-text-quote {
+  margin: 4px 0 8px;
+  padding: 4px 10px;
+  border-left: 3px solid #25D066;
+  background: rgba(37,208,102,0.06);
+  border-radius: 0 6px 6px 0;
+  color: #c8d2dc;
+  font-style: italic;
+}
+.rich-text-content strong {
+  font-weight: 700;
+  color: #e6e5e8;
+}
+.rich-text-content em {
+  font-style: italic;
+}
+.rich-text-content u {
+  text-decoration: underline;
+  text-decoration-color: rgba(37,208,102,0.6);
+  text-underline-offset: 2px;
+}
+.rich-text-content s {
+  text-decoration: line-through;
+  text-decoration-color: rgba(239,92,72,0.6);
+  color: #8c96a3;
+}
+/* code/link têm classes próprias para também funcionar fora de .rich-text-content (ex.: comentários). */
+.rich-text-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+  color: #f1f0f2;
+  border: 1px solid rgba(166,197,226,0.1);
+}
+.rich-text-link {
+  color: #25D066;
+  text-decoration: underline;
+  text-decoration-color: rgba(37,208,102,0.4);
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+.rich-text-link:hover {
+  text-decoration-color: #25D066;
+  color: #24FF72;
+}
+
 /* =========================================
    Sidebar — Flush Panel (no floating)
    ========================================= */
@@ -699,6 +888,9 @@ body {
   z-index: 30;
   position: relative;
   overflow: hidden;
+  min-width: 280px;
+  max-width: 90vw;
+  transition: width 0.3s ease;
 }
 .sidebar-panel__nav {
   display: flex;
@@ -786,14 +978,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 44px;
+  height: 48px;
   padding: 0 16px;
   z-index: 40;
   background: #1d2125;
   border: none;
-  border-bottom: 1px solid rgba(166,197,226,0.12);
+  border-bottom: 1px solid rgba(37,208,102,0.1);
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
   gap: 8px;
   flex-shrink: 0;
   min-width: 0;
@@ -806,14 +998,15 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-width: 0;
+  flex-shrink: 0;
 }
 .trello-board-header__center {
   flex: 1;
-  min-width: 140px;
+  min-width: 120px;
   max-width: 400px;
   display: flex;
   justify-content: center;
+  overflow: hidden;
 }
 .trello-board-chip {
   display: inline-flex;
@@ -821,7 +1014,7 @@ body {
   gap: 6px;
   height: 32px;
   padding: 0 12px;
-  border-radius: 3px;
+  border-radius: 8px;
   border: none;
   background: rgba(255,255,255,0.0);
   color: #B6C2CF;
@@ -831,8 +1024,8 @@ body {
   transition: background 0.12s ease, color 0.12s ease;
 }
 .trello-board-chip:hover {
-  background: rgba(255,255,255,0.1);
-  color: #DEE4EA;
+  background: rgba(37,208,102,0.08);
+  color: #25D066;
 }
 .trello-board-chip--title {
   padding: 0 8px;
@@ -870,8 +1063,8 @@ body {
   align-items: center;
   gap: 8px;
   background: #22272B;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
   padding: 6px 12px;
   height: 32px;
   flex: 1;
@@ -880,8 +1073,8 @@ body {
 }
 .header-search:focus-within {
   background: #22272B;
-  border-color: #579DFF;
-  box-shadow: none;
+  border-color: #25D066;
+  box-shadow: 0 0 0 2px rgba(37,208,102,0.15);
   max-width: 600px;
 }
 .trello-board-status {
@@ -916,21 +1109,168 @@ body {
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 999px;
+  border-radius: 8px;
   background: transparent;
   color: #9FADBC;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: background 0.12s ease, color 0.12s ease;
 }
 .trello-icon-btn:hover {
-  background: rgba(255,255,255,0.1);
-  color: #DEE4EA;
+  background: rgba(37,208,102,0.1);
+  color: #25D066;
 }
 .trello-icon-btn--danger:hover {
   color: #F87171;
   background: rgba(239,68,68,0.14);
+}
+
+/* =========================================
+   Board Toolbar — versão consolidada (Fase E)
+   ViewSwitcher + alertas + ferramentas
+   ========================================= */
+.board-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 52px;
+  padding: 0 16px 0 0;
+  background: rgba(34,39,43,0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+  min-width: 0;
+  width: 100%;
+  z-index: 30;
+  position: relative;
+}
+.board-toolbar__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.board-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.board-toolbar__divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255,255,255,0.08);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+.board-toolbar__status {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  margin: 0 4px;
+  position: relative;
+}
+.board-toolbar__status--ok {
+  background: #25D066;
+  box-shadow: 0 0 0 3px rgba(37,208,102,0.14);
+}
+.board-toolbar__status--off {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.16);
+}
+
+/* Filter badge sobre o ícone Filtrar */
+.board-filter-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #25D066;
+  color: #0d1417;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Stale chip — versão suave (âmbar, clicável) */
+.board-stale-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(245,158,11,0.10);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: #f59e0b;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.board-stale-chip:hover {
+  background: rgba(245,158,11,0.18);
+  border-color: rgba(245,158,11,0.45);
+}
+.board-stale-chip strong {
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+/* DEV badge — outline sutil (em vez de bloco laranja) */
+.board-dev-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid rgba(249,115,22,0.5);
+  color: #f97316;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.board-dev-badge__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #f97316;
+  box-shadow: 0 0 0 2px rgba(249,115,22,0.25);
+}
+
+@media (max-width: 768px) {
+  .board-toolbar {
+    height: auto;
+    min-height: 52px;
+    padding: 6px 8px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .board-toolbar__left,
+  .board-toolbar__right {
+    width: 100%;
+    overflow-x: auto;
+    gap: 4px;
+  }
 }
 .trello-create-btn {
   display: inline-flex;
@@ -938,17 +1278,23 @@ body {
   gap: 4px;
   height: 32px;
   padding: 0 16px;
-  border-radius: 3px;
+  border-radius: 8px;
   border: none;
-  background: #579DFF;
-  color: #1D2125;
+  background: #25D066;
+  color: #fff;
   font-size: 14px;
   font-weight: 600;
-  transition: background 0.12s ease;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 0 0 0 rgba(37,208,102,0);
 }
 .trello-create-btn:hover {
-  background: #85B8FF;
-  color: #1D2125;
+  background: #1BAD53;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(37,208,102,0.3);
+}
+.trello-create-btn:active {
+  transform: scale(0.97);
 }
 .trello-user-chip {
   display: inline-flex;
@@ -989,6 +1335,7 @@ body {
   transition: box-shadow 0.3s ease;
   background-image: none;
 }
+
 .board-main__scroller {
   width: 100%;
   height: 100%;
@@ -1001,18 +1348,23 @@ body {
   position: relative;
   border-radius: calc(var(--float-radius) - 4px);
   background-clip: padding-box;
+  /* scrollbar fina, elegante, verde chatPro */
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.18) transparent;
-  cursor: grab;
+  scrollbar-color: rgba(37,208,102,0.25) transparent;
 }
-.board-main__scroller::-webkit-scrollbar { height: 8px; }
-.board-main__scroller::-webkit-scrollbar-track { background: transparent; }
+.board-main__scroller::-webkit-scrollbar {
+  height: 5px;
+}
+.board-main__scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
 .board-main__scroller::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.18);
-  border-radius: 4px;
+  background: rgba(37,208,102,0.25);
+  border-radius: 10px;
+  transition: background 0.2s;
 }
 .board-main__scroller::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.3);
+  background: rgba(37,208,102,0.55);
 }
 .board-main__scroller[style*="grabbing"] { user-select: none; }
 .board-columns {
@@ -1357,8 +1709,8 @@ body {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .instance-modal__input:focus {
-  border-color: #579dff;
-  box-shadow: inset 0 0 0 1px #579dff;
+  border-color: #25D066;
+  box-shadow: inset 0 0 0 1px #25D066;
 }
 .instance-modal__input::placeholder {
   color: var(--text-muted);
@@ -1386,20 +1738,20 @@ body {
 }
 
 .instance-modal__btn--primary {
-  background: #579dff;
-  color: #1d2125;
+  background: #25D066;
+  color: #fff;
 }
 .instance-modal__btn--primary:hover:not(:disabled) {
-  background: #85b8ff;
+  background: #1BAD53;
 }
 
 .instance-modal__btn--secondary {
-  background: rgba(87, 157, 255, 0.10);
-  color: #579dff;
-  border: 1px solid rgba(87, 157, 255, 0.20);
+  background: rgba(37, 208, 102, 0.10);
+  color: #25D066;
+  border: 1px solid rgba(37, 208, 102, 0.20);
 }
 .instance-modal__btn--secondary:hover:not(:disabled) {
-  background: rgba(87, 157, 255, 0.18);
+  background: rgba(37, 208, 102, 0.18);
 }
 
 .instance-modal__btn--ghost {
@@ -1583,6 +1935,11 @@ body {
 
   .app-layout {
     padding: 0;
+  }
+
+  .sidebar-panel {
+    max-width: 100vw !important;
+    width: 100vw !important;
   }
 
   .board-header {
@@ -1778,4 +2135,16 @@ body {
   border-radius: 3px;
   margin-left: auto;
   flex-shrink: 0;
+}
+
+/* ── Acessibilidade: reduzir animações ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

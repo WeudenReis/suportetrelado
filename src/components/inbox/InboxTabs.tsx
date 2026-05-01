@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
-import { Bell, Inbox, AtSign } from 'lucide-react'
-
-export type TabFilter = 'all' | 'unread' | 'mentions'
+import { Icon } from '../../lib/icons'
+export type TabFilter = 'all' | 'unread' | 'mentions' | 'planner'
 
 interface TabDef {
   key: TabFilter
@@ -16,20 +15,22 @@ interface InboxTabsProps {
   totalCount: number
   unreadCount: number
   mentionCount: number
+  plannerCount: number
 }
 
-export default function InboxTabs({ active, onChange, totalCount, unreadCount, mentionCount }: InboxTabsProps) {
+export default function InboxTabs({ active, onChange, totalCount, unreadCount, mentionCount, plannerCount }: InboxTabsProps) {
   const tabs: TabDef[] = [
-    { key: 'all', label: 'Todas', icon: <Bell size={13} />, count: totalCount },
-    { key: 'unread', label: 'Não lidas', icon: <Inbox size={13} />, count: unreadCount },
-    { key: 'mentions', label: 'Menções', icon: <AtSign size={13} />, count: mentionCount },
+    { key: 'all', label: 'Todas', icon: <Icon name="Bell" size={13} />, count: totalCount },
+    { key: 'unread', label: 'Não lidas', icon: <Icon name="Inbox" size={13} />, count: unreadCount },
+    { key: 'mentions', label: 'Menções', icon: <Icon name="AtSign" size={13} />, count: mentionCount },
+    { key: 'planner', label: 'Datas', icon: <Icon name="CalendarIcon" size={13} />, count: plannerCount },
   ]
 
   return (
-    <div style={{
-      display: 'flex', gap: 0, position: 'relative',
+    <div className="hide-scrollbar" style={{
+      display: 'flex', gap: 12, position: 'relative',
       borderBottom: '1px solid rgba(255,255,255,0.06)',
-      padding: '0 20px',
+      padding: '0 20px', overflowX: 'auto', whiteSpace: 'nowrap'
     }}>
       {tabs.map(tab => {
         const isActive = active === tab.key
@@ -39,8 +40,8 @@ export default function InboxTabs({ active, onChange, totalCount, unreadCount, m
             type="button"
             onClick={() => onChange(tab.key)}
             style={{
-              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              padding: '10px 0 12px', border: 'none', cursor: 'pointer',
+              flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '10px 4px 12px', border: 'none', cursor: 'pointer',
               fontSize: 12, fontWeight: 600, position: 'relative',
               background: 'transparent',
               color: isActive ? '#25D066' : '#8C96A3',

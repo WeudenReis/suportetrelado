@@ -1,11 +1,11 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Inbox, CheckCheck, Clock, ChevronLeft, X } from 'lucide-react'
-import { useNotificationContext } from './NotificationContext'
+import { Icon } from '../lib/icons'
+import { useNotificationContext } from './useNotificationContext'
 import type { Notification } from '../lib/supabase'
 import InboxTabs from './inbox/InboxTabs'
 import type { TabFilter } from './inbox/InboxTabs'
-import NotificationCard, { cardVariants } from './inbox/NotificationCard'
+import NotificationCard from './inbox/NotificationCard'
 import EmptyState from './inbox/EmptyState'
 
 interface InboxSidebarProps {
@@ -44,17 +44,19 @@ const listVariants = {
 }
 
 /* ── Component ── */
-export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSidebarProps) {
+export default function InboxSidebar({ user: _user, onClose, onOpenTicket }: InboxSidebarProps) {
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotificationContext()
   const [filter, setFilter] = useState<TabFilter>('all')
   const scrollRef = useRef<HTMLDivElement>(null)
   const [scrolled, setScrolled] = useState(false)
 
   const mentionCount = useMemo(() => notifications.filter(n => n.type === 'mention').length, [notifications])
+  const plannerCount = useMemo(() => notifications.filter(n => n.type === 'due_date_alert' || n.type === 'planner_event').length, [notifications])
 
   const filtered = useMemo(() => {
     if (filter === 'unread') return notifications.filter(n => !n.is_read)
     if (filter === 'mentions') return notifications.filter(n => n.type === 'mention')
+    if (filter === 'planner') return notifications.filter(n => n.type === 'due_date_alert' || n.type === 'planner_event')
     return notifications
   }, [notifications, filter])
 
@@ -67,14 +69,12 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
 
   const handleOpen = useCallback(async (e: React.MouseEvent, notif: Notification) => {
     e.stopPropagation()
-    if (!notif.is_read) await markRead(notif.id)
     if (notif.ticket_id && onOpenTicket) onOpenTicket(notif.ticket_id)
-  }, [markRead, onOpenTicket])
+  }, [onOpenTicket])
 
   const handleItemClick = useCallback(async (notif: Notification) => {
-    if (!notif.is_read) await markRead(notif.id)
     if (notif.ticket_id && onOpenTicket) onOpenTicket(notif.ticket_id)
-  }, [markRead, onOpenTicket])
+  }, [onOpenTicket])
 
   const handleMarkAll = useCallback(async () => {
     await markAllRead()
@@ -89,55 +89,57 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
   }, [])
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', width: 340 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
         {/* ══════ HEADER ══════ */}
-        <div data-gsap-child style={{ padding: '18px 20px 14px' }}>
+        <div data-stagger-child style={{ padding: '20px 20px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h2 style={{
-                fontSize: 16, fontWeight: 900, color: '#E5E7EB', margin: 0,
-                fontFamily: "'Paytone One', sans-serif",
-                letterSpacing: '-0.2px',
+              <div style={{
+                width: 32, height: 32, borderRadius: 10,
+                background: 'rgba(37,208,102,0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                Caixa de Entrada
-              </h2>
-              {unreadCount > 0 && (
-                <span style={{
-                  fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                  background: '#25D066', color: '#000',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  lineHeight: '18px',
+                <Icon name="Inbox" size={16} style={{ color: '#25D066' }} />
+              </div>
+              <div>
+                <h2 style={{
+                  fontSize: 15, fontWeight: 900, color: '#E5E7EB', margin: 0,
+                  fontFamily: "'Paytone One', sans-serif",
                 }}>
-                  {unreadCount}
-                </span>
-              )}
+                  Caixa de Entrada
+                </h2>
+                <p style={{ fontSize: 11, color: '#596773', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                  {unreadCount > 0 ? `${unreadCount} não lida${unreadCount !== 1 ? 's' : ''}` : 'Tudo em dia'}
+                </p>
+              </div>
             </div>
             <button
               onClick={onClose}
               title="Fechar"
               style={{
-                width: 28, height: 28, borderRadius: 7, border: 'none',
-                background: 'transparent', color: '#8C96A3', cursor: 'pointer',
+                width: 28, height: 28, borderRadius: 8, border: 'none',
+                background: 'transparent', color: '#596773', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#E5E7EB' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#8C96A3' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#B6C2CF' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#596773' }}
             >
-              <X size={15} />
+              <Icon name="X" size={15} />
             </button>
           </div>
         </div>
 
         {/* ══════ TABS ══════ */}
-        <div data-gsap-child>
+        <div data-stagger-child>
         <InboxTabs
           active={filter}
           onChange={setFilter}
           totalCount={notifications.length}
           unreadCount={unreadCount}
           mentionCount={mentionCount}
+          plannerCount={plannerCount}
         />
         </div>
 
@@ -159,7 +161,7 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.16)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.08)' }}
             >
-              <CheckCheck size={13} />
+              <Icon name="CheckCheck" size={13} />
               Marcar todas como lidas
             </button>
           </div>
@@ -193,7 +195,7 @@ export default function InboxSidebar({ user, onClose, onOpenTicket }: InboxSideb
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
               >
-                <Clock size={22} />
+                <Icon name="Clock" size={22} />
               </motion.div>
               <span style={{ fontSize: 12, fontWeight: 500, fontFamily: "'Space Grotesk', sans-serif" }}>
                 Carregando...

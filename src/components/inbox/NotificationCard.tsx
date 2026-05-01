@@ -1,5 +1,6 @@
+import { memo } from 'react'
 import { motion } from 'framer-motion'
-import { Check, ExternalLink, Ticket, AtSign, UserPlus, MessageSquare, ArrowRight } from 'lucide-react'
+import { Icon } from '../../lib/icons'
 import type { Notification } from '../../lib/supabase'
 
 /* ── Helpers ── */
@@ -39,15 +40,18 @@ function formatFull(iso: string): string {
 /* ── Type config ── */
 
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; borderColor: string; label: string; labelBg: string; labelColor: string }> = {
-  mention:    { icon: <AtSign size={14} />,        borderColor: '#25D066', label: 'Menção',     labelBg: 'rgba(37,208,102,0.15)', labelColor: '#25D066' },
-  assignment: { icon: <UserPlus size={14} />,      borderColor: '#3B82F6', label: 'Atribuição', labelBg: 'rgba(59,130,246,0.15)', labelColor: '#3B82F6' },
-  comment:    { icon: <MessageSquare size={14} />, borderColor: '#F59E0B', label: 'Comentário', labelBg: 'rgba(245,158,11,0.15)', labelColor: '#F59E0B' },
-  move:       { icon: <ArrowRight size={14} />,    borderColor: '#8B5CF6', label: 'Movido',     labelBg: 'rgba(139,92,246,0.15)', labelColor: '#8B5CF6' },
+  mention:        { icon: <Icon name="AtSign" size={14} />,        borderColor: '#25D066', label: 'Menção',       labelBg: 'rgba(37,208,102,0.15)',  labelColor: '#25D066' },
+  assignment:     { icon: <Icon name="UserPlus" size={14} />,      borderColor: '#3B82F6', label: 'Atribuição',   labelBg: 'rgba(59,130,246,0.15)',  labelColor: '#3B82F6' },
+  comment:        { icon: <Icon name="MessageSquare" size={14} />, borderColor: '#F59E0B', label: 'Comentário',   labelBg: 'rgba(245,158,11,0.15)',  labelColor: '#F59E0B' },
+  move:           { icon: <Icon name="ArrowRight" size={14} />,    borderColor: '#8B5CF6', label: 'Movido',       labelBg: 'rgba(139,92,246,0.15)',  labelColor: '#8B5CF6' },
+  announcement:   { icon: <Icon name="Megaphone" size={14} />,     borderColor: '#25D066', label: 'Aviso',        labelBg: 'rgba(37,208,102,0.15)',  labelColor: '#25D066' },
+  due_date_alert: { icon: <Icon name="Clock" size={14} />,         borderColor: '#F5A623', label: 'Vencimento',   labelBg: 'rgba(245,166,35,0.15)',  labelColor: '#F5A623' },
+  planner_event:  { icon: <Icon name="Calendar" size={14} />,      borderColor: '#579dff', label: 'Evento',       labelBg: 'rgba(87,157,255,0.15)',  labelColor: '#579dff' },
 }
 
 /* ── Animation ── */
 
-export const cardVariants = {
+const cardVariants = {
   hidden: { opacity: 0, y: 8 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] } },
   exit: { opacity: 0, x: -20, height: 0, marginBottom: 0, transition: { duration: 0.2, ease: 'easeIn' } },
@@ -62,7 +66,7 @@ interface NotificationCardProps {
   onClick: (notif: Notification) => void
 }
 
-export default function NotificationCard({ notif, onMarkRead, onOpen, onClick }: NotificationCardProps) {
+function NotificationCard({ notif, onMarkRead, onOpen, onClick }: NotificationCardProps) {
   const config = TYPE_CONFIG[notif.type] || TYPE_CONFIG.comment
   const isUnread = !notif.is_read
   const avatarBg = nameToColor(notif.sender_name)
@@ -159,7 +163,7 @@ export default function NotificationCard({ notif, onMarkRead, onOpen, onClick }:
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             maxWidth: '100%', fontFamily: "'Space Grotesk', sans-serif",
           }}>
-            <Ticket size={10} /> {notif.ticket_title}
+            <Icon name="Ticket" size={10} /> {notif.ticket_title}
           </span>
         )}
       </div>
@@ -171,6 +175,21 @@ export default function NotificationCard({ notif, onMarkRead, onOpen, onClick }:
         transform: 'translateY(2px)',
         transition: 'opacity 150ms ease, transform 150ms ease',
       }}>
+        {/* Always show dismiss button */}
+        <button
+          title="Dispensar"
+          onClick={(e) => onMarkRead(e, notif.id)}
+          style={{
+            width: 26, height: 26, borderRadius: 7, border: 'none',
+            background: 'rgba(255,255,255,0.06)', color: '#8C96A3',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.12s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; e.currentTarget.style.color = '#f87171' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#8C96A3' }}
+        >
+          <Icon name="X" size={12} />
+        </button>
         {isUnread && (
           <button
             title="Marcar como lida"
@@ -184,7 +203,7 @@ export default function NotificationCard({ notif, onMarkRead, onOpen, onClick }:
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.25)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,208,102,0.12)' }}
           >
-            <Check size={13} />
+            <Icon name="Check" size={13} />
           </button>
         )}
         {notif.ticket_id && (
@@ -200,10 +219,12 @@ export default function NotificationCard({ notif, onMarkRead, onOpen, onClick }:
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.25)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.12)' }}
           >
-            <ExternalLink size={13} />
+            <Icon name="ExternalLink" size={13} />
           </button>
         )}
       </div>
     </motion.div>
   )
 }
+
+export default memo(NotificationCard)

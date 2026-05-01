@@ -1,27 +1,42 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-// URLs e chaves fixas — VITE_SUPABASE_URL no Vercel determina o ambiente
-// Production: VITE_SUPABASE_URL = PROD_URL → usa prod
-// Preview/Dev: VITE_SUPABASE_URL ausente ou diferente → usa dev
-const PROD_URL = 'https://qacrxpfoamarslxskcyb.supabase.co'
-const PROD_KEY = 'sb_publishable_Qc_kigRTle0uzM6LAsLHbQ_XuBHWJV3'
-const DEV_URL = 'https://vbxzeyweurzrwppdiluo.supabase.co'
-const DEV_KEY = 'sb_publishable_03VCMlD83Jf9fsXJB97Ccw_QEYH_4Ps'
+// ── Client Supabase ──────────────────────────────────────────
+const supabaseUrlDev = (import.meta.env.VITE_SUPABASE_URL_DEV || '').trim().replace(/\/+$/, '')
+const supabaseAnonKeyDev = (import.meta.env.VITE_SUPABASE_ANON_KEY_DEV || '').trim()
+const supabaseUrlProd = (import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
+const supabaseAnonKeyProd = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
 
-const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
-const isProd = envUrl.includes('qacrxpfoamarslxskcyb')
+const supabaseUrl = supabaseUrlDev || supabaseUrlProd
+const supabaseAnonKey = supabaseUrlDev ? supabaseAnonKeyDev || supabaseAnonKeyProd : supabaseAnonKeyProd
 
-const supabaseUrl = isProd ? PROD_URL : DEV_URL
-const supabaseAnonKey = isProd ? PROD_KEY : DEV_KEY
+/** Indica se as env vars do Supabase estão configuradas */
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-export const isDevEnvironment = !isProd
+function createSafeClient(): SupabaseClient {
+  if (!isSupabaseConfigured) {
+    // logger não disponível aqui (módulo de bootstrap) — console intencional
+    console.error('[Supabase] VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não definidas. Verifique as env vars da Vercel.')
+    // Client dummy para evitar crash em imports — auth/queries não funcionarão
+    return createClient('https://localhost', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder')
+  }
+  return createClient(supabaseUrl, supabaseAnonKey)
+}
 
-export type TicketStatus = 'backlog' | 'in_progress' | 'waiting_devs' | 'resolved'
+export const supabase = createSafeClient()
+export const isDevEnvironment = import.meta.env.DEV || Boolean(supabaseUrlDev) || !supabaseUrlProd.includes('qacrxpfoamarslxskcyb')
+
+// ── Types ────────────────────────────────────────────────────
+export type TicketStatus = string
 export type TicketPriority = 'low' | 'medium' | 'high'
+
+export interface PaginationOptions {
+  page?: number
+  pageSize?: number
+}
 
 export interface Ticket {
   id: string
+  department_id: string
   title: string
   description: string
   status: TicketStatus
@@ -36,30 +51,47 @@ export interface Ticket {
   link_sessao?: string | null
   observacao?: string | null
   due_date?: string | null
+  start_date?: string | null
   cover_image_url?: string | null
   cover_thumb_url?: string | null
+  is_archived?: boolean
+  is_completed?: boolean
+  attachment_count?: number
 }
 
 export interface Comment {
   id: string
+  department_id: string
   ticket_id: string
   user_name: string
   content: string
   created_at: string
 }
 
+export interface CommentReaction {
+  id: string
+  comment_id: string
+  department_id: string
+  user_email: string
+  emoji: string
+  created_at: string
+}
+
 export interface Attachment {
   id: string
+  department_id: string | null
   ticket_id: string
   file_name: string
   file_url: string
   file_type: string
   uploaded_by: string | null
+  storage_path: string | null
   created_at: string
 }
 
 export interface ActivityLog {
   id: string
+  department_id: string
   card_id: string
   user_name: string
   action_text: string
@@ -67,6 +99,7 @@ export interface ActivityLog {
 }
 
 export type TicketInsert = {
+  department_id: string
   title: string
   description?: string
   status?: TicketStatus
@@ -80,259 +113,33 @@ export type TicketInsert = {
   observacao?: string | null
 }
 
-// ── Board Labels (etiquetas reutilizáveis) ──
 export interface BoardLabel {
   id: string
+  department_id: string
   name: string
   color: string
   created_at: string
   updated_at: string
 }
 
-export async function fetchBoardLabels(): Promise<BoardLabel[]> {
-  const { data, error } = await supabase
-    .from('board_labels')
-    .select('*')
-    .order('name', { ascending: true })
-  if (error) throw error
-  return (data ?? []) as BoardLabel[]
-}
-
-export async function insertBoardLabel(name: string, color: string): Promise<BoardLabel> {
-  const { data, error } = await supabase
-    .from('board_labels')
-    .insert({ name, color })
-    .select()
-    .single()
-  if (error) throw error
-  return data as BoardLabel
-}
-
-export async function updateBoardLabel(id: string, updates: { name?: string; color?: string }): Promise<void> {
-  const { error } = await supabase
-    .from('board_labels')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-  if (error) throw error
-}
-
-export async function deleteBoardLabel(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('board_labels')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
-}
-
-export async function fetchTickets(): Promise<Ticket[]> {
-  const { data, error } = await supabase
-    .from('tickets')
-    .select('*')
-    .eq('is_archived', false)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return (data ?? []) as Ticket[]
-}
-
-export async function insertTicket(ticket: TicketInsert): Promise<Ticket> {
-  const { data, error } = await supabase
-    .from('tickets')
-    .insert(ticket)
-    .select()
-    .single()
-  if (error) {
-    console.error('insertTicket error:', error)
-    if (error.message?.includes('schema cache')) {
-      throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
-    }
-    throw error
-  }
-  return data as Ticket
-}
-
-export async function updateTicket(id: string, updates: Partial<Ticket>): Promise<Ticket> {
-  const { data, error } = await supabase
-    .from('tickets')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) {
-    console.error('updateTicket error:', error)
-    if (error.message?.includes('schema cache')) {
-      throw new Error('Coluna não encontrada no banco. Execute a migration v7 no Supabase SQL Editor.')
-    }
-    throw error
-  }
-  return data as Ticket
-}
-
-export async function deleteTicket(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('tickets')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
-}
-
-// --- Comments ---
-export async function fetchComments(ticketId: string): Promise<Comment[]> {
-  const { data, error } = await supabase
-    .from('comments')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .order('created_at', { ascending: true })
-  if (error) { console.warn('comments table may not exist:', error.message); return [] }
-  return (data ?? []) as Comment[]
-}
-
-export async function insertComment(ticketId: string, userName: string, content: string): Promise<Comment | null> {
-  const { data, error } = await supabase
-    .from('comments')
-    .insert({ ticket_id: ticketId, user_name: userName, content })
-    .select()
-    .single()
-  if (error) { console.error('Failed to insert comment:', error.message); return null }
-  return data as Comment
-}
-
-export async function deleteComment(id: string): Promise<void> {
-  await supabase.from('comments').delete().eq('id', id)
-}
-
-// --- Attachments ---
-export async function fetchAttachmentCounts(): Promise<Record<string, number>> {
-  const { data, error } = await supabase
-    .from('attachments')
-    .select('ticket_id')
-  if (error) { console.warn('attachments count error:', error.message); return {} }
-  const counts: Record<string, number> = {}
-  for (const row of data ?? []) {
-    counts[row.ticket_id] = (counts[row.ticket_id] || 0) + 1
-  }
-  return counts
-}
-
-export async function fetchAttachments(ticketId: string): Promise<Attachment[]> {
-  const { data, error } = await supabase
-    .from('attachments')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .order('created_at', { ascending: true })
-  if (error) { console.warn('attachments table may not exist:', error.message); return [] }
-  return (data ?? []) as Attachment[]
-}
-
-export async function uploadAttachment(ticketId: string, file: File, userName: string): Promise<Attachment | null> {
-  const fileExt = file.name.split('.').pop()
-  const filePath = `${ticketId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`
-
-  const { error: uploadError } = await supabase.storage
-    .from('attachments')
-    .upload(filePath, file)
-  if (uploadError) { console.error('Upload failed:', uploadError.message); return null }
-
-  const { data: { publicUrl } } = supabase.storage
-    .from('attachments')
-    .getPublicUrl(filePath)
-
-  const fileType = file.type.startsWith('image/') ? 'image'
-    : file.type.startsWith('video/') ? 'video' : 'file'
-
-  const { data, error } = await supabase
-    .from('attachments')
-    .insert({ ticket_id: ticketId, file_name: file.name, file_url: publicUrl, file_type: fileType, uploaded_by: userName })
-    .select()
-    .single()
-  if (error) { console.error('Failed to save attachment:', error.message); return null }
-  return data as Attachment
-}
-
-export async function deleteAttachment(id: string, fileUrl: string): Promise<void> {
-  // Extract path from URL for storage deletion
-  try {
-    const url = new URL(fileUrl)
-    const pathParts = url.pathname.split('/storage/v1/object/public/attachments/')
-    if (pathParts[1]) {
-      await supabase.storage.from('attachments').remove([decodeURIComponent(pathParts[1])])
-    }
-  } catch { /* ignore path extraction errors */ }
-  await supabase.from('attachments').delete().eq('id', id)
-}
-
-// --- Activity Log ---
-export async function fetchActivityLog(cardId: string): Promise<ActivityLog[]> {
-  const { data, error } = await supabase
-    .from('activity_log')
-    .select('*')
-    .eq('card_id', cardId)
-    .order('created_at', { ascending: true })
-  if (error) { console.warn('activity_log table may not exist:', error.message); return [] }
-  return (data ?? []) as ActivityLog[]
-}
-
-export async function insertActivityLog(cardId: string, userName: string, actionText: string): Promise<ActivityLog | null> {
-  const { data, error } = await supabase
-    .from('activity_log')
-    .insert({ card_id: cardId, user_name: userName, action_text: actionText })
-    .select()
-    .single()
-  if (error) { console.warn('Failed to insert activity:', error.message); return null }
-  return data as ActivityLog
-}
-
-// --- User Profiles ---
 export interface UserProfile {
   id: string
+  organization_id: string
   email: string
   name: string
   avatar_color: string
+  avatar_url?: string | null
   role: string
   last_seen_at: string
   created_at: string
 }
 
-const AVATAR_COLORS = ['#579dff', '#4bce97', '#f5a623', '#ef5c48', '#a259ff', '#20c997', '#6366f1', '#ec4899']
-
-export async function upsertUserProfile(email: string): Promise<void> {
-  // Tenta pegar o nome real do Google
-  const { data: { session } } = await supabase.auth.getSession()
-  const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
-  const firstName = fullName ? fullName.split(' ')[0] : (email.includes('@') ? email.split('@')[0] : email)
-  const name = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
-  const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
-  const { error } = await supabase
-    .from('user_profiles')
-    .upsert(
-      { email, name, avatar_color: color, last_seen_at: new Date().toISOString() },
-      { onConflict: 'email' }
-    )
-  if (error) console.warn('upsertUserProfile:', error.message)
-}
-
-export async function updateLastSeen(email: string): Promise<void> {
-  const { error } = await supabase
-    .from('user_profiles')
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq('email', email)
-  if (error) console.warn('updateLastSeen:', error.message)
-}
-
-export async function fetchUserProfiles(): Promise<UserProfile[]> {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .order('last_seen_at', { ascending: false })
-  if (error) { console.warn('user_profiles table may not exist:', error.message); return [] }
-  return (data ?? []) as UserProfile[]
-}
-
-// --- Notifications ---
 export interface Notification {
   id: string
+  department_id: string
   recipient_email: string
   sender_name: string
-  type: 'mention' | 'assignment' | 'move' | 'comment'
+  type: 'mention' | 'assignment' | 'move' | 'comment' | 'announcement' | 'due_date_alert' | 'planner_event'
   ticket_id: string | null
   ticket_title: string
   message: string
@@ -340,52 +147,81 @@ export interface Notification {
   created_at: string
 }
 
-export async function fetchNotifications(email: string): Promise<Notification[]> {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('recipient_email', email)
-    .order('created_at', { ascending: false })
-    .limit(50)
-  if (error) { console.warn('notifications table may not exist:', error.message); return [] }
-  return (data ?? []) as Notification[]
+export type AnnouncementSeverity = 'info' | 'warning' | 'critical'
+
+export type AnnouncementAttachmentType = 'image' | 'video' | 'file'
+
+export interface AnnouncementAttachment {
+  name: string
+  url: string
+  storage_path: string
+  type: AnnouncementAttachmentType
+  mime: string
+  size: number
 }
 
-export async function insertNotification(notif: Omit<Notification, 'id' | 'is_read' | 'created_at'>): Promise<void> {
-  const { error } = await supabase.from('notifications').insert(notif)
-  if (error) console.warn('insertNotification:', error.message)
+export interface Announcement {
+  id: string
+  department_id: string
+  title: string
+  content: string
+  severity: AnnouncementSeverity
+  author: string
+  is_pinned: boolean
+  is_active: boolean
+  attachments: AnnouncementAttachment[]
+  created_at: string
+  updated_at: string
 }
 
-export async function markNotificationRead(id: string): Promise<void> {
-  await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+export interface UsefulLink {
+  id: string
+  department_id: string
+  title: string
+  url: string
+  description: string
+  category: string
+  icon: string
+  added_by: string
+  created_at: string
+  updated_at: string
 }
 
-export async function markAllNotificationsRead(email: string): Promise<void> {
-  await supabase.from('notifications').update({ is_read: true }).eq('recipient_email', email).eq('is_read', false)
+export interface PlannerEvent {
+  id: string
+  organization_id: string
+  user_email: string
+  title: string
+  description: string
+  date: string
+  start_time: string | null
+  end_time: string | null
+  color: string
+  created_at: string
+  updated_at: string
 }
 
-export function extractMentionNames(text: string): string[] {
-  const regex = /@([\w\u00C0-\u024F]+)/g
-  const names: string[] = []
-  let match: RegExpExecArray | null
-  while ((match = regex.exec(text)) !== null) {
-    names.push(match[1].toLowerCase())
-  }
-  return [...new Set(names)]
+export interface PlannerNotificationSettings {
+  id: string
+  organization_id: string
+  user_email: string
+  notify_days_before: number[]
+  created_at: string
+  updated_at: string
 }
 
-export async function resolveMentionsToEmails(names: string[]): Promise<string[]> {
-  if (names.length === 0) return []
-  const profiles = await fetchUserProfiles()
-  const emails: string[] = []
-  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-  for (const name of names) {
-    const n = normalize(name)
-    const match = profiles.find(p =>
-      normalize(p.name) === n ||
-      normalize(p.email.split('@')[0]) === n
-    )
-    if (match) emails.push(match.email)
-  }
-  return emails
-}
+// ── Re-exports de todos os modulos de API ────────────────────
+// Manter compatibilidade com imports existentes de './lib/supabase'
+export {
+  fetchTickets, fetchTicketsCount, insertTicket, updateTicket, deleteTicket,
+  fetchComments, insertComment, deleteComment, fetchCommentReactions, toggleCommentReaction,
+  fetchAttachmentCounts, fetchAttachments, uploadAttachment, getSignedAttachmentUrl, deleteAttachment,
+  fetchActivityLog, insertActivityLog,
+  checkAuthorizedUser, upsertUserProfile, updateLastSeen, fetchUserProfiles,
+  fetchNotifications, insertNotification, markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications, deleteNotificationsByTicket, extractMentionNames, resolveMentionsToEmails,
+  fetchAnnouncements, insertAnnouncement, updateAnnouncement, deleteAnnouncement,
+  uploadAnnouncementAttachment, deleteAnnouncementAttachmentObject,
+  fetchUsefulLinks, insertUsefulLink, updateUsefulLink, deleteUsefulLink,
+  fetchBoardLabels, insertBoardLabel, updateBoardLabel, deleteBoardLabel,
+  fetchPlannerEvents, insertPlannerEvent, updatePlannerEvent, deletePlannerEvent, fetchPlannerSettings, upsertPlannerSettings,
+} from './api'

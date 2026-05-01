@@ -2,22 +2,59 @@
 
 .card {
   background: #22272b;
-  border-radius: 8px;
-  border: 1px solid rgba(166, 197, 226, 0.16);
+  border-radius: 10px;
+  border: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(166, 197, 226, 0.06),
+    0 1px 1px rgba(0, 0, 0, 0.18);
   cursor: pointer;
   overflow: hidden;
-  margin-bottom: 8px;
-  transition: background 0.1s, border-color 0.1s;
+  margin-bottom: 6px;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
   position: relative;
 }
 
 .card:hover {
   background: #282e33;
-  border-color: rgba(87, 157, 255, 0.35);
+  box-shadow:
+    inset 0 0 0 1px rgba(37, 208, 102, 0.22),
+    0 6px 16px -6px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(37, 208, 102, 0.06);
+}
+
+/* SLA: card parado por muito tempo */
+.cardOverdue {
+  border-left: 3px solid #ef5c48;
+}
+
+.cardWarning {
+  border-left: 3px solid #e2b203;
 }
 
 .cardCompleted {
-  border-color: rgba(75, 206, 151, 0.35);
+  background: rgba(37, 208, 102, 0.10);
+  box-shadow:
+    inset 0 0 0 1px rgba(37, 208, 102, 0.4),
+    0 2px 8px -2px rgba(37, 208, 102, 0.18);
+}
+
+.cardCompleted:hover {
+  background: rgba(37, 208, 102, 0.16);
+  box-shadow:
+    inset 0 0 0 1px rgba(37, 208, 102, 0.55),
+    0 6px 16px -6px rgba(37, 208, 102, 0.25);
+}
+
+.cardMutating {
+  opacity: 0.75;
+  pointer-events: none;
+  border-color: rgba(87, 157, 255, 0.3);
+  animation: cardPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cardPulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 0.55; }
 }
 
 .cardDragging {
@@ -43,14 +80,14 @@
 }
 
 .body {
-  padding: 8px 10px 10px;
+  padding: 7px 11px 9px;
 }
 
 .titleRow {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  min-height: 26px;
+  min-height: 24px;
 }
 
 .checkBtn {
@@ -100,18 +137,19 @@
 .title {
   flex: 1;
   margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: #b6c2cf;
-  line-height: 1.4;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #d6dde4;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
   word-break: break-word;
   transition: color 0.12s;
 }
 
 .titleDone {
-  color: #596773;
+  color: #25D066;
   text-decoration: line-through;
-  text-decoration-color: #596773;
+  text-decoration-color: rgba(37, 208, 102, 0.5);
 }
 
 .titleInput {
@@ -147,9 +185,9 @@
 }
 
 .actionBtn {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
   background: transparent;
   border: none;
   color: #8c9bab;
@@ -174,14 +212,15 @@
 /* Tag de prioridade */
 .tag {
   display: inline-block;
-  border-radius: 4px;
-  padding: 4px 10px;
-  font-size: 11px;
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-family: var(--font-data);
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 6px;
-  line-height: 1;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+  line-height: 1.1;
 }
 
 /* Todas as variações de nome que podem vir do banco */
@@ -202,40 +241,45 @@
 .tagsRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 6px;
+  gap: 3px;
+  margin-bottom: 5px;
 }
 
 .cardTag {
   display: inline-block;
-  border-radius: 4px;
-  padding: 4px 8px;
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-family: var(--font-data);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   color: #fff;
-  line-height: 1;
+  line-height: 1.1;
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 
 .footer {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: 7px;
+  margin-top: 5px;
   flex-wrap: wrap;
 }
 
 .footerBadge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 11px;
+  gap: 4px;
+  font-family: var(--font-data);
+  font-size: 10.5px;
+  font-weight: 500;
   color: #8c9bab;
   line-height: 1;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .footerOverdue {
@@ -247,14 +291,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  font-size: 12px;
+  font-family: var(--font-data);
+  font-size: 11px;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
   text-transform: uppercase;
+  box-shadow: 0 0 0 2px #22272b;
 }
 
 .description {
@@ -267,8 +313,8 @@
 .badgesRow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: 7px;
+  margin-top: 5px;
   flex-wrap: wrap;
 }
 
@@ -276,12 +322,63 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
+  font-family: var(--font-data);
+  font-size: 10.5px;
+  font-weight: 500;
   color: #8c9bab;
   line-height: 1;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .badgeDone {
   color: #4bce97;
+}
+
+/* ── Modo Compacto ── */
+.cardCompact {
+  margin-bottom: 2px;
+  border-radius: 6px;
+}
+
+.compactBody {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  min-height: 28px;
+}
+
+.compactPrio {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.compactTitle {
+  flex: 1;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #d6dde4;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compactAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
 }

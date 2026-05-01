@@ -19,7 +19,7 @@ const THUMB_OPTS: CompressOptions = { maxWidth: 400, maxHeight: 200, quality: 0.
  * Retorna um novo File com tamanho reduzido.
  */
 function compressImage(file: File, opts: CompressOptions): Promise<File> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     // Se não for imagem, retorna original
     if (!file.type.startsWith('image/')) {
       resolve(file)

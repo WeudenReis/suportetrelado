@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>chatPro — Fluxo de Features</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Paytone+One&family=Space+Grotesk:wght@400;600;700&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111518; color: #b6c2cf; font-family: 'Space Grotesk', sans-serif; min-height: 100vh; }
+
+    .hero {
+      text-align: center; padding: 48px 24px 32px;
+      background: linear-gradient(180deg, rgba(37,208,102,0.06) 0%, transparent 100%);
+    }
+    .hero h1 { font-family: 'Paytone One', sans-serif; color: #25D066; font-size: 32px; }
+    .hero p { color: #596773; font-size: 14px; margin-top: 6px; }
+    .hero .stats {
+      display: flex; justify-content: center; gap: 24px; margin-top: 20px; flex-wrap: wrap;
+    }
+    .hero .stat {
+      background: #1d2125; border-radius: 12px; padding: 12px 24px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .hero .stat-num { font-size: 28px; font-weight: 700; }
+    .hero .stat-label { font-size: 11px; color: #596773; text-transform: uppercase; letter-spacing: 0.05em; }
+    .green { color: #25D066; }
+    .amber { color: #f5a623; }
+
+    .section {
+      max-width: 1200px; margin: 0 auto 48px; padding: 0 24px;
+    }
+    .section-title {
+      font-weight: 700; font-size: 14px; color: #25D066; text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 16px; padding-bottom: 8px;
+      border-bottom: 1px solid rgba(37,208,102,0.15);
+    }
+    .mermaid {
+      background: #1d2125; border-radius: 14px; padding: 28px;
+      border: 1px solid rgba(255,255,255,0.06);
+      overflow-x: auto;
+    }
+
+    .cards-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 14px; margin-top: 16px;
+    }
+    .fcard {
+      background: #1d2125; border-radius: 12px; padding: 18px 20px;
+      border: 1px solid rgba(255,255,255,0.06); transition: border-color 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .fcard:hover { border-color: rgba(37,208,102,0.3); }
+    .fcard::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    }
+    .fcard.done::before { background: #25D066; }
+    .fcard.pending::before { background: #f5a623; }
+    .fcard .num { font-size: 10px; font-weight: 700; color: #596773; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .fcard .title { font-weight: 700; font-size: 15px; color: #e0e4e8; margin-bottom: 6px; }
+    .fcard .desc { font-size: 12px; color: #8C96A3; line-height: 1.5; margin-bottom: 10px; }
+    .fcard .meta { display: flex; flex-wrap: wrap; gap: 6px; }
+    .fcard .tag {
+      font-size: 10px; padding: 3px 8px; border-radius: 6px; font-weight: 600;
+      background: rgba(37,208,102,0.08); color: #25D066; border: 1px solid rgba(37,208,102,0.15);
+    }
+    .fcard .tag.file { background: rgba(87,157,255,0.08); color: #579dff; border-color: rgba(87,157,255,0.15); }
+    .fcard .tag.status-done { background: rgba(37,208,102,0.12); color: #25D066; }
+    .fcard .tag.status-pending { background: rgba(245,166,35,0.12); color: #f5a623; border-color: rgba(245,166,35,0.15); }
+
+    footer { text-align: center; padding: 32px 0 48px; color: #596773; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HERO ═══ -->
+<div class="hero">
+  <h1>Features Implementadas</h1>
+  <p>Todas as funcionalidades adicionadas ao Suporte chatPro</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-num green">12</div><div class="stat-label">Concluídas</div></div>
+    <div class="stat"><div class="stat-num amber">2</div><div class="stat-label">Pendentes (backend)</div></div>
+    <div class="stat"><div class="stat-num" style="color:#579dff">7</div><div class="stat-label">Arquivos modificados</div></div>
+    <div class="stat"><div class="stat-num" style="color:#a882ff">2</div><div class="stat-label">Arquivos criados</div></div>
+  </div>
+</div>
+
+<!-- ═══ DIAGRAMA PRINCIPAL: Como as features se conectam ═══ -->
+<div class="section">
+  <div class="section-title">Mapa Geral — Como tudo se conecta</div>
+  <div class="mermaid">
+flowchart TB
+  subgraph KANBAN["🎯 KanbanBoard.tsx — Centro de Controle"]
+    direction TB
+    F2["<b>F2.</b> Filtros Avançados<br/>Prioridade · Responsável · Etiqueta"]
+    F3["<b>F3.</b> Atalhos de Teclado<br/>N · F · / · C · R · ?"]
+    F4["<b>F4.</b> Templates de Ticket<br/>Salvar · Carregar · Excluir"]
+    F10["<b>F10.</b> Seleção Múltipla<br/>Mover em lote · Arquivar em lote"]
+    F11["<b>F11.</b> Modo Compacto<br/>Cards em linha única"]
+    F13["<b>F13.</b> Regras Automáticas<br/>Condição → Ação auto"]
+  end
+
+  subgraph CARD_AREA["🃏 Card.tsx — Visual dos Cards"]
+    F1["<b>F1.</b> SLA Visual<br/>🔴 >24h · 🟡 >12h"]
+  end
+
+  subgraph MODAL["📝 CardDetailModal.tsx — Detalhe do Ticket"]
+    F9["<b>F9.</b> Notas Internas<br/>🔒 Toggle Público/Interno<br/>Visual âmbar diferenciado"]
+  end
+
+  subgraph DASHBOARD_AREA["📊 DashboardView.tsx — Painel de Métricas"]
+    F5["<b>F5.</b> Métricas Avançadas<br/>Criados Hoje · Produtividade"]
+    F6["<b>F6.</b> Exportação CSV<br/>Download com BOM p/ Excel"]
+  end
+
+  subgraph NOTIF_AREA["🔔 NotificationContext.tsx — Alertas"]
+    F8["<b>F8.</b> Push Nativo<br/>Browser Notification API<br/>Dispara quando aba não focada"]
+  end
+
+  subgraph THEME_AREA["🎨 theme.tsx — Personalização"]
+    F12["<b>F12.</b> Temas por Usuário<br/>8 presets de cores<br/>chatPro · Roxo · Sunset · Ocean"]
+  end
+
+  subgraph PENDING["⏳ Pendentes — Requerem Backend"]
+    F7["<b>F7.</b> Integração WhatsApp<br/>InstanceModal.tsx pronto<br/>Falta Edge Function"]
+    F14["<b>F14.</b> Webhook de Entrada<br/>Falta Supabase Edge Function"]
+  end
+
+  %% Conexões entre features
+  F3 -->|"tecla N"| F4
+  F3 -->|"tecla F"| F2
+  F3 -->|"tecla C"| F11
+  F2 -->|"filtra cards"| CARD_AREA
+  F11 -->|"renderiza compacto"| CARD_AREA
+  F10 -->|"seleciona cards"| CARD_AREA
+  F1 -->|"click no card"| MODAL
+  F13 -->|"auto-move ao carregar"| CARD_AREA
+  CARD_AREA -->|"click"| MODAL
+  F9 -->|"@menção"| F8
+  F7 -.->|"criaria tickets"| KANBAN
+  F14 -.->|"criaria tickets"| KANBAN
+
+  style F1 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F2 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F3 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F4 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F5 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F6 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F8 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F9 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F10 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F11 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F12 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F13 fill:#1a2a1a,stroke:#25D066,color:#b6c2cf
+  style F7 fill:#2a2210,stroke:#f5a623,color:#f5a623
+  style F14 fill:#2a2210,stroke:#f5a623,color:#f5a623
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Experiência do Usuário ═══ -->
+<div class="section">
+  <div class="section-title">Fluxo da Experiência do Usuário</div>
+  <div class="mermaid">
+flowchart LR
+  START(("👤 Usuário<br/>abre o app")) --> BOARD["Kanban Board"]
+
+  BOARD --> |"pressiona N"| NOVO["Novo Ticket"]
+  NOVO --> |"escolhe template"| TEMPLATE["📋 F4. Template"]
+  TEMPLATE --> CREATE["Cria ticket"]
+  NOVO --> CREATE
+
+  BOARD --> |"pressiona F"| FILTER["🔍 F2. Filtros"]
+  FILTER --> FILTERED["Cards filtrados"]
+
+  BOARD --> |"pressiona C"| COMPACT["📐 F11. Compacto"]
+
+  BOARD --> |"vê card com borda"| SLA["⏱️ F1. SLA Visual"]
+  SLA --> |"🔴 vermelho = urgente"| URGENTE["Precisa agir!"]
+  SLA --> |"🟡 amarelo = atenção"| ATENCAO["Ficar de olho"]
+
+  BOARD --> |"clica no card"| MODAL["📝 CardDetailModal"]
+  MODAL --> COMENTAR["Escrever comentário"]
+  COMENTAR --> |"toggle 🔒"| INTERNO["F9. Nota Interna"]
+  COMENTAR --> |"@nome"| MENCAO["Menção"]
+  MENCAO --> PUSH["🔔 F8. Push Nativo"]
+
+  BOARD --> |"segura Shift+click"| BULK["☑️ F10. Seleção Múltipla"]
+  BULK --> MOVE_BULK["Mover em lote"]
+  BULK --> ARCHIVE_BULK["Arquivar em lote"]
+
+  BOARD --> |"⚙️ Settings"| SETTINGS["Configurações"]
+  SETTINGS --> RULES["🤖 F13. Regras Auto"]
+  SETTINGS --> THEMES["🎨 F12. Temas"]
+  THEMES --> PRESET["Escolhe preset"]
+
+  BOARD --> |"📊 Dashboard"| DASH["Dashboard"]
+  DASH --> METRICS["📈 F5. Métricas"]
+  DASH --> CSV["📥 F6. Export CSV"]
+
+  RULES --> |"ao carregar board"| AUTO_MOVE["Auto-move tickets"]
+
+  style TEMPLATE fill:#1a2a1a,stroke:#25D066
+  style FILTER fill:#1a2a1a,stroke:#25D066
+  style COMPACT fill:#1a2a1a,stroke:#25D066
+  style SLA fill:#1a2a1a,stroke:#25D066
+  style INTERNO fill:#2a2210,stroke:#f5a623
+  style PUSH fill:#1a1a2a,stroke:#579dff
+  style BULK fill:#1a2a1a,stroke:#25D066
+  style RULES fill:#1a2a1a,stroke:#25D066
+  style THEMES fill:#1a1a2a,stroke:#a882ff
+  style METRICS fill:#1a2a1a,stroke:#25D066
+  style CSV fill:#1a2a1a,stroke:#25D066
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 1 - SLA ═══ -->
+<div class="section">
+  <div class="section-title">F1. SLA Visual — Indicador de Tempo</div>
+  <div class="mermaid">
+flowchart LR
+  CARD["Card.tsx"] --> CALC["Calcula diferença<br/>Date.now() - updated_at"]
+  CALC --> CHECK{">24 horas?"}
+  CHECK -->|Sim| RED["🔴 cardOverdue<br/>border-left: 3px solid #ef5c48"]
+  CHECK -->|Não| CHECK2{">12 horas?"}
+  CHECK2 -->|Sim| YELLOW["🟡 cardWarning<br/>border-left: 3px solid #e2b203"]
+  CHECK2 -->|Não| NORMAL["Sem indicador"]
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 2 - Filtros ═══ -->
+<div class="section">
+  <div class="section-title">F2. Filtros Avançados</div>
+  <div class="mermaid">
+flowchart LR
+  HEADER["Header do Kanban<br/>botão Filtros (F)"] --> BAR["Barra de Filtros"]
+  BAR --> P["🏷️ Prioridade<br/>Alta · Média · Baixa"]
+  BAR --> A["👤 Responsável<br/>Lista de usuários"]
+  BAR --> L["🏷️ Etiqueta<br/>Labels do board"]
+  P & A & L --> FILTER_FN["getColumnTickets()<br/>filtra tickets"]
+  FILTER_FN --> RESULT["Cards filtrados<br/>+ Badge de contagem"]
+  BAR --> CLEAR["Limpar Filtros"]
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 3 - Atalhos ═══ -->
+<div class="section">
+  <div class="section-title">F3. Atalhos de Teclado</div>
+  <div class="mermaid">
+flowchart TB
+  HOOK["useKeyboardShortcuts.ts"] --> LISTENER["document.addEventListener<br/>'keydown'"]
+  LISTENER --> IGNORE{"Foco em<br/>input/textarea?"}
+  IGNORE -->|Sim| SKIP["Ignora"]
+  IGNORE -->|Não| MATCH["Verifica atalho"]
+  MATCH --> N["<b>N</b> → Abre Novo Ticket"]
+  MATCH --> F["<b>F</b> → Toggle Filtros"]
+  MATCH --> SLASH["<b>/</b> → Foca na Busca"]
+  MATCH --> CTRLK["<b>Ctrl+K</b> → Foca na Busca"]
+  MATCH --> R["<b>R</b> → Recarrega tickets"]
+  MATCH --> C["<b>C</b> → Toggle Compacto"]
+  MATCH --> HELP["<b>Shift+?</b> → Modal de Ajuda"]
+  MATCH --> ESC["<b>Esc</b> → Fecha modal/filtros"]
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 4 - Templates ═══ -->
+<div class="section">
+  <div class="section-title">F4. Templates de Ticket</div>
+  <div class="mermaid">
+flowchart LR
+  subgraph SAVE["Salvar Template"]
+    PREENCHE["Preenche: título,<br/>descrição, prioridade, status"] --> BTN_SAVE["Botão 'Salvar<br/>como Template'"]
+    BTN_SAVE --> PROMPT["Prompt: nome<br/>do template"]
+    PROMPT --> STORE["localStorage<br/>chatpro-templates"]
+  end
+
+  subgraph LOAD["Usar Template"]
+    NOVO["Modal Novo Ticket"] --> DROPDOWN["Dropdown Templates"]
+    DROPDOWN --> SELECT["Seleciona template"]
+    SELECT --> FILL["Preenche campos<br/>automaticamente"]
+  end
+
+  subgraph DELETE["Excluir"]
+    LIST["Lista de templates"] --> TRASH["🗑️ Botão excluir"]
+    TRASH --> REMOVE["Remove do localStorage"]
+  end
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 9 - Notas Internas ═══ -->
+<div class="section">
+  <div class="section-title">F9. Notas Internas vs Comentários Públicos</div>
+  <div class="mermaid">
+flowchart TB
+  TEXTAREA["Textarea de comentário"] --> TOGGLE{"Toggle<br/>Público / Interno"}
+  TOGGLE -->|Público| PUBLIC["💬 Comentário normal<br/>bg: #22272b<br/>border: cinza"]
+  TOGGLE -->|🔒 Interno| INTERNAL["⚡ Prefixo [INTERNO]<br/>bg: rgba(245,166,35,0.08)<br/>border: âmbar<br/>Label: NOTA INTERNA"]
+  PUBLIC & INTERNAL --> SEND["handleSendComment()"]
+  SEND --> DB["insertComment()<br/>Supabase"]
+  SEND --> RESET["isInternalNote → false"]
+
+  subgraph FEED["Feed de Comentários"]
+    RENDER["Renderiza comentário"]
+    RENDER --> CHECK{"Começa com<br/>[INTERNO]?"}
+    CHECK -->|Sim| AMBER["🔒 Badge NOTA INTERNA<br/>Fundo âmbar<br/>Borda dourada<br/>Texto sem prefixo"]
+    CHECK -->|Não| NORMAL["Comentário padrão<br/>Fundo escuro"]
+  end
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 10 - Bulk ═══ -->
+<div class="section">
+  <div class="section-title">F10. Seleção Múltipla (Bulk Actions)</div>
+  <div class="mermaid">
+flowchart LR
+  ACTIVATE["Ativa modo bulk<br/>(botão no header)"] --> SELECT["Click nos cards<br/>= seleciona/deseleciona"]
+  SELECT --> BAR["Barra flutuante<br/>N selecionados"]
+  BAR --> MOVE["📦 Mover para...<br/>Seleciona coluna destino"]
+  BAR --> ARCHIVE["🗄️ Arquivar todos"]
+  BAR --> CANCEL["❌ Cancelar seleção"]
+  MOVE --> UPDATE["updateTicket() x N<br/>em sequência"]
+  ARCHIVE --> UPDATE_A["updateTicket()<br/>is_archived: true"]
+  UPDATE & UPDATE_A --> REFRESH["loadTickets()"]
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 13 - Regras Auto ═══ -->
+<div class="section">
+  <div class="section-title">F13. Regras Automáticas</div>
+  <div class="mermaid">
+flowchart TB
+  subgraph CONFIG["⚙️ Configuração (Settings Panel)"]
+    CREATE_RULE["Criar Regra"] --> NAME["Nome da regra"]
+    NAME --> CONDITION["Condição"]
+    CONDITION --> C1["Prioridade Alta"]
+    CONDITION --> C2["Prioridade Média"]
+    CONDITION --> C3["Prioridade Baixa"]
+    CONDITION --> C4["Sem Responsável"]
+    CONDITION --> C5["Sem Atualização >12h"]
+    CONDITION --> C6["Sem Atualização >24h"]
+    C1 & C2 & C3 & C4 & C5 & C6 --> TARGET["Coluna destino"]
+    TARGET --> SAVE["Salva no localStorage"]
+  end
+
+  subgraph EXEC["🤖 Execução (ao carregar board)"]
+    LOAD["loadTickets()"] --> READ["Lê regras do localStorage"]
+    READ --> LOOP["Para cada ticket ativo..."]
+    LOOP --> EVAL{"Condição<br/>atendida?"}
+    EVAL -->|Sim| MOVE["updateTicket()<br/>status = coluna destino"]
+    EVAL -->|Não| SKIP["Pula"]
+  end
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 12 - Temas ═══ -->
+<div class="section">
+  <div class="section-title">F12. Temas por Usuário</div>
+  <div class="mermaid">
+flowchart LR
+  SETTINGS["Settings Panel"] --> SELECTOR["Grade de Temas"]
+  SELECTOR --> D["🌑 Escuro"]
+  SELECTOR --> DD["⚫ Profundo"]
+  SELECTOR --> L["☀️ Claro"]
+  SELECTOR --> G["🟢 Verde Escuro"]
+  SELECTOR --> CP["💚 chatPro"]
+  SELECTOR --> P["🟣 Roxo"]
+  SELECTOR --> S["🌅 Pôr do Sol"]
+  SELECTOR --> O["🌊 Oceano"]
+
+  D & DD & L & G & CP & P & S & O --> SET["setPreset(key)"]
+  SET --> APPLY["applyThemeToDom()<br/>CSS Variables"]
+  APPLY --> PERSIST["localStorage<br/>chatpro-theme"]
+  APPLY --> DOM["--bg-primary<br/>--bg-secondary<br/>--bg-card<br/>--text-primary<br/>--accent<br/>..."]
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 5+6 - Dashboard ═══ -->
+<div class="section">
+  <div class="section-title">F5 + F6. Métricas e Exportação CSV</div>
+  <div class="mermaid">
+flowchart TB
+  DASH["DashboardView.tsx"] --> FETCH["fetchTickets()"]
+  FETCH --> CALC["Calcula métricas"]
+
+  CALC --> M1["📊 Total de Tickets"]
+  CALC --> M2["🟡 Em Aberto"]
+  CALC --> M3["✅ Resolvidos"]
+  CALC --> M4["🔴 Alta Prioridade"]
+  CALC --> M5["📅 Criados Hoje"]
+  CALC --> M6["🎯 Produtividade<br/>(resolvidos hoje ÷ total)"]
+
+  DASH --> EXPORT["Botão Exportar CSV"]
+  EXPORT --> BUILD["Monta CSV"]
+  BUILD --> HEADERS["id, título, status,<br/>prioridade, responsável,<br/>criado, atualizado"]
+  BUILD --> BOM["Adiciona BOM<br/>(UTF-8 para Excel)"]
+  BOM --> DOWNLOAD["Download automático<br/>tickets-chatpro-YYYY-MM-DD.csv"]
+  </div>
+</div>
+
+<!-- ═══ FLUXO: Feature 8 - Push ═══ -->
+<div class="section">
+  <div class="section-title">F8. Notificações Push Nativas</div>
+  <div class="mermaid">
+flowchart LR
+  MOUNT["App monta<br/>NotificationProvider"] --> PERM{"Permissão<br/>do browser?"}
+  PERM -->|default| ASK["Solicita permissão<br/>Notification.requestPermission()"]
+  PERM -->|granted| READY["✅ Pronto"]
+  PERM -->|denied| BLOCKED["❌ Bloqueado"]
+  ASK --> READY
+
+  subgraph TRIGGER["Quando chega notificação via Realtime"]
+    REALTIME["Supabase postgres_changes<br/>INSERT on notifications"] --> CHECK{"Aba está<br/>focada?"}
+    CHECK -->|"document.hidden = true"| PUSH["🔔 new Notification()<br/>título: chatPro — Suporte<br/>body: mensagem<br/>icon: /icon-192.png"]
+    CHECK -->|"Aba visível"| TOAST["Toast in-app apenas"]
+  end
+
+  PUSH --> CLICK["Click na notificação<br/>→ window.focus()"]
+  </div>
+</div>
+
+<!-- ═══ CARDS DE FEATURES ═══ -->
+<div class="section">
+  <div class="section-title">Resumo de Todas as Features</div>
+  <div class="cards-grid">
+    <div class="fcard done">
+      <div class="num">FEATURE 01</div>
+      <div class="title">⏱️ SLA / Tempo de Resposta</div>
+      <div class="desc">Indicador visual de urgência nos cards. Borda vermelha se sem atualização há +24h, amarela se +12h.</div>
+      <div class="meta">
+        <span class="tag file">Card.tsx</span>
+        <span class="tag file">Card.module.css</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 02</div>
+      <div class="title">🔍 Filtros Avançados</div>
+      <div class="desc">Filtragem por prioridade, responsável e etiqueta com dropdowns na barra do header e badge de contagem ativa.</div>
+      <div class="meta">
+        <span class="tag file">KanbanBoard.tsx</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 03</div>
+      <div class="title">⌨️ Atalhos de Teclado</div>
+      <div class="desc">Hook customizado com 8 atalhos: N (novo), F (filtros), / (busca), Ctrl+K (busca), R (refresh), C (compacto), ? (ajuda), Esc (fechar).</div>
+      <div class="meta">
+        <span class="tag file">useKeyboardShortcuts.ts</span>
+        <span class="tag file">KanbanBoard.tsx</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 04</div>
+      <div class="title">📋 Templates de Ticket</div>
+      <div class="desc">Salvar, carregar e excluir templates no modal de Novo Ticket. Persiste no localStorage.</div>
+      <div class="meta">
+        <span class="tag file">KanbanBoard.tsx</span>
+        <span class="tag">localStorage</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 05</div>
+      <div class="title">📊 Métricas no Dashboard</div>
+      <div class="desc">6 cards: total, abertos, resolvidos, alta prioridade, criados hoje e taxa de produtividade.</div>
+      <div class="meta">
+        <span class="tag file">DashboardView.tsx</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 06</div>
+      <div class="title">📥 Exportação CSV</div>
+      <div class="desc">Botão de download CSV com BOM para compatibilidade Excel. Inclui todos os tickets ativos com data.</div>
+      <div class="meta">
+        <span class="tag file">DashboardView.tsx</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard pending">
+      <div class="num">FEATURE 07</div>
+      <div class="title">💬 Integração WhatsApp</div>
+      <div class="desc">UI de configuração pronta (InstanceModal.tsx). Falta Supabase Edge Function para comunicar com API chatPro.</div>
+      <div class="meta">
+        <span class="tag file">InstanceModal.tsx</span>
+        <span class="tag status-pending">⏳ Pendente</span>
+        <span class="tag">Requer backend</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 08</div>
+      <div class="title">🔔 Notificações Push Nativas</div>
+      <div class="desc">Browser Notification API. Solicita permissão no login. Dispara notificação nativa quando aba não está focada.</div>
+      <div class="meta">
+        <span class="tag file">NotificationContext.tsx</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 09</div>
+      <div class="title">🔒 Notas Internas</div>
+      <div class="desc">Toggle Público/Interno na caixa de comentário. Notas internas com fundo âmbar, badge "NOTA INTERNA" e ícone de cadeado.</div>
+      <div class="meta">
+        <span class="tag file">CardDetailModal.tsx</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 10</div>
+      <div class="title">☑️ Seleção Múltipla</div>
+      <div class="desc">Modo bulk: seleciona vários cards, barra flutuante com ações de mover em lote e arquivar em lote.</div>
+      <div class="meta">
+        <span class="tag file">KanbanBoard.tsx</span>
+        <span class="tag file">Card.tsx</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 11</div>
+      <div class="title">📐 Modo Compacto</div>
+      <div class="desc">Cards renderizados em linha única: ponto de prioridade + título (ellipsis) + avatar. Atalho: tecla C.</div>
+      <div class="meta">
+        <span class="tag file">Card.tsx</span>
+        <span class="tag file">Card.module.css</span>
+        <span class="tag file">KanbanBoard.tsx</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 12</div>
+      <div class="title">🎨 Temas por Usuário</div>
+      <div class="desc">8 presets de cor (Escuro, Profundo, Claro, Verde, chatPro, Roxo, Sunset, Oceano) + personalização. Persiste no localStorage.</div>
+      <div class="meta">
+        <span class="tag file">theme.tsx</span>
+        <span class="tag file">KanbanBoard.tsx</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard done">
+      <div class="num">FEATURE 13</div>
+      <div class="title">🤖 Regras Automáticas</div>
+      <div class="desc">Criar regras condição→ação no Settings. Condições: prioridade, sem assignee, overdue. Processa auto ao carregar o board.</div>
+      <div class="meta">
+        <span class="tag file">KanbanBoard.tsx</span>
+        <span class="tag">localStorage</span>
+        <span class="tag status-done">✅ Concluída</span>
+      </div>
+    </div>
+
+    <div class="fcard pending">
+      <div class="num">FEATURE 14</div>
+      <div class="title">🔗 Webhook de Entrada</div>
+      <div class="desc">Endpoint para receber chamadas externas e criar tickets automaticamente. Precisa de Supabase Edge Function.</div>
+      <div class="meta">
+        <span class="tag status-pending">⏳ Pendente</span>
+        <span class="tag">Requer backend</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ IMPACTO POR ARQUIVO ═══ -->
+<div class="section">
+  <div class="section-title">Impacto por Arquivo</div>
+  <div class="mermaid">
+flowchart LR
+  subgraph MODIFIED["📝 Arquivos Modificados"]
+    KB["KanbanBoard.tsx<br/>F2 · F3 · F4 · F10 · F11 · F12 · F13"]
+    CARD["Card.tsx<br/>F1 · F10 · F11"]
+    CSS["Card.module.css<br/>F1 · F11"]
+    CDM["CardDetailModal.tsx<br/>F9"]
+    DASH["DashboardView.tsx<br/>F5 · F6"]
+    NOTIF["NotificationContext.tsx<br/>F8"]
+    THEME["theme.tsx<br/>F12"]
+  end
+
+  subgraph CREATED["🆕 Arquivos Criados"]
+    HOOK["useKeyboardShortcuts.ts<br/>F3"]
+    DIAGRAM["DIAGRAMA-PROJETO.html"]
+  end
+
+  style KB fill:#1a2a1a,stroke:#25D066
+  style HOOK fill:#1a1a2a,stroke:#579dff
+  </div>
+</div>
+
+<footer>chatPro — Suporte Kanban Board &bull; 14 Features &bull; React + TypeScript + Vite + Supabase</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#25D066',
+      primaryTextColor: '#b6c2cf',
+      primaryBorderColor: '#25D066',
+      lineColor: '#596773',
+      secondaryColor: '#22272b',
+      tertiaryColor: '#1d2125',
+      background: '#1d2125',
+      mainBkg: '#22272b',
+      nodeBorder: '#3a4248',
+      clusterBkg: '#161a1d',
+      clusterBorder: 'rgba(255,255,255,0.08)',
+      titleColor: '#25D066',
+      edgeLabelBackground: '#1d2125',
+      nodeTextColor: '#b6c2cf',
+    },
+    flowchart: { curve: 'basis', padding: 16 },
+  });
+</script>
+
+</body>
+</html>

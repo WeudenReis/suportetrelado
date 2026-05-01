@@ -1,35 +1,64 @@
-<<<<<<< HEAD
-# Suporte Trelado Kanban (Internal SaaS)
+# Suporte chatPro — Kanban de Suporte Interno
 
-Projeto de Kanban técnico, com React + Tailwind + Supabase + Slack OAuth.
+Projeto de Kanban para suporte ao cliente, construido com React + TypeScript + Vite + Supabase.
 
 ## Setup
 
-1. Instale dependências:
-   - `npm install`
-2. Configure `.env`:
+1. Instale dependencias:
+   ```bash
+   npm install
+   ```
+2. Configure `.env` (copie de `.env.example`):
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_SENTRY_DSN` (opcional)
 3. Configure Supabase:
-   - Crie tabela usando `supabase-schema.sql`.
-   - Ative Realtime para tabela `tickets`.
-   - Habilite Slack OAuth em Auth providers.
+   - Execute as migrations em `supabase/migrations/` no SQL Editor.
+   - Ative Realtime para a tabela `tickets`.
+   - Habilite Google OAuth em Auth providers.
 4. Execute:
-   - `npm run dev`
+   ```bash
+   npm run dev
+   ```
 
-## Arquitetura de dados
+## Scripts
 
-Tabela `tickets` com campos:
-- id, title, client_instance, priority, links (json), diagnosis, evidence_storage_url, assigned_to, status, created_at, updated_at.
+| Comando | Descricao |
+|---------|-----------|
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run build` | Build de producao |
+| `npm run preview` | Preview do build |
+| `npm run lint` | ESLint |
+| `npm run type-check` | Verificacao TypeScript |
+| `npm test` | Testes (watch) |
+| `npm run test:run` | Testes (single run) |
+| `npm run test:coverage` | Cobertura de testes |
 
-## Funcionalidades implementadas
+## Stack
 
-- Drag-and-drop Kanban (`Backlog`, `In Progress`, `Waiting for Devs`, `Resolved`).
-- Supabase Realtime subscribe para INSERT/UPDATE/DELETE.
-- Card com borda pulsante e badge `Urgent` quando inatividade &gt; 120 min.
-- Dev Mode (toggle): view focada em `Waiting for Devs`.
-- Slack OAuth (botão único) + validação de domínio `@company.com`.
-=======
-# suportetrelado
-Estamos fazendo um trello para uso interno
->>>>>>> 10883d280e3db6ea1691eea41c927648b28ae60e
+- **Frontend:** React 18 + TypeScript 5 + Vite 5
+- **Estilizacao:** Tailwind CSS + CSS custom
+- **Animacoes:** Framer Motion
+- **Drag & Drop:** dnd-kit
+- **Banco de Dados:** Supabase (PostgreSQL)
+- **Observabilidade:** Sentry + logger estruturado
+- **Testes:** Vitest + React Testing Library
+- **CI/CD:** GitHub Actions
+- **Deploy:** Vercel
+
+## Estrutura
+
+```
+src/
+  components/       # Componentes React
+    kanban/          # Subcomponentes do Kanban
+    __tests__/       # Testes de componentes
+  hooks/             # Hooks customizados
+    __tests__/       # Testes de hooks
+  lib/               # Servicos e utilitarios
+    api/             # Modulos de API por dominio
+    __tests__/       # Testes de lib
+  test/              # Setup de testes e mocks
+supabase/
+  migrations/        # Migrations SQL
+```

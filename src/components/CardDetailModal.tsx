@@ -1,23 +1,26 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { AnimatePresence } from 'framer-motion'
-import {
-  X, MessageSquare, Trash2, Send, Loader2, Download, Video, FileText,
-  ArrowRight, Image as ImageIcon, ExternalLink, MoreHorizontal,
-  AlignLeft, CreditCard, Paperclip, Check, User, Calendar,
-  CheckSquare, Square, Plus, Link2, Pencil
-} from 'lucide-react'
+import { Icon } from '../lib/icons'
 import {
   supabase, updateTicket, deleteTicket,
-  fetchComments, insertComment, deleteComment,
-  fetchAttachments, uploadAttachment, deleteAttachment,
+  fetchComments, insertComment, deleteComment, fetchCommentReactions, toggleCommentReaction,
   fetchActivityLog, insertActivityLog,
-  extractMentionNames, resolveMentionsToEmails, insertNotification,
+  resolveMentionsToEmails, insertNotification,
   fetchUserProfiles,
   fetchBoardLabels, updateBoardLabel, deleteBoardLabel
 } from '../lib/supabase'
-import EscalonarModal from './EscalonarModal'
-import { compressCover, compressThumbnail, compressAttachment } from '../lib/imageUtils'
-import type { Ticket, TicketStatus, Comment, Attachment, ActivityLog, UserProfile, BoardLabel } from '../lib/supabase'
+import { compressCover, compressThumbnail } from '../lib/imageUtils'
+import CardAttachments from './card/CardAttachments'
+import RichTextField from './ui/RichTextField'
+import SlackEscalationModal from './SlackEscalationModal'
+import { useOrg } from '../lib/orgContext'
+import { useDepartmentSettings } from '../hooks/useDepartmentSettings'
+import { logger } from '../lib/logger'
+import { parseRichText, parseRichTextBlocks, extractMentionDisplayNames, type RichTextSegment } from '../lib/textFormatting'
+import type { Ticket, TicketStatus, Comment, ActivityLog, UserProfile, BoardLabel, CommentReaction } from '../lib/supabase'
+import type { BoardColumn } from '../lib/boardColumns'
+import { parseTag } from '../lib/tagUtils'
 
 interface CardDetailModalProps {
   ticket: Ticket
@@ -25,9 +28,12 @@ interface CardDetailModalProps {
   onClose: () => void
   onUpdate: (ticket: Ticket) => void
   onDelete: (id: string) => void
+  boardColumns?: BoardColumn[]
 }
 
-const STATUS_MAP: Record<TicketStatus, string> = {
+// Fallback caso o board ainda nao tenha colunas carregadas (estado raro,
+// preserva os rotulos legados para nao quebrar logs antigos).
+const LEGACY_STATUS_MAP: Record<string, string> = {
   backlog: 'Backlog',
   in_progress: 'Em andamento',
   waiting_devs: 'Aguardando Devs',
@@ -50,33 +56,115 @@ function avatarColor(name: string) {
   return avatarPalette[name.charCodeAt(0) % avatarPalette.length]
 }
 
-function renderCommentText(text: string): React.ReactNode {
+function renderInlineSegment(seg: RichTextSegment, key: React.Key): React.ReactNode {
+  switch (seg.type) {
+    case 'mention':
+      return <span key={key} className="mention-highlight">{seg.value}</span>
+    case 'bold':
+      return <strong key={key}>{seg.value}</strong>
+    case 'italic':
+      return <em key={key}>{seg.value}</em>
+    case 'underline':
+      return <u key={key}>{seg.value}</u>
+    case 'strike':
+      return <s key={key}>{seg.value}</s>
+    case 'code':
+      return <code key={key} className="rich-text-code">{seg.value}</code>
+    case 'highlight':
+      return <span key={key} className="rich-text-highlight">{seg.value}</span>
+    case 'link':
+      return (
+        <a
+          key={key}
+          href={seg.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rich-text-link"
+          onClick={e => e.stopPropagation()}
+        >
+          {seg.value}
+        </a>
+      )
+    default:
+      return <React.Fragment key={key}>{seg.value}</React.Fragment>
+  }
+}
+
+function renderCommentText(text: string, knownMentions: readonly string[]): React.ReactNode {
   if (!text) return text
   try {
-    const parts = text.split(/(@[\w\u00C0-\u024F]+)/g)
-    return parts.map((part, i) =>
-      /^@[\w\u00C0-\u024F]+$/.test(part)
-        ? <span key={i} className="mention-highlight">{part}</span>
-        : part
-    )
+    return parseRichText(text, { knownMentions }).map((seg, i) => renderInlineSegment(seg, i))
+  } catch {
+    return text
+  }
+}
+
+/** Renderiza texto com blocks (paragraphs, listas, citacoes) — usado em descricao/observacoes. */
+function renderRichBlocks(text: string, knownMentions: readonly string[]): React.ReactNode {
+  if (!text) return null
+  try {
+    const blocks = parseRichTextBlocks(text, { knownMentions })
+    const out: React.ReactNode[] = []
+    let i = 0
+    while (i < blocks.length) {
+      const block = blocks[i]
+      if (block.type === 'bullet' || block.type === 'numbered') {
+        const tag = block.type === 'numbered' ? 'ol' : 'ul'
+        const items: React.ReactNode[] = []
+        while (i < blocks.length && blocks[i].type === block.type) {
+          const cur = blocks[i] as { type: typeof block.type; segments: RichTextSegment[] }
+          items.push(
+            <li key={i}>
+              {cur.segments.map((seg, j) => renderInlineSegment(seg, j))}
+            </li>,
+          )
+          i++
+        }
+        out.push(React.createElement(tag, { key: `list-${i}`, className: `rich-text-${tag}` }, items))
+        continue
+      }
+      if (block.type === 'quote') {
+        out.push(
+          <blockquote key={i} className="rich-text-quote">
+            {block.segments.map((seg, j) => renderInlineSegment(seg, j))}
+          </blockquote>,
+        )
+        i++
+        continue
+      }
+      if (block.type === 'empty') {
+        out.push(<div key={i} className="rich-text-empty" />)
+        i++
+        continue
+      }
+      out.push(
+        <p key={i} className="rich-text-paragraph">
+          {block.segments.map((seg, j) => renderInlineSegment(seg, j))}
+        </p>,
+      )
+      i++
+    }
+    return out
   } catch {
     return text
   }
 }
 
 const TAG_COLORS = ['#ef5c48', '#e2b203', '#4bce97', '#579dff', '#6366f1', '#a259ff', '#ec4899', '#06b6d4', '#f97316', '#596773']
+const REACTION_EMOJIS = ['✅', '👀', '🚀', '👏', '🔥', '🧠', '⚠️', '❤️'] as const
 
-/** Parse tag stored as "name|#color" or legacy plain "name" */
-export function parseTag(raw: string): { name: string; color: string } {
-  const idx = raw.lastIndexOf('|')
-  if (idx > 0 && raw[idx + 1] === '#') {
-    return { name: raw.slice(0, idx), color: raw.slice(idx + 1) }
-  }
-  // Legacy: auto-generate color
-  return { name: raw, color: `hsl(${(raw.charCodeAt(0) * 47) % 360}, 55%, 45%)` }
-}
-
-export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete }: CardDetailModalProps) {
+export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDelete, boardColumns = [] }: CardDetailModalProps) {
+  const { departmentId: userDeptId, hasPermission } = useOrg()
+  const { settings: deptSettings } = useDepartmentSettings()
+  const fieldCfg = deptSettings.fields
+  const canEditDetails = hasPermission('tickets:edit_details')
+  const canDelete      = hasPermission('tickets:delete')
+  const canAssign      = hasPermission('tickets:assign')
+  const canManageLabels = hasPermission('labels:manage')
+  const statusLabel = useCallback((id: string) => {
+    const col = boardColumns.find(c => c.id === id)
+    return col?.title || LEGACY_STATUS_MAP[id] || id
+  }, [boardColumns])
   const [title, setTitle] = useState(ticket.title)
   const [description, setDescription] = useState(ticket.description || '')
   const [status, setStatus] = useState<TicketStatus>(ticket.status)
@@ -92,19 +180,17 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const savingRef = useRef(false)
 
   const [comments, setComments] = useState<Comment[]>([])
+  const [commentReactions, setCommentReactions] = useState<CommentReaction[]>([])
+  const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null)
   const [newComment, setNewComment] = useState('')
   const [sendingComment, setSendingComment] = useState(false)
   const [commentFocused, setCommentFocused] = useState(false)
+  const [isInternalNote, setIsInternalNote] = useState(false)
 
-  const [attachments, setAttachments] = useState<Attachment[]>([])
-  const [uploading, setUploading] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
-  const [showEscalonarModal, setShowEscalonarModal] = useState(false)
-  const [slackSent, setSlackSent] = useState(false)
 
   const [activities, setActivities] = useState<ActivityLog[]>([])
-  const [showActivities, setShowActivities] = useState(false)
-  const [showComments, setShowComments] = useState(false)
+  const [timelineFilter, setTimelineFilter] = useState<'all' | 'comments' | 'activity'>('comments')
   const [showLabelPicker, setShowLabelPicker] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [dueDate, setDueDate] = useState(ticket.due_date || '')
@@ -124,12 +210,13 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   // Multi-member state
   const [showMemberPicker, setShowMemberPicker] = useState(false)
+  const [escalationOpen, setEscalationOpen] = useState(false)
   const [members, setMembers] = useState<string[]>(() => {
     const raw = ticket.assignee || ''
     return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
   })
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const commentRef = useRef<HTMLTextAreaElement>(null)
   const commentsEndRef = useRef<HTMLDivElement>(null)
 
@@ -139,10 +226,43 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   const [allUsers, setAllUsers] = useState<UserProfile[]>([])
   const mentionStartPos = useRef<number>(0)
 
+  const observacaoNotes = observacao.split('\n').filter(l => !l.startsWith('☐') && !l.startsWith('☑')).join('\n')
+  const setObservacaoNotes = (notes: string) => {
+    const checkLines = observacao.split('\n').filter(l => l.startsWith('☐') || l.startsWith('☑'))
+    const merged = [...(notes ? [notes] : []), ...checkLines].join('\n')
+    setObservacao(merged)
+  }
+
+  const knownMentions = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = ['todos']
+    seen.add('todos')
+    for (const u of allUsers) {
+      const name = (u.name || '').trim()
+      if (name) {
+        const key = name.toLowerCase()
+        if (!seen.has(key)) {
+          out.push(name)
+          seen.add(key)
+        }
+      }
+      const alias = (u.email || '').split('@')[0]?.trim()
+      if (alias && /^[\w\u00C0-\u024F]+$/.test(alias)) {
+        const key = alias.toLowerCase()
+        if (!seen.has(key)) {
+          out.push(alias)
+          seen.add(key)
+        }
+      }
+    }
+    return out
+  }, [allUsers])
+
   // GSAP refs
   const overlayRef = useRef<HTMLDivElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
   const [isVisible, setIsVisible] = useState(false)
+  useFocusTrap(modalRef, isVisible)
 
   // ─── CSS entrance animation ──────────────────────────────
   useEffect(() => {
@@ -164,10 +284,14 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   }, [ticket])
 
   useEffect(() => {
+    setTimelineFilter('comments')
     fetchComments(ticket.id).then(setComments)
-    fetchAttachments(ticket.id).then(setAttachments)
     fetchActivityLog(ticket.id).then(setActivities)
   }, [ticket.id])
+
+  useEffect(() => {
+    fetchCommentReactions(comments.map(c => c.id)).then(setCommentReactions)
+  }, [comments])
 
   // Load user profiles for mention autocomplete
   useEffect(() => {
@@ -177,7 +301,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
   // Load board labels when label picker opens
   useEffect(() => {
     if (showLabelPicker) {
-      fetchBoardLabels().then(setBoardLabels).catch(console.error)
+      fetchBoardLabels().then(setBoardLabels).catch(err => logger.error('CardDetail', 'Falha ao carregar labels', { error: String(err) }))
     }
   }, [showLabelPicker])
 
@@ -188,7 +312,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         setComments(prev => prev.some(c => c.id === (p.new as Comment).id) ? prev : [...prev, p.new as Comment])
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments', filter: `ticket_id=eq.${ticket.id}` }, p => {
-        setComments(prev => prev.filter(c => c.id !== (p.old as any).id))
+        setComments(prev => prev.filter(c => c.id !== (p.old as Record<string, string>).id))
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log', filter: `card_id=eq.${ticket.id}` }, p => {
         setActivities(prev => prev.some(a => a.id === (p.new as ActivityLog).id) ? prev : [...prev, p.new as ActivityLog])
@@ -202,22 +326,22 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [comments.length, activities.length])
 
+  const handleClose = useCallback(() => {
+    setIsVisible(false)
+    setTimeout(onClose, 250)
+  }, [onClose])
+
   useEffect(() => {
     const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', fn)
     return () => window.removeEventListener('keydown', fn)
-  }, [onClose])
+  }, [handleClose])
 
   useEffect(() => {
     const closeMenu = () => setShowMoreMenu(false)
     window.addEventListener('click', closeMenu)
     return () => window.removeEventListener('click', closeMenu)
   }, [])
-
-  const handleClose = useCallback(() => {
-    setIsVisible(false)
-    setTimeout(onClose, 250)
-  }, [onClose])
 
   const saveQueue = useRef<Partial<Ticket>[]>([])
   const processQueue = useCallback(async () => {
@@ -232,11 +356,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
-      console.error(err)
+      logger.error('CardDetail', 'Falha ao salvar alterações', { error: String(err) })
     }
     setSaving(false)
     savingRef.current = false
-    if (saveQueue.current.length > 0) processQueue()
+    if (saveQueue.current.length > 0) processQueue() // eslint-disable-line react-hooks/immutability -- recursão intencional na fila
   }, [ticket.id, onUpdate])
 
   const save = useCallback(async (updates: Partial<Ticket>) => {
@@ -261,9 +385,9 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     if (Object.keys(updates).length > 0) {
       await save(updates)
       if (updates.status) {
-        const oldLabel = STATUS_MAP[ticket.status]
-        const newLabel = STATUS_MAP[updates.status]
-        await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`)
+        const oldLabel = statusLabel(ticket.status)
+        const newLabel = statusLabel(updates.status)
+        await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`, ticket.department_id)
       }
     }
   }
@@ -302,10 +426,21 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
       })
     : []
 
+  const mentionableUsers = allUsers.filter(u => u.email.toLowerCase() !== user.toLowerCase())
+
+  type MentionOption =
+    | { type: 'all' }
+    | { type: 'user'; profile: UserProfile }
+
+  const mentionOptions: MentionOption[] = mentionQuery !== null
+    ? [{ type: 'all' }, ...filteredMentionUsers.map(profile => ({ type: 'user' as const, profile }))]
+    : []
+
   const applyMention = (profile: UserProfile) => {
     const before = newComment.slice(0, mentionStartPos.current)
     const after = newComment.slice(commentRef.current?.selectionStart ?? mentionStartPos.current + (mentionQuery?.length ?? 0) + 1)
-    const inserted = `@${profile.name} `
+    const insertedName = profile.name.trim().replace(/\s+/g, '\u00A0')
+    const inserted = `@${insertedName} `
     setNewComment(before + inserted + after)
     setMentionQuery(null)
     setTimeout(() => {
@@ -318,30 +453,62 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     }, 0)
   }
 
+  const applyMentionAll = () => {
+    if (mentionableUsers.length === 0) return
+    const before = newComment.slice(0, mentionStartPos.current)
+    const after = newComment.slice(commentRef.current?.selectionStart ?? mentionStartPos.current + (mentionQuery?.length ?? 0) + 1)
+    const inserted = '@todos '
+    setNewComment(before + inserted + after)
+    setMentionQuery(null)
+    setTimeout(() => {
+      if (commentRef.current) {
+        const pos = before.length + inserted.length
+        commentRef.current.selectionStart = pos
+        commentRef.current.selectionEnd = pos
+        commentRef.current.focus()
+      }
+    }, 0)
+  }
+
+  const applyMentionOption = (option: MentionOption) => {
+    if (option.type === 'all') {
+      applyMentionAll()
+      return
+    }
+    applyMention(option.profile)
+  }
+
   const handleSendComment = async () => {
     if (!newComment.trim()) return
     setSendingComment(true)
-    const commentText = newComment.trim()
+    const commentText = isInternalNote ? `[INTERNO] ${newComment.trim()}` : newComment.trim()
     setMentionQuery(null)
     try {
-      const c = await insertComment(ticket.id, user, commentText)
+      const c = await insertComment(ticket.id, user, commentText, ticket.department_id)
       if (c) setComments(prev => [...prev, c])
       setNewComment('')
+      setIsInternalNote(false)
       setSendingComment(false)
       commentRef.current?.focus()
 
       // Detect @nome mentions and create notifications
-      const mentionNames = extractMentionNames(commentText)
+      const mentionNames = extractMentionDisplayNames(commentText, { knownMentions })
       if (mentionNames.length > 0) {
         const { data: { session } } = await supabase.auth.getSession()
         const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
         const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
         const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
 
-        const emails = await resolveMentionsToEmails(mentionNames)
+        const mentionTodos = mentionNames.includes('todos')
+        const emailsFromMentions = await resolveMentionsToEmails(mentionNames.filter(n => n !== 'todos'))
+        const emails = mentionTodos
+          ? [...new Set([...emailsFromMentions, ...mentionableUsers.map(u => u.email)])]
+          : emailsFromMentions
+
         for (const email of emails) {
           if (email.toLowerCase() !== user.toLowerCase()) {
             await insertNotification({
+              department_id: ticket.department_id || '',
               recipient_email: email,
               sender_name: senderDisplayName,
               type: 'mention',
@@ -353,7 +520,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         }
       }
     } catch (err) {
-      console.error('handleSendComment error:', err)
+      logger.error('CardDetail', 'Falha ao enviar comentário', { error: String(err) })
       setSendingComment(false)
     }
   }
@@ -363,36 +530,123 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     await deleteComment(id)
   }
 
+  const getCommentReactions = (commentId: string) => {
+    const grouped = new Map<string, { emoji: string; count: number; reactedByMe: boolean }>()
+    for (const reaction of commentReactions) {
+      if (reaction.comment_id !== commentId) continue
+      const current = grouped.get(reaction.emoji)
+      const reactedByMe = reaction.user_email.toLowerCase() === user.toLowerCase()
+      if (!current) {
+        grouped.set(reaction.emoji, { emoji: reaction.emoji, count: 1, reactedByMe })
+      } else {
+        current.count += 1
+        current.reactedByMe = current.reactedByMe || reactedByMe
+      }
+    }
+    return [...grouped.values()]
+  }
+
+  const getReactionTooltip = (commentId: string, emoji: string) => {
+    const names = commentReactions
+      .filter(r => r.comment_id === commentId && r.emoji === emoji)
+      .map(r => {
+        const profile = allUsers.find(u => u.email.toLowerCase() === r.user_email.toLowerCase())
+        if (profile?.name) return profile.name
+        return r.user_email.includes('@') ? r.user_email.split('@')[0] : r.user_email
+      })
+    return names.length > 0 ? names.join(', ') : 'Sem reações'
+  }
+
+  const handleToggleReaction = async (commentId: string, departmentId: string, emoji: string, commentUser: string) => {
+    const previousReaction = commentReactions.find(r => r.comment_id === commentId && r.user_email.toLowerCase() === user.toLowerCase())
+
+    await toggleCommentReaction({ commentId, departmentId, userEmail: user, emoji })
+    const reactions = await fetchCommentReactions(comments.map(c => c.id))
+    setCommentReactions(reactions)
+    setReactionPickerFor(null)
+
+    const nextReaction = reactions.find(r => r.comment_id === commentId && r.user_email.toLowerCase() === user.toLowerCase())
+    if (!nextReaction || nextReaction.emoji === previousReaction?.emoji) return
+
+    const authorCandidates = await resolveMentionsToEmails([commentUser])
+    const fallbackEmail = commentUser.includes('@') ? commentUser : ''
+    const commentAuthorEmail = authorCandidates[0] || fallbackEmail
+    if (!commentAuthorEmail || commentAuthorEmail.toLowerCase() === user.toLowerCase()) return
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const fullName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''
+    const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
+    const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+
+    await insertNotification({
+      department_id: departmentId || ticket.department_id || '',
+      recipient_email: commentAuthorEmail,
+      sender_name: senderDisplayName,
+      type: 'comment',
+      ticket_id: ticket.id,
+      ticket_title: ticket.title,
+      message: `reagiu com ${nextReaction.emoji} ao seu comentário`,
+    })
+  }
+
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setUploadingCover(true)
     try {
-      // Comprimir: cover (800x400) + thumbnail (400x200) em paralelo
       const [coverFile, thumbFile] = await Promise.all([
         compressCover(file),
         compressThumbnail(file),
       ])
-      const ts = Date.now()
-      const coverPath = `${ticket.id}/cover_${ts}.webp`
-      const thumbPath = `${ticket.id}/thumb_${ts}.webp`
 
-      // Upload cover + thumbnail em paralelo
+      const localPreview = URL.createObjectURL(coverFile)
+      setCoverImage(localPreview)
+
+      const ts = Date.now()
+      // Prioridade: dept do ticket → dept ativo do usuário → 'shared/' (tickets legados sem dept)
+      const resolvedDeptId = ticket.department_id ?? userDeptId ?? null
+      const deptPrefix = resolvedDeptId ? `${resolvedDeptId}/` : 'shared/'
+      const coverPath = `${deptPrefix}${ticket.id}/cover_${ts}.webp`
+      const thumbPath = `${deptPrefix}${ticket.id}/thumb_${ts}.webp`
+
       const [coverResult, thumbResult] = await Promise.all([
         supabase.storage.from('attachments').upload(coverPath, coverFile),
         supabase.storage.from('attachments').upload(thumbPath, thumbFile),
       ])
 
-      if (!coverResult.error) {
-        const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(coverPath)
-        const thumbUrl = !thumbResult.error
-          ? supabase.storage.from('attachments').getPublicUrl(thumbPath).data.publicUrl
-          : publicUrl
-        setCoverImage(publicUrl)
-        await save({ cover_image_url: publicUrl, cover_thumb_url: thumbUrl })
+      if (coverResult.error) {
+        logger.error('CardDetail', 'Cover upload falhou', { error: String(coverResult.error) })
+        URL.revokeObjectURL(localPreview)
+        setCoverImage('')
+        setUploadingCover(false)
+        if (coverInputRef.current) coverInputRef.current.value = ''
+        return
+      }
+
+      // Usar signed URLs (10 anos) em vez de public URLs — funciona mesmo com bucket não-público
+      const TEN_YEARS = 60 * 60 * 24 * 365 * 10
+      const [coverSigned, thumbSigned] = await Promise.all([
+        supabase.storage.from('attachments').createSignedUrl(coverPath, TEN_YEARS),
+        !thumbResult.error
+          ? supabase.storage.from('attachments').createSignedUrl(thumbPath, TEN_YEARS)
+          : Promise.resolve({ data: null, error: null }),
+      ])
+
+      const coverUrl = coverSigned.data?.signedUrl
+        || supabase.storage.from('attachments').getPublicUrl(coverPath).data.publicUrl
+      const thumbUrl = thumbSigned.data?.signedUrl || coverUrl
+
+      try {
+        const updated = await updateTicket(ticket.id, { cover_image_url: coverUrl, cover_thumb_url: thumbUrl })
+        setCoverImage(coverUrl)
+        URL.revokeObjectURL(localPreview)
+        onUpdate(updated)
+      } catch (dbErr) {
+        logger.error('CardDetail', 'Cover DB save falhou', { error: String(dbErr) })
       }
     } catch (err) {
-      console.error('Cover upload error:', err)
+      logger.error('CardDetail', 'Cover erro inesperado', { error: String(err) })
+      setCoverImage('')
     }
     setUploadingCover(false)
     if (coverInputRef.current) coverInputRef.current.value = ''
@@ -400,25 +654,12 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
   const handleRemoveCover = async () => {
     setCoverImage('')
-    await save({ cover_image_url: null })
-  }
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files?.length) return
-    setUploading(true)
-    for (const file of Array.from(files)) {
-      const compressed = await compressAttachment(file)
-      const att = await uploadAttachment(ticket.id, compressed, user)
-      if (att) setAttachments(prev => [...prev, att])
+    try {
+      const updated = await updateTicket(ticket.id, { cover_image_url: null, cover_thumb_url: null })
+      onUpdate(updated)
+    } catch (err) {
+      logger.error('CardDetail', 'Falha ao remover capa', { error: String(err) })
     }
-    setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const handleDeleteAttachment = async (att: Attachment) => {
-    setAttachments(prev => prev.filter(a => a.id !== att.id))
-    await deleteAttachment(att.id, att.file_url)
   }
 
   const handleShare = async () => {
@@ -434,13 +675,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     }
   }
 
-  const handleSlackSent = async () => {
-    setShowEscalonarModal(false)
-    setSlackSent(true)
-    await insertActivityLog(ticket.id, user, 'escalou este cartão para o Slack')
-    setTimeout(() => setSlackSent(false), 4000)
-  }
-
   const handleDelete = async () => {
     if (!confirm('Tem certeza que deseja excluir este cartao?')) return
     await deleteTicket(ticket.id)
@@ -448,10 +682,16 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     handleClose()
   }
 
-  const feedItems = useMemo(() => [
-    ...comments.map(c => ({ type: 'comment' as const, id: c.id, user: c.user_name, text: c.content, time: c.created_at })),
-    ...(showActivities ? activities.map(a => ({ type: 'activity' as const, id: a.id, user: a.user_name, text: a.action_text, time: a.created_at })) : []),
-  ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()), [comments, activities, showActivities])
+  const feedItems = useMemo(() => {
+    const commentItems = comments.map(c => ({ type: 'comment' as const, id: c.id, departmentId: c.department_id, user: c.user_name, text: c.content, time: c.created_at }))
+    const activityItems = activities.map(a => ({ type: 'activity' as const, id: a.id, user: a.user_name, text: a.action_text, time: a.created_at }))
+    const all = timelineFilter === 'comments'
+      ? commentItems
+      : timelineFilter === 'activity'
+      ? activityItems
+      : [...commentItems, ...activityItems]
+    return all.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+  }, [comments, activities, timelineFilter])
 
   return (
     <div
@@ -462,12 +702,25 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
     >
       <div
         ref={modalRef}
-        className={`elite-modal modal-content relative ${isVisible ? 'modal-content--visible' : ''}`}
+        className={`elite-modal modal-content ${isVisible ? 'modal-content--visible' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-detail-title"
       >
         {/* ── Cover image banner ── */}
         {coverImage && (
           <div className="relative w-full h-[100px] overflow-hidden flex-shrink-0" style={{ background: '#010d1a' }}>
-            <img src={coverImage} alt="" className="w-full h-full object-cover" />
+            <img
+              src={coverImage}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={(ev) => {
+                const src = ev.currentTarget.src
+                logger.warn('CardDetail', 'Cover image load failed', { src })
+                // Nunca limpar blob preview (sempre carrega) nem durante upload
+                if (!src.startsWith('blob:') && !uploadingCover) setCoverImage('')
+              }}
+            />
             <div className="absolute bottom-2 right-2 flex gap-1">
               <button onClick={() => coverInputRef.current?.click()} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#b6c2cf' }}>Alterar capa</button>
               <button onClick={handleRemoveCover} className="px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)', color: '#f87171' }}>Remover</button>
@@ -479,44 +732,51 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         {/* ── Top bar ── */}
         <div className="elite-modal__topbar">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <CreditCard size={18} style={{ color: '#596773' }} />
+            <Icon name="CreditCard" size={18} style={{ color: '#596773' }} />
             <input
+              id="card-detail-title"
               value={title}
-              onChange={e => setTitle(e.target.value)}
-              onBlur={handleTitleBlur}
+              onChange={canEditDetails ? e => setTitle(e.target.value) : undefined}
+              onBlur={canEditDetails ? handleTitleBlur : undefined}
+              readOnly={!canEditDetails}
               className="bg-transparent border-none outline-none text-base leading-tight font-bold w-full"
-              style={{ color: '#b6c2cf' }}
+              style={{ color: '#b6c2cf', cursor: canEditDetails ? 'text' : 'default' }}
             />
             <span className="text-xs whitespace-nowrap" style={{ color: '#596773' }}>
-              {STATUS_MAP[status]}
+              {statusLabel(status)}
             </span>
           </div>
           <div className="flex items-center gap-1 relative flex-shrink-0">
             <select
               value={status}
-              onChange={async e => {
+              disabled={!canEditDetails}
+              onChange={canEditDetails ? async e => {
                 const next = e.target.value as TicketStatus
-                const oldLabel = STATUS_MAP[status]
-                const newLabel = STATUS_MAP[next]
+                const oldLabel = statusLabel(status)
+                const newLabel = statusLabel(next)
                 setStatus(next)
                 await save({ status: next })
-                await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`)
-              }}
+                await insertActivityLog(ticket.id, user, `moveu este cartao de ${oldLabel} para ${newLabel}`, ticket.department_id)
+              } : undefined}
               className="dark-select"
             >
-              {(Object.entries(STATUS_MAP) as [TicketStatus, string][]).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
+              {boardColumns.length > 0
+                ? boardColumns.map(col => (
+                    <option key={col.id} value={col.id}>{col.title}</option>
+                  ))
+                : (Object.entries(LEGACY_STATUS_MAP) as [string, string][]).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))
+              }
             </select>
-            <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Adicionar imagem ou video"><ImageIcon size={15} /></button>
-            <button onClick={(e) => { e.stopPropagation(); setShowMoreMenu(prev => !prev) }} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Mais opcoes"><MoreHorizontal size={16} /></button>
-            <button onClick={handleClose} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }}><X size={18} /></button>
+            <button onClick={(e) => { e.stopPropagation(); setShowMoreMenu(prev => !prev) }} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }} title="Mais opcoes"><Icon name="MoreHorizontal" size={16} /></button>
+            <button onClick={handleClose} className="p-1.5 rounded-md hover:bg-white/10 transition-colors" style={{ color: '#596773' }}><Icon name="X" size={18} /></button>
 
             {showMoreMenu && (
               <div className="absolute right-10 top-10 w-44 rounded-lg overflow-hidden z-20" style={{ background: '#282e33', border: '1px solid rgba(166,197,226,0.16)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }} onClick={(e) => e.stopPropagation()}>
                 <button onClick={async () => { setShowMoreMenu(false); await handleShare() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#b6c2cf' }}>Compartilhar</button>
-                <button onClick={async () => { setShowMoreMenu(false); await handleSaveAll() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#b6c2cf' }}>Salvar agora</button>
-                <button onClick={async () => { setShowMoreMenu(false); await handleDelete() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-red-500/20 transition-colors" style={{ color: '#f87171' }}>Excluir cartao</button>
+                {canEditDetails && <button onClick={async () => { setShowMoreMenu(false); await handleSaveAll() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#b6c2cf' }}>Salvar agora</button>}
+                {canDelete && <button onClick={async () => { setShowMoreMenu(false); await handleDelete() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-red-500/20 transition-colors" style={{ color: '#f87171' }}>Excluir cartao</button>}
                 <button onClick={() => { setShowMoreMenu(false); handleClose() }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/10 transition-colors" style={{ color: '#596773' }}>Fechar</button>
               </div>
             )}
@@ -524,35 +784,47 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         </div>
 
         {/* ── Action quick bar ── */}
-        <div className="flex items-center gap-1.5 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
+        <div className="flex items-center gap-1.5 px-5 py-1 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          {canManageLabels
+            ? <button onClick={() => setShowLabelPicker(p => !p)} className="elite-action-chip" style={showLabelPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Etiquetas</button>
+            : tags.length > 0 && <div className="flex flex-wrap gap-1 items-center">
+                {tags.map(raw => { const { name, color } = parseTag(raw); return <span key={raw} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: color }}>{name}</span> })}
+              </div>
+          }
           <button onClick={() => setShowDatePicker(p => !p)} className="elite-action-chip" style={showDatePicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Datas</button>
           <button onClick={() => setShowChecklist(p => !p)} className="elite-action-chip" style={showChecklist ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>Checklist</button>
-          {!coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
-          <button onClick={() => setShowMemberPicker(p => !p)} className="elite-action-chip" style={showMemberPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>
-            <Link2 size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Vincular
-          </button>
+          {canEditDetails && !coverImage && <button onClick={() => coverInputRef.current?.click()} disabled={uploadingCover} className="elite-action-chip">{uploadingCover ? 'Enviando...' : 'Capa'}</button>}
+          {canAssign && (
+            <button onClick={() => setShowMemberPicker(p => !p)} className="elite-action-chip" style={showMemberPicker ? { borderColor: 'rgba(87,157,255,0.5)', color: '#579dff' } : {}}>
+              <Icon name="Link2" size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Vincular
+            </button>
+          )}
           <button
-            onClick={() => setShowEscalonarModal(true)}
+            type="button"
+            onClick={() => setEscalationOpen(true)}
             className="elite-action-chip"
-            style={slackSent ? { borderColor: 'rgba(75,206,151,0.5)', color: '#4bce97' } : {}}
+            style={{ borderColor: 'rgba(236,178,46,0.45)', color: '#ECB22E' }}
+            title="Notifica o destinatário no Slack"
           >
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" className="inline mr-1" style={{ verticalAlign: '-1px' }}>
-              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
-            </svg>
-            {slackSent ? 'Enviado!' : 'Slack'}
+            <Icon name="Send" size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Escalonar para TI
           </button>
         </div>
 
         {/* ── Creation info ── */}
-        <div className="flex items-center gap-3 px-5 py-1.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center gap-3 px-5 py-1 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#596773' }}>
-            <User size={12} />
-            <span>Criado por <strong style={{ color: '#8c9bab' }}>{ticket.assignee || 'Desconhecido'}</strong></span>
+            <Icon name="User" size={12} />
+            <span>Criado por <strong style={{ color: '#8c9bab' }}>{(() => {
+              const raw = ticket.assignee || ''
+              if (!raw) return 'Desconhecido'
+              const first = raw.split(',')[0].trim()
+              const profile = allUsers.find(u => u.email === first || u.name === first)
+              return profile?.name || (first.includes('@') ? first.split('@')[0] : first)
+            })()}</strong></span>
           </div>
           <span style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.08)' }} />
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#596773' }}>
-            <Calendar size={12} />
+            <Icon name="Calendar" size={12} />
             <span>{new Date(ticket.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })} às {new Date(ticket.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         </div>
@@ -562,7 +834,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
           {/* ═══ LEFT: Identification ═══ */}
           <div className="elite-modal__col-left">
             {/* Labels picker */}
-            {showLabelPicker && (
+            {showLabelPicker && canManageLabels && (
               <div className="rounded-lg p-2.5 space-y-2 mb-3" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)', maxHeight: 260, overflowY: 'auto' }}>
                 <div className="text-[11px] font-semibold" style={{ color: '#596773' }}>Etiquetas</div>
 
@@ -599,7 +871,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                               setTags(next); save({ tags: next });
                             }}
                           >
-                            {isApplied && <Check size={12} strokeWidth={3} />}
+                            {isApplied && <Icon name="Check" size={12} strokeWidth={3} />}
                             <span className="flex-1 truncate">{label.name}</span>
                           </button>
                           <button
@@ -608,7 +880,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                             onClick={() => { setEditingLabelId(label.id); setEditingLabelName(label.name); setEditingLabelColor(label.color) }}
                             title="Editar etiqueta"
                           >
-                            <Pencil size={11} style={{ color: '#9fadbc' }} />
+                            <Icon name="Pencil" size={11} style={{ color: '#9fadbc' }} />
                           </button>
                         </div>
                       );
@@ -669,84 +941,55 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
             {showDatePicker && (
               <div className="rounded-lg p-3 space-y-2 mb-3" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
                 <div className="text-xs font-semibold mb-1" style={{ color: '#596773' }}>Data de entrega</div>
-                <input type="date" value={dueDate} onChange={e => { setDueDate(e.target.value); save({ due_date: e.target.value || null } as any) }} className="modal-field text-sm" />
+                <input type="date" value={dueDate} onChange={e => { setDueDate(e.target.value); save({ due_date: e.target.value || null }) }} className="modal-field text-sm" />
                 {dueDate && <div className="text-xs" style={{ color: '#596773' }}>Entrega: {new Date(dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>}
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <FieldGroup label="Cliente">
-                <input value={cliente} onChange={e => setCliente(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Nome do cliente" />
-              </FieldGroup>
-              <FieldGroup label="Instancia">
-                <input value={instancia} onChange={e => setInstancia(e.target.value)} onBlur={saveOnBlur} className="modal-field" placeholder="Codigo instancia" />
-              </FieldGroup>
-              <FieldGroup label="Link retaguarda">
-                <div className="flex gap-1">
-                  <input value={linkRetaguarda} onChange={e => setLinkRetaguarda(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
-                  {linkRetaguarda && (
-                    <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
-                  )}
-                </div>
-              </FieldGroup>
-              <FieldGroup label="Link sessao">
-                <div className="flex gap-1">
-                  <input value={linkSessao} onChange={e => setLinkSessao(e.target.value)} onBlur={saveOnBlur} className="modal-field flex-1" placeholder="URL" />
-                  {linkSessao && (
-                    <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><ExternalLink size={12} /></a>
-                  )}
-                </div>
-              </FieldGroup>
-            </div>
+            {(fieldCfg.cliente.visible || fieldCfg.instancia.visible || fieldCfg.link_retaguarda.visible || fieldCfg.link_sessao.visible) && (
+              <div className="grid grid-cols-2 gap-2">
+                {fieldCfg.cliente.visible && (
+                  <FieldGroup label={fieldCfg.cliente.label ?? 'Cliente'} icon={<Icon name="User" size={13} />}>
+                    <input value={cliente} onChange={canEditDetails ? e => setCliente(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder={fieldCfg.cliente.label ?? 'Nome do cliente'} />
+                  </FieldGroup>
+                )}
+                {fieldCfg.instancia.visible && (
+                  <FieldGroup label={fieldCfg.instancia.label ?? 'Instância'} icon={<Icon name="CreditCard" size={13} />}>
+                    <input value={instancia} onChange={canEditDetails ? e => setInstancia(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field" placeholder={fieldCfg.instancia.label ?? 'Código da instância'} />
+                  </FieldGroup>
+                )}
+                {fieldCfg.link_retaguarda.visible && (
+                  <FieldGroup label={fieldCfg.link_retaguarda.label ?? 'Link Retaguarda'} icon={<Icon name="Link2" size={13} />}>
+                    <div className="flex gap-1">
+                      <input value={linkRetaguarda} onChange={canEditDetails ? e => setLinkRetaguarda(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
+                      {linkRetaguarda && (
+                        <a href={linkRetaguarda} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><Icon name="ExternalLink" size={12} /></a>
+                      )}
+                    </div>
+                  </FieldGroup>
+                )}
+                {fieldCfg.link_sessao.visible && (
+                  <FieldGroup label={fieldCfg.link_sessao.label ?? 'Link Sessão'} icon={<Icon name="Link2" size={13} />}>
+                    <div className="flex gap-1">
+                      <input value={linkSessao} onChange={canEditDetails ? e => setLinkSessao(e.target.value) : undefined} onBlur={canEditDetails ? saveOnBlur : undefined} readOnly={!canEditDetails} className="modal-field flex-1" placeholder="URL" />
+                      {linkSessao && (
+                        <a href={linkSessao} target="_blank" rel="noreferrer" className="modal-field-icon-btn" title="Abrir link"><Icon name="ExternalLink" size={12} /></a>
+                      )}
+                    </div>
+                  </FieldGroup>
+                )}
+              </div>
+            )}
 
             {/* Attachments */}
-            <section className="mt-3">
-              <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-                <Paperclip size={14} style={{ color: '#596773' }} />
-                Anexos
-              </div>
-              <div className="space-y-2">
-                {attachments.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {attachments.map(att => (
-                      <div key={att.id} className="group relative rounded-lg overflow-hidden" style={{ background: '#22272b', border: '1px solid rgba(166,197,226,0.12)' }}>
-                        {att.file_type === 'image' ? (
-                          <a href={att.file_url} target="_blank" rel="noreferrer"><img src={att.file_url} alt={att.file_name} className="w-full h-16 object-cover" /></a>
-                        ) : att.file_type === 'video' ? (
-                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16"><Video size={18} style={{ color: '#596773' }} /></a>
-                        ) : (
-                          <a href={att.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-center h-16"><FileText size={18} style={{ color: '#596773' }} /></a>
-                        )}
-                        <div className="px-2 py-1 flex items-center justify-between">
-                          <span className="text-[9px] truncate" style={{ color: '#596773' }}>{att.file_name}</span>
-                          <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <a href={att.file_url} download target="_blank" rel="noreferrer" className="p-0.5 rounded hover:bg-white/10"><Download size={10} style={{ color: '#596773' }} /></a>
-                            <button onClick={() => handleDeleteAttachment(att)} className="p-0.5 rounded hover:bg-red-500/20"><Trash2 size={10} className="text-red-400" /></button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {uploading && (
-                      <div className="flex items-center justify-center h-16 rounded-lg" style={{ background: '#22272b', border: '2px dashed rgba(166,197,226,0.12)' }}>
-                        <Loader2 size={16} className="animate-spin" style={{ color: '#579dff' }} />
-                      </div>
-                    )}
-                  </div>
-                )}
-                <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(166,197,226,0.12)', color: '#596773' }}>
-                  <ImageIcon size={14} /> Adicionar Foto ou Video
-                </button>
-              </div>
-              <input ref={fileInputRef} type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileUpload} />
-            </section>
+            <CardAttachments ticketId={ticket.id} ticketDepartmentId={ticket.department_id} user={user} />
           </div>
 
           {/* ═══ CENTER: Actions & Status ═══ */}
           <div className="elite-modal__col-center">
             <div className="grid grid-cols-2 gap-2 mb-3">
               <FieldGroup label="Prioridade">
-                <select value={priority} onChange={async e => { const next = e.target.value as Ticket['priority']; setPriority(next); await save({ priority: next }) }} className="modal-field">
+                <select value={priority} disabled={!canEditDetails} onChange={canEditDetails ? async e => { const next = e.target.value as Ticket['priority']; setPriority(next); await save({ priority: next }) } : undefined} className="modal-field">
                   <option value="low">Baixa</option>
                   <option value="medium">Media</option>
                   <option value="high">Alta</option>
@@ -754,14 +997,18 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               </FieldGroup>
               <FieldGroup label="Vinculados">
                 <div className="flex flex-wrap gap-1">
-                  {members.map(m => (
+                  {members.map(m => {
+                    const profile = allUsers.find(u => u.email === m || u.name === m)
+                    const displayName = profile?.name || (m.includes('@') ? m.split('@')[0] : m)
+                    return (
                     <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(87,157,255,0.15)', color: '#579dff' }}>
-                      {m.includes('@') ? m.split('@')[0] : m}
+                      {displayName}
                       <button onClick={() => { const next = members.filter(x => x !== m); setMembers(next); const joined = next.join(', '); setAssignee(joined); save({ assignee: joined || null }) }} className="hover:text-red-400 transition-colors">
-                        <X size={10} />
+                        <Icon name="X" size={10} />
                       </button>
                     </span>
-                  ))}
+                    )
+                  })}
                   {members.length === 0 && <span className="text-[11px]" style={{ color: '#596773' }}>Nenhum</span>}
                 </div>
                 {showMemberPicker && (
@@ -773,12 +1020,11 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                         <button
                           key={u.email}
                           onClick={async () => {
-                            const identifier = u.name || u.email
                             let next: string[]
                             if (isAdded) {
                               next = members.filter(m => m !== u.email && m !== u.name)
                             } else {
-                              next = [...members, identifier]
+                              next = [...members, u.email]
                               // Notificar o membro adicionado
                               if (u.email.toLowerCase() !== user.toLowerCase()) {
                                 const { data: { session } } = await supabase.auth.getSession()
@@ -786,6 +1032,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                                 const firstName = fullName ? fullName.split(' ')[0] : user.split('@')[0]
                                 const senderDisplayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
                                 insertNotification({
+                                  department_id: ticket.department_id || '',
                                   recipient_email: u.email,
                                   sender_name: senderDisplayName,
                                   type: 'assignment',
@@ -806,7 +1053,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                             {u.name.charAt(0).toUpperCase()}
                           </div>
                           <span className="flex-1 text-[11px] truncate" style={{ color: '#b6c2cf' }}>{u.name}</span>
-                          {isAdded && <Check size={12} style={{ color: '#22c55e' }} />}
+                          {isAdded && <Icon name="Check" size={12} style={{ color: '#22c55e' }} />}
                         </button>
                       )
                     })}
@@ -817,17 +1064,24 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
 
             <section>
               <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-                <AlignLeft size={14} style={{ color: '#596773' }} />
-                Descricao
+                <Icon name="AlignLeft" size={14} style={{ color: '#25D066' }} />
+                Descrição
               </div>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                onBlur={saveOnBlur}
-                className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 60 }}
-                placeholder="Adicione uma descricao mais detalhada..."
-              />
+              {canEditDetails ? (
+                <RichTextField
+                  value={description}
+                  onChange={setDescription}
+                  onBlur={saveOnBlur}
+                  placeholder="Adicione uma descrição mais detalhada..."
+                  minHeight={60}
+                  ariaLabel="Descrição do ticket"
+                  renderPreview={v => renderRichBlocks(v, knownMentions)}
+                />
+              ) : (
+                <div className="rich-text-preview rich-text-content" style={{ marginTop: 6 }}>
+                  {renderRichBlocks(description, knownMentions)}
+                </div>
+              )}
             </section>
 
             {/* Checklist */}
@@ -841,6 +1095,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
 
               const toggleItem = (lineIdx: number) => {
+                if (!canEditDetails) return
                 const updated = lines.map((line, i) => {
                   if (i !== lineIdx) return line
                   return line.startsWith('☐') ? line.replace('☐', '☑') : line.replace('☑', '☐')
@@ -850,12 +1105,14 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               }
 
               const removeItem = (lineIdx: number) => {
+                if (!canEditDetails) return
                 const updated = lines.filter((_, i) => i !== lineIdx).join('\n')
                 setObservacao(updated)
                 save({ observacao: updated })
               }
 
               const addItem = () => {
+                if (!canEditDetails) return
                 if (!newChecklistItem.trim()) return
                 const item = '☐ ' + newChecklistItem.trim()
                 const updated = observacao ? observacao + '\n' + item : item
@@ -868,7 +1125,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               return (
                 <section className="mt-3">
                   <div className="flex items-center gap-2 mb-2 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-                    <CheckSquare size={14} style={{ color: '#596773' }} />
+                    <Icon name="CheckSquare" size={14} style={{ color: '#596773' }} />
                     Checklist
                     {totalCount > 0 && <span className="ml-auto text-[10px] font-normal" style={{ color: '#596773' }}>{doneCount}/{totalCount}</span>}
                   </div>
@@ -879,78 +1136,97 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   )}
                   <div className="space-y-1 mb-2">
                     {checkItems.map(item => (
-                      <div key={item.idx} className="flex items-center gap-2 group rounded-md px-2 py-1.5 transition-colors hover:bg-white/5" style={{ cursor: 'pointer' }}>
-                        <button onClick={() => toggleItem(item.idx)} className="flex-shrink-0" style={{ color: item.checked ? '#22c55e' : '#596773' }}>
-                          {item.checked ? <CheckSquare size={16} /> : <Square size={16} />}
+                      <div key={item.idx} className="flex items-center gap-2 group rounded-md px-2 py-1.5 transition-colors hover:bg-white/5" style={{ cursor: canEditDetails ? 'pointer' : 'default' }}>
+                        <button onClick={() => toggleItem(item.idx)} disabled={!canEditDetails} className="flex-shrink-0" style={{ color: item.checked ? '#22c55e' : '#596773', cursor: canEditDetails ? 'pointer' : 'default' }}>
+                          {item.checked ? <Icon name="CheckSquare" size={16} /> : <Icon name="Square" size={16} />}
                         </button>
                         <span className="flex-1 text-sm" style={{ color: item.checked ? '#596773' : '#b6c2cf', textDecoration: item.checked ? 'line-through' : 'none' }}>{item.text}</span>
-                        <button onClick={() => removeItem(item.idx)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-500/20">
-                          <Trash2 size={12} className="text-red-400" />
-                        </button>
+                        {canEditDetails && (
+                          <button onClick={() => removeItem(item.idx)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-500/20">
+                            <Icon name="Trash2" size={12} className="text-red-400" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
-                  <div className="flex gap-1.5">
-                    <input
-                      ref={checklistInputRef}
-                      value={newChecklistItem}
-                      onChange={e => setNewChecklistItem(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') addItem() }}
-                      placeholder="Adicionar item..."
-                      className="modal-field flex-1 text-xs"
-                    />
-                    <button onClick={addItem} className="px-2 py-1 rounded-md transition-colors hover:bg-white/10" style={{ color: '#579dff' }}>
-                      <Plus size={16} />
-                    </button>
-                  </div>
+                  {canEditDetails && (
+                    <div className="flex gap-1.5">
+                      <input
+                        ref={checklistInputRef}
+                        value={newChecklistItem}
+                        onChange={e => setNewChecklistItem(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addItem() }}
+                        placeholder="Adicionar item..."
+                        className="modal-field flex-1 text-xs"
+                      />
+                      <button onClick={addItem} className="px-2 py-1 rounded-md transition-colors hover:bg-white/10" style={{ color: '#579dff' }}>
+                        <Icon name="Plus" size={16} />
+                      </button>
+                    </div>
+                  )}
                 </section>
               )
             })()}
 
+            {fieldCfg.observacao.visible && (
             <section className="mt-3">
               <div className="flex items-center gap-2 mb-1 text-xs font-semibold" style={{ color: '#b6c2cf' }}>
-                <Paperclip size={14} style={{ color: '#596773' }} />
-                Observacao
+                <Icon name="Paperclip" size={14} style={{ color: '#25D066' }} />
+                {fieldCfg.observacao.label ?? 'Observação'}
               </div>
-              <textarea
-                value={observacao.split('\n').filter(l => !l.startsWith('☐') && !l.startsWith('☑')).join('\n')}
-                onChange={e => {
-                  const checkLines = observacao.split('\n').filter(l => l.startsWith('☐') || l.startsWith('☑'))
-                  const newNotes = e.target.value
-                  const merged = [...(newNotes ? [newNotes] : []), ...checkLines].join('\n')
-                  setObservacao(merged)
-                }}
-                onBlur={saveOnBlur}
-                className="w-full rounded-md p-3 text-sm resize-y outline-none"
-                style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.16)', minHeight: 80 }}
-                rows={4}
-                placeholder="Notas adicionais"
-              />
+              {canEditDetails ? (
+                <RichTextField
+                  value={observacaoNotes}
+                  onChange={setObservacaoNotes}
+                  onBlur={saveOnBlur}
+                  placeholder="Notas adicionais"
+                  minHeight={80}
+                  rows={4}
+                  ariaLabel={fieldCfg.observacao.label ?? 'Observação'}
+                  renderPreview={v => renderRichBlocks(v, knownMentions)}
+                />
+              ) : (
+                <div className="rich-text-preview rich-text-content" style={{ marginTop: 6 }}>
+                  {renderRichBlocks(observacaoNotes, knownMentions)}
+                </div>
+              )}
             </section>
+            )}
           </div>
 
           {/* ═══ RIGHT: Timeline / Activity ═══ */}
           <div className="elite-modal__col-right">
-            <div className="flex items-center justify-between mb-2 flex-shrink-0">
+
+            {/* Header with tab filters */}
+            <div className="flex items-center justify-between mb-3 flex-shrink-0">
               <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#b6c2cf' }}>
-                <MessageSquare size={14} style={{ color: '#596773' }} />
+                <Icon name="MessageSquare" size={14} style={{ color: '#596773' }} />
                 Timeline
-                {comments.length > 0 && <span className="text-[10px] font-normal" style={{ color: '#596773' }}>({comments.length})</span>}
+                <span className="text-[10px] font-normal" style={{ color: '#596773' }}>
+                  ({comments.length + activities.length})
+                </span>
               </div>
-              <div className="flex gap-1">
-                <button onClick={() => setShowComments(!showComments)} className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
-                  style={{ background: showComments ? 'rgba(87,157,255,0.12)' : 'rgba(255,255,255,0.06)', color: showComments ? '#579dff' : '#b6c2cf' }}>
-                  {showComments ? 'Ocultar' : 'Mostrar'} comentarios
-                </button>
-                <button onClick={() => setShowActivities(!showActivities)} className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
-                  style={{ background: showActivities ? 'rgba(87,157,255,0.12)' : 'rgba(255,255,255,0.06)', color: showActivities ? '#579dff' : '#b6c2cf' }}>
-                  {showActivities ? 'Ocultar' : 'Mostrar'} atividade
-                </button>
+              <div className="flex gap-1" style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 3 }}>
+                {(['comments', 'activity', 'all'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setTimelineFilter(f)}
+                    style={{
+                      fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 6, border: 'none',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      background: timelineFilter === f ? 'rgba(87,157,255,0.18)' : 'transparent',
+                      color: timelineFilter === f ? '#579dff' : '#596773',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                    }}
+                  >
+                    {f === 'all' ? 'Tudo' : f === 'comments' ? `Comentários${comments.length > 0 ? ` (${comments.length})` : ''}` : `Atividade${activities.length > 0 ? ` (${activities.length})` : ''}`}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Comment input + feed — only when showComments is true */}
-            {showComments && <div className="flex gap-2 mb-3 flex-shrink-0">
+            {/* Comment input - always visible */}
+            <div className="flex gap-2 mb-3 flex-shrink-0">
               <Avatar name={user} size={28} />
               <div className="flex-1 relative">
                 <textarea
@@ -959,7 +1235,6 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                   onChange={e => {
                     const val = e.target.value
                     setNewComment(val)
-                    // Detect @ mention trigger
                     const pos = e.target.selectionStart
                     const textBefore = val.slice(0, pos)
                     const atMatch = textBefore.match(/@([\w\u00C0-\u024F]*)$/)
@@ -976,101 +1251,205 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
                     if (!newComment.trim()) setCommentFocused(false)
                     setTimeout(() => setMentionQuery(null), 150)
                   }}
-                  placeholder="Escrever um comentario... Use @ para mencionar"
+                  placeholder="Escrever um comentário... Use @ para mencionar"
                   rows={commentFocused ? 3 : 1}
                   className="modal-field resize-none transition-all text-[13px]"
                   onKeyDown={e => {
-                    if (mentionQuery !== null && filteredMentionUsers.length > 0) {
-                      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, filteredMentionUsers.length - 1)); return }
+                    if (mentionQuery !== null && mentionOptions.length > 0) {
+                      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, mentionOptions.length - 1)); return }
                       if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); return }
-                      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); applyMention(filteredMentionUsers[mentionIndex]); return }
+                      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); applyMentionOption(mentionOptions[mentionIndex]); return }
                       if (e.key === 'Escape') { setMentionQuery(null); return }
                     }
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment() }
                   }}
                 />
                 {/* Mention autocomplete dropdown */}
-                {mentionQuery !== null && filteredMentionUsers.length > 0 && (
+                {mentionQuery !== null && mentionOptions.length > 0 && (
                   <div className="mention-dropdown">
-                    {filteredMentionUsers.map((u, i) => (
-                      <div
-                        key={u.email}
-                        className={`mention-dropdown__item ${i === mentionIndex ? 'mention-dropdown__item--active' : ''}`}
-                        onMouseDown={e => { e.preventDefault(); applyMention(u) }}
-                        onMouseEnter={() => setMentionIndex(i)}
-                      >
-                        <div className="mention-dropdown__avatar" style={{ background: u.avatar_color }}>
-                          {u.name.charAt(0).toUpperCase()}
+                    {mentionOptions.map((option, i) => {
+                      if (option.type === 'all') {
+                        return (
+                          <div
+                            key="mention-all"
+                            className={`mention-dropdown__item ${i === mentionIndex ? 'mention-dropdown__item--active' : ''}`}
+                            onMouseDown={e => { e.preventDefault(); applyMentionAll() }}
+                            onMouseEnter={() => setMentionIndex(i)}
+                          >
+                            <div className="mention-dropdown__avatar" style={{ background: '#25D066' }}>
+                              @
+                            </div>
+                            <div className="mention-dropdown__info">
+                              <span className="mention-dropdown__name">Mencionar todos</span>
+                              <span className="mention-dropdown__email">Inclui toda a equipe no comentário</span>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      const u = option.profile
+                      return (
+                        <div
+                          key={u.email}
+                          className={`mention-dropdown__item ${i === mentionIndex ? 'mention-dropdown__item--active' : ''}`}
+                          onMouseDown={e => { e.preventDefault(); applyMention(u) }}
+                          onMouseEnter={() => setMentionIndex(i)}
+                        >
+                          <div className="mention-dropdown__avatar" style={{ background: u.avatar_color }}>
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="mention-dropdown__info">
+                            <span className="mention-dropdown__name">{u.name}</span>
+                            <span className="mention-dropdown__email">{u.email}</span>
+                          </div>
                         </div>
-                        <div className="mention-dropdown__info">
-                          <span className="mention-dropdown__name">{u.name}</span>
-                          <span className="mention-dropdown__email">{u.email}</span>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
                 <AnimatePresence>
                   {(commentFocused || newComment.trim()) && (
-                    <div className="flex justify-end mt-1.5">
+                    <div className="flex items-center justify-between mt-1.5">
+                      <button
+                        onClick={() => setIsInternalNote(p => !p)}
+                        type="button"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px',
+                          borderRadius: 6, fontSize: 10, fontWeight: 600,
+                          background: isInternalNote ? 'rgba(245,166,35,0.12)' : 'transparent',
+                          border: isInternalNote ? '1px solid rgba(245,166,35,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                          color: isInternalNote ? '#f5a623' : '#596773',
+                          cursor: 'pointer', transition: 'all 0.15s',
+                          fontFamily: "'Space Grotesk', sans-serif",
+                        }}
+                        title="Nota interna (não visível ao cliente)"
+                      >
+                        <Icon name="Lock" size={10} />
+                        {isInternalNote ? 'Nota Interna' : 'Público'}
+                      </button>
                       <button onClick={handleSendComment} disabled={!newComment.trim() || sendingComment}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-40"
-                        style={{ background: '#3b82f6' }}>
-                        {sendingComment ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                        Enviar
+                        style={{ background: isInternalNote ? '#f5a623' : '#3b82f6' }}>
+                        {sendingComment ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Send" size={12} />}
+                        {isInternalNote ? 'Nota' : 'Enviar'}
                       </button>
                     </div>
                   )}
                 </AnimatePresence>
               </div>
-            </div>}
+            </div>
 
-            {/* Feed */}
-            {showComments && (
-              <div className="elite-modal__feed">
-                {feedItems.map(item => (
-                  <div key={item.id} className="flex gap-2 group">
+            {/* Divider before feed */}
+            {feedItems.length > 0 && (
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', marginBottom: 10, flexShrink: 0 }} />
+            )}
+
+            {/* Feed - always rendered, filtered by tab */}
+            <div className="elite-modal__feed">
+              {feedItems.length === 0 ? (
+                <div className="text-center py-8" style={{ color: '#596773' }}>
+                  <Icon name="MessageSquare" size={22} style={{ margin: '0 auto 8px', opacity: 0.35 }} />
+                  <p style={{ fontSize: 12 }}>
+                    {timelineFilter === 'comments' ? 'Nenhum comentário ainda.' : timelineFilter === 'activity' ? 'Nenhuma atividade registrada.' : 'Nenhuma atividade ainda.'}
+                  </p>
+                </div>
+              ) : (
+                feedItems.map(item => (
+                  <div key={item.id} className="flex gap-2 group" style={{ marginBottom: 12 }}>
                     <Avatar name={item.user} size={24} />
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 relative">
                       <div className="flex items-center gap-2">
                         <span className="text-[12px] font-semibold" style={{ color: '#b6c2cf' }}>
                           {item.user.includes('@') ? item.user.split('@')[0] : item.user}
                         </span>
                         <span className="text-[10px]" style={{ color: '#596773' }}>{timeAgo(item.time)}</span>
+                        {item.type === 'activity' && (
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
+                            background: 'rgba(139,92,246,0.12)', color: '#a78bfa',
+                            fontFamily: "'Space Grotesk', sans-serif",
+                          }}>ATIVIDADE</span>
+                        )}
                       </div>
                       {item.type === 'comment' ? (
                         <>
-                          <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: '#22272b', color: '#b6c2cf', border: '1px solid rgba(166,197,226,0.08)' }}>
-                            {renderCommentText(item.text)}
+                          {item.text.startsWith('[INTERNO] ') && (
+                            <div className="flex items-center gap-1 mt-0.5 mb-0.5">
+                              <Icon name="Lock" size={9} style={{ color: '#f5a623' }} />
+                              <span style={{ color: '#f5a623', fontSize: 9, fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>NOTA INTERNA</span>
+                            </div>
+                          )}
+                          <div className="mt-0.5 rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{
+                            background: item.text.startsWith('[INTERNO] ') ? 'rgba(245,166,35,0.08)' : '#22272b',
+                            color: '#b6c2cf',
+                            border: item.text.startsWith('[INTERNO] ') ? '1px solid rgba(245,166,35,0.2)' : '1px solid rgba(166,197,226,0.08)',
+                          }}>
+                            {renderCommentText(item.text.startsWith('[INTERNO] ') ? item.text.slice(10) : item.text, knownMentions)}
                           </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            {getCommentReactions(item.id).map(r => (
+                              <button
+                                key={`${item.id}-${r.emoji}`}
+                                onClick={() => handleToggleReaction(item.id, item.departmentId || ticket.department_id, r.emoji, item.user)}
+                                className="px-2 py-0.5 rounded-full text-[11px] transition-colors"
+                                title={getReactionTooltip(item.id, r.emoji)}
+                                style={{
+                                  background: r.reactedByMe ? 'rgba(37,208,102,0.18)' : 'rgba(255,255,255,0.06)',
+                                  border: r.reactedByMe ? '1px solid rgba(37,208,102,0.35)' : '1px solid rgba(166,197,226,0.1)',
+                                  color: '#b6c2cf',
+                                }}
+                              >
+                                {r.emoji} {r.count}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setReactionPickerFor(prev => prev === item.id ? null : item.id)}
+                              className="px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1"
+                              style={{
+                                background: 'rgba(255,255,255,0.04)',
+                                border: '1px solid rgba(166,197,226,0.1)',
+                                color: '#8da2b5',
+                              }}
+                            >
+                              <Icon name="Smile" size={11} /> Reagir
+                            </button>
+                          </div>
+                          {reactionPickerFor === item.id && (
+                            <div className="absolute z-20 mt-1 p-2 rounded-lg flex flex-wrap gap-1.5" style={{
+                              background: '#1d2125',
+                              border: '1px solid rgba(166,197,226,0.12)',
+                              boxShadow: '0 12px 24px rgba(0,0,0,0.35)',
+                              width: 220,
+                            }}>
+                              {REACTION_EMOJIS.map(emoji => (
+                                <button
+                                  key={`${item.id}-pick-${emoji}`}
+                                  onClick={() => handleToggleReaction(item.id, item.departmentId || ticket.department_id, emoji, item.user)}
+                                  className="w-8 h-8 rounded-md text-base"
+                                  style={{ background: 'rgba(255,255,255,0.06)' }}
+                                  title={`Reagir com ${emoji}`}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <button onClick={() => handleDeleteComment(item.id)} className="mt-0.5 text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" style={{ color: '#596773' }}>
-                            <Trash2 size={9} /> Excluir
+                            <Icon name="Trash2" size={9} /> Excluir
                           </button>
                         </>
                       ) : (
                         <div className="mt-0.5 text-[12px] flex items-center gap-1.5" style={{ color: '#596773' }}>
-                          <ArrowRight size={10} style={{ color: '#579dff' }} />
+                          <Icon name="ArrowRight" size={10} style={{ color: '#579dff' }} />
                           {item.text}
                         </div>
                       )}
                     </div>
                   </div>
-                ))}
-                {feedItems.length === 0 && (
-                  <div className="text-center py-6 text-[12px]" style={{ color: '#596773' }}>Nenhuma atividade ainda.</div>
-                )}
-                <div ref={commentsEndRef} />
-              </div>
-            )}
-
-            {!showComments && comments.length > 0 && (
-              <div className="flex-1 flex items-center justify-center">
-                <button onClick={() => setShowComments(true)} className="text-[11px] px-3 py-2 rounded-lg transition-colors hover:bg-white/5" style={{ color: '#596773', border: '1px dashed rgba(166,197,226,0.12)' }}>
-                  <MessageSquare size={14} className="inline mr-1.5" style={{ verticalAlign: '-2px' }} />
-                  {comments.length} comentario{comments.length !== 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
+                ))
+              )}
+              <div ref={commentsEndRef} />
+            </div>
           </div>
         </div>
 
@@ -1082,7 +1461,7 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
               ? { background: 'rgba(75,206,151,0.18)', color: '#4bce97', border: '1px solid rgba(75,206,151,0.24)' }
               : { background: 'rgba(96,165,250,0.18)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.24)' }
             }>
-            {saving ? 'Salvando...' : saveSuccess ? <><Check size={12} className="inline mr-1" />Salvo!</> : 'Salvar'}
+            {saving ? 'Salvando...' : saveSuccess ? <><Icon name="Check" size={12} className="inline mr-1" />Salvo!</> : 'Salvar'}
           </button>
           <button onClick={handleDelete}
             className="px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
@@ -1092,18 +1471,32 @@ export default function CardDetailModal({ ticket, user, onClose, onUpdate, onDel
         </div>
       </div>
 
-      {showEscalonarModal && (
-        <EscalonarModal
-          ticket={ticket}
-          attachments={attachments}
-          cliente={cliente}
-          instancia={instancia}
-          linkRetaguarda={linkRetaguarda}
-          description={description}
-          onClose={() => setShowEscalonarModal(false)}
-          onSent={handleSlackSent}
-        />
-      )}
+      <SlackEscalationModal
+        open={escalationOpen}
+        onClose={() => setEscalationOpen(false)}
+        ticket={{
+          id: ticket.id,
+          title: ticket.title,
+          cliente: ticket.cliente,
+          instancia: ticket.instancia,
+          link_retaguarda: ticket.link_retaguarda,
+          description: description,
+        }}
+        escalatedBy={user}
+        onSuccess={async ({ targetLabel }) => {
+          try {
+            await insertActivityLog(
+              ticket.id, user,
+              `escalou este cartao para ${targetLabel} via Slack`,
+              ticket.department_id,
+            )
+            const log = await fetchActivityLog(ticket.id)
+            setActivities(log)
+          } catch (err) {
+            logger.warn('SlackEscalation', 'Falha ao registrar activity_log', { error: String(err) })
+          }
+        }}
+      />
     </div>
   )
 }
@@ -1119,10 +1512,11 @@ function Avatar({ name, size = 32 }: { name: string; size?: number }) {
   )
 }
 
-function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldGroup({ label, children, icon }: { label: string; children: React.ReactNode; icon?: React.ReactNode }) {
   return (
     <div className="relative">
-      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#596773' }}>
+      <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#b6c2cf' }}>
+        {icon && <span style={{ color: '#25D066' }}>{icon}</span>}
         {label}
       </label>
       {children}

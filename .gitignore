@@ -7,3 +7,10 @@ dist/
 .DS_Store
 *.log
 .vercel
+
+desktop.ini
+
+# Dev artifacts
+*.diff
+*.txt
+!README.txt

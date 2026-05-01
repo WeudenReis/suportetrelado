@@ -1,50 +1,121 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, AlertTriangle, CheckCircle2, Shield, Zap, Activity, X } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { Icon, type IconName } from '../lib/icons'
+import { supabase, isSupabaseConfigured, isDevEnvironment } from '../lib/supabase'
 
 interface LoginProps {
-  onLogin: (email: string, password: string) => void
+  onLogin: (email: string) => void
+  unauthorizedEmail: string | null
 }
 
+type AuthMode = 'login' | 'forgot'
 type ToastType = 'error' | 'success' | 'warning'
 interface Toast { id: string; type: ToastType; title: string; message: string }
 
-const toastCfg = {
-  error:   { icon: AlertTriangle, bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',   iconColor: '#f87171', titleColor: '#fca5a5' },
-  success: { icon: CheckCircle2,  bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   iconColor: '#4ade80', titleColor: '#86efac' },
-  warning: { icon: AlertTriangle, bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)',  iconColor: '#fbbf24', titleColor: '#fcd34d' },
+const toastCfg: Record<ToastType, { icon: IconName; bg: string; border: string; iconColor: string; titleColor: string }> = {
+  error:   { icon: 'AlertTriangle', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',   iconColor: '#f87171', titleColor: '#fca5a5' },
+  success: { icon: 'CheckCircle2',  bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   iconColor: '#4ade80', titleColor: '#86efac' },
+  warning: { icon: 'AlertTriangle', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)',  iconColor: '#fbbf24', titleColor: '#fcd34d' },
 }
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
   const cfg = toastCfg[toast.type]
-  const Icon = cfg.icon
   useEffect(() => {
     const t = setTimeout(() => onDismiss(toast.id), 6000)
     return () => clearTimeout(t)
   }, [toast.id, onDismiss])
   return (
     <motion.div layout initial={{ opacity: 0, y: -16, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.95 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="flex items-start gap-3 px-4 py-3.5 rounded-xl pointer-events-auto"
-      style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: '320px', maxWidth: '420px' }}>
-      <Icon size={17} style={{ color: cfg.iconColor, marginTop: '1px', flexShrink: 0 }} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold leading-tight" style={{ color: cfg.titleColor }}>{toast.title}</p>
-        <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{toast.message}</p>
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 12, pointerEvents: 'auto',
+        background: cfg.bg, border: `1px solid ${cfg.border}`, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: 300, maxWidth: 400,
+      }}>
+      <Icon name={cfg.icon} size={17} style={{ color: cfg.iconColor, marginTop: 1, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: cfg.titleColor, margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>{toast.title}</p>
+        <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0', fontFamily: "'Space Grotesk', sans-serif" }}>{toast.message}</p>
       </div>
-      <button onClick={() => onDismiss(toast.id)} className="p-0.5 rounded text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0"><X size={13} /></button>
+      <button onClick={() => onDismiss(toast.id)} style={{ padding: 2, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', flexShrink: 0 }}>
+        <Icon name="X" size={13} />
+      </button>
     </motion.div>
   )
 }
 
-const statusItems = [{ label: 'API', ok: true }, { label: 'Supabase', ok: true }, { label: 'Realtime', ok: true }]
-
-export default function Login({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+export default function Login({ onLogin: _onLogin, unauthorizedEmail }: LoginProps) {
+  const [mode, setMode] = useState<AuthMode>('login')
   const [loadingEmail, setLoadingEmail] = useState(false)
-  const [loadingGoogle, setLoadingGoogle] = useState(false)
+  const [loadingReset, setLoadingReset] = useState(false)
+  const [email, setEmail] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const passwordRef = useRef<HTMLInputElement>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const captchaRef = useRef<HTMLDivElement>(null)
+  const captchaWidgetId = useRef<number | null>(null)
+  const recaptchaProdSiteKey = (import.meta.env.VITE_RECAPTCHA_SITE_KEY || '').trim()
+  const recaptchaDevSiteKey = (import.meta.env.VITE_RECAPTCHA_SITE_KEY_DEV || '').trim()
+  const recaptchaSiteKey = isDevEnvironment
+    ? (recaptchaDevSiteKey || recaptchaProdSiteKey)
+    : recaptchaProdSiteKey
+  const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+  const recaptchaEnabled = Boolean(recaptchaSiteKey) && !isLocalhost
+
+  // Carregar script do reCAPTCHA
+  useEffect(() => {
+    if (!recaptchaEnabled) return
+    const existingScript = document.querySelector('script[src*="recaptcha"]')
+    if (existingScript) return
+
+    const script = document.createElement('script')
+    script.src = 'https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit'
+    script.async = true
+    script.defer = true
+    document.head.appendChild(script)
+
+    ;(window as unknown as Record<string, unknown>).onRecaptchaLoad = () => {
+      if (captchaRef.current && window.grecaptcha && captchaWidgetId.current === null) {
+        captchaWidgetId.current = window.grecaptcha.render(captchaRef.current, {
+          sitekey: recaptchaSiteKey,
+          callback: (token: string) => setCaptchaToken(token),
+          'expired-callback': () => setCaptchaToken(null),
+          theme: 'dark',
+          size: 'normal',
+        })
+      }
+    }
+
+    return () => {
+      delete (window as unknown as Record<string, unknown>).onRecaptchaLoad
+    }
+  }, [recaptchaEnabled, recaptchaSiteKey])
+
+  // Renderizar widget quando o reCAPTCHA já estiver carregado
+  useEffect(() => {
+    if (!recaptchaEnabled || !captchaRef.current || captchaWidgetId.current !== null) return
+    if (window.grecaptcha) {
+      window.grecaptcha.ready(() => {
+        if (captchaRef.current && window.grecaptcha && captchaWidgetId.current === null) {
+          captchaWidgetId.current = window.grecaptcha.render(captchaRef.current, {
+            sitekey: recaptchaSiteKey,
+            callback: (token: string) => setCaptchaToken(token),
+            'expired-callback': () => setCaptchaToken(null),
+            theme: 'dark',
+            size: 'normal',
+          })
+        }
+      })
+    }
+  }, [recaptchaEnabled, recaptchaSiteKey])
+
+  const pushToast = useCallback((type: ToastType, title: string, message: string) => {
+    const id = Math.random().toString(36).slice(2)
+    setToasts(prev => [{ id, type, title, message }, ...prev])
+  }, [])
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
 
   useEffect(() => {
     const hash = window.location.hash
@@ -55,159 +126,381 @@ export default function Login({ onLogin }: LoginProps) {
       pushToast('error', 'Falha na autenticação', decodeURIComponent(errorDesc).replace(/\+/g, ' '))
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [])
+  }, [pushToast])
 
-  function pushToast(type: ToastType, title: string, message: string) {
-    const id = Math.random().toString(36).slice(2)
-    setToasts(prev => [{ id, type, title, message }, ...prev])
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim()) {
+      pushToast('warning', 'Informe o e-mail', 'Digite seu e-mail para receber o link de redefinição.')
+      return
+    }
+    setLoadingReset(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin,
+      })
+      if (error) {
+        pushToast('error', 'Erro ao enviar', error.message)
+      } else {
+        pushToast('success', 'E-mail enviado!', 'Verifique sua caixa de entrada para redefinir sua senha.')
+      }
+    } catch {
+      pushToast('error', 'Erro de rede', 'Verifique sua conexão e tente novamente.')
+    } finally {
+      setLoadingReset(false)
+    }
   }
-  function dismissToast(id: string) { setToasts(prev => prev.filter(t => t.id !== id)) }
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault()
-    if (!email || !password) return
+    const pw = passwordRef.current?.value ?? ''
+    if (!email.trim() || !pw.trim()) {
+      pushToast('error', 'Campos obrigatórios', 'Preencha o e-mail e a senha para continuar.')
+      return
+    }
+    if (!isSupabaseConfigured) {
+      pushToast('error', 'Erro de configuração', 'As variáveis de ambiente do Supabase não estão configuradas.')
+      return
+    }
+    if (recaptchaEnabled && !captchaToken) {
+      pushToast('warning', 'Verificação necessária', 'Complete o reCAPTCHA antes de continuar.')
+      return
+    }
     setLoadingEmail(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: pw.trim(),
+      })
       if (error) {
-        pushToast('error', 'Login inválido', error.message)
-        setLoadingEmail(false)
-        return
+        pushToast('error', 'Erro ao entrar', error.message === 'Invalid login credentials'
+          ? 'E-mail ou senha incorretos.'
+          : error.message)
+        resetCaptcha()
       }
-      onLogin(email, password)
     } catch {
       pushToast('error', 'Erro de rede', 'Verifique sua conexão e tente novamente.')
+      resetCaptcha()
+    } finally {
       setLoadingEmail(false)
     }
   }
 
-  async function handleGoogleLogin() {
-    setLoadingGoogle(true)
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin }
-      })
-      if (error) {
-        pushToast('error', 'Erro ao entrar com Google', error.message)
-        setLoadingGoogle(false)
-      }
-    } catch {
-      pushToast('error', 'Erro de rede', 'Verifique sua conexão e tente novamente.')
-      setLoadingGoogle(false)
+  function resetCaptcha() {
+    setCaptchaToken(null)
+    if (window.grecaptcha && captchaWidgetId.current !== null) {
+      window.grecaptcha.reset(captchaWidgetId.current)
     }
   }
 
-  const isLoading = loadingEmail || loadingGoogle
+  function switchMode(newMode: AuthMode) {
+    setMode(newMode)
+    resetCaptcha()
+  }
 
-  const inputStyle = {
-    background: 'var(--bg-input)',
-    border: '1px solid var(--border-subtle)',
-    outline: 'none',
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '12px 14px 12px 42px', borderRadius: 10, fontSize: 14,
+    fontFamily: "'Space Grotesk', sans-serif", color: '#E5E7EB', background: '#1d2125',
+    border: '1px solid rgba(255,255,255,0.08)', outline: 'none',
     transition: 'border-color 0.2s, box-shadow 0.2s',
   }
-  const onFocusInput = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = 'rgba(37,208,102,0.4)'
-    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.08)'
+
+  const inputFocusStyle = (el: HTMLInputElement) => {
+    el.style.borderColor = '#25D066'
+    el.style.boxShadow = '0 0 0 3px rgba(37,208,102,0.12)'
   }
-  const onBlurInput = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
-    e.currentTarget.style.boxShadow = 'none'
+  const inputBlurStyle = (el: HTMLInputElement) => {
+    el.style.borderColor = 'rgba(255,255,255,0.08)'
+    el.style.boxShadow = 'none'
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
-      {/* Subtle bg */}
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `radial-gradient(ellipse 80% 60% at 15% 15%, rgba(37,208,102,0.07) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 85% 20%, rgba(27,173,83,0.05) 0%, transparent 55%), radial-gradient(ellipse 70% 60% at 50% 90%, rgba(36,255,114,0.03) 0%, transparent 60%)` }} />
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: 24, background: '#1d2125', position: 'relative', overflow: 'hidden',
+    }}>
+      {/* Fundo gradiente */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(37,208,102,0.08) 0%, transparent 60%)',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'radial-gradient(ellipse 40% 40% at 80% 80%, rgba(37,208,102,0.04) 0%, transparent 60%)',
+      }} />
 
-      {/* Toast stack */}
-      <div className="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+      {/* Toasts */}
+      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
         <AnimatePresence mode="popLayout">
           {toasts.map(t => <ToastItem key={t.id} toast={t} onDismiss={dismissToast} />)}
         </AnimatePresence>
       </div>
 
-      <div className="relative z-10 w-full max-w-[420px]">
-        {/* Brand */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col items-center mb-8">
-          <div className="mb-4 relative">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: '#25D066', boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(37,208,102,0.25)' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 12h6M9 16h4" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round"/></svg>
-            </div>
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 bg-green-400" style={{ borderColor: 'var(--bg-primary)' }} />
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 400 }}>
+        {/* Logo + Marca */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}
+        >
+          <div style={{
+            width: 60, height: 60, borderRadius: 18, background: 'linear-gradient(135deg, #25D066 0%, #1BAD53 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+            boxShadow: '0 12px 32px rgba(37,208,102,0.25), 0 4px 12px rgba(37,208,102,0.15)',
+          }}>
+            <svg width="30" height="30" viewBox="0 0 100 100" fill="none">
+              <rect x="4" y="4" width="92" height="68" rx="12" ry="12" fill="white" />
+              <polygon points="50,92 40,68 60,68" fill="white" />
+              <circle cx="30" cy="40" r="6" fill="#25D066" />
+              <circle cx="50" cy="40" r="6" fill="#25D066" />
+              <circle cx="70" cy="40" r="6" fill="#25D066" />
+            </svg>
           </div>
-          <h1 className="text-[28px] text-white leading-none mb-2" style={{ fontFamily: "'Paytone One', sans-serif" }}>
-            Suporte chatPro
+          <h1 style={{
+            fontFamily: "'Paytone One', sans-serif", fontSize: 30, color: '#fff',
+            margin: 0, lineHeight: 1, letterSpacing: '-0.01em',
+          }}>
+            chatPro
           </h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Gerencie seus chamados com eficiência.</p>
         </motion.div>
 
         {/* Card */}
-        <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-          className="rounded-2xl p-8"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}>
-
-          {/* Google login */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors hover:bg-white/[0.08]"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)' }}
-          >
-            {loadingGoogle ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-            )}
-            {loadingGoogle ? 'Conectando...' : 'Entrar com Google'}
-          </button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-1">
-            <div className="flex-1 h-px" style={{ background: 'var(--border-subtle)' }} />
-            <span className="text-[11px] font-medium uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>ou</span>
-            <div className="flex-1 h-px" style={{ background: 'var(--border-subtle)' }} />
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            borderRadius: 20, padding: '32px 28px',
+            background: '#22272B', border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.03)',
+          }}
+        >
+          {/* Título do card */}
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <h2 style={{
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700,
+              color: '#E5E7EB', margin: 0,
+            }}>
+              {mode === 'login' ? 'Acessar sua conta' : 'Redefinir senha'}
+            </h2>
+            <p style={{
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: '#6B7685',
+              margin: '6px 0 0',
+            }}>
+              {mode === 'login' ? 'Entre com seu e-mail e senha' : 'Informe seu e-mail para receber o link de redefinição'}
+            </p>
           </div>
 
-          {/* Email form */}
-          <form onSubmit={handleEmailLogin} className="space-y-4" noValidate>
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Email corporativo</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="voce@empresa.com" autoComplete="email" disabled={isLoading}
-                className="w-full rounded-xl px-4 py-3 text-sm placeholder-slate-600 disabled:opacity-50"
-                style={{ ...inputStyle, color: 'var(--text-primary)' }} onFocus={onFocusInput} onBlur={onBlurInput} />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Senha</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" disabled={isLoading}
-                className="w-full rounded-xl px-4 py-3 text-sm placeholder-slate-600 disabled:opacity-50"
-                style={{ ...inputStyle, color: 'var(--text-primary)' }} onFocus={onFocusInput} onBlur={onBlurInput} />
-            </div>
-            <motion.button type="submit" disabled={isLoading || !email || !password} whileHover={!isLoading ? { scale: 1.015 } : {}} whileTap={!isLoading ? { scale: 0.985 } : {}}
-              className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: '#25D066', boxShadow: '0 4px 16px rgba(37,208,102,0.25)' }}>
-              {loadingEmail ? <span className="flex items-center justify-center gap-2"><Loader2 size={15} className="animate-spin" />Autenticando…</span> : 'Acessar Plataforma'}
-            </motion.button>
-          </form>
-        </motion.div>
-
-        {/* Footer */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45, duration: 0.55 }} className="mt-6 flex flex-col items-center gap-3">
-          <div className="flex items-center gap-4 px-4 py-2 rounded-full" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-            {statusItems.map(s => (
-              <div key={s.label} className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={s.ok ? { background: '#25D066', boxShadow: '0 0 4px rgba(37,208,102,0.5)' } : { background: '#ef4444' }} />{s.label}
+          {/* Aviso de acesso negado */}
+          {unauthorizedEmail && mode === 'login' && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 10,
+              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+              marginBottom: 20,
+            }}>
+              <Icon name="ShieldX" size={18} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#fca5a5', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                  Acesso não autorizado
+                </p>
+                <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0', fontFamily: "'Space Grotesk', sans-serif", lineHeight: 1.4 }}>
+                  A conta <strong style={{ color: '#E5E7EB' }}>{unauthorizedEmail}</strong> não tem permissão. Peça acesso ao administrador.
+                </p>
               </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-4 text-[11px]" style={{ color: '#555' }}>
-            <span className="flex items-center gap-1.5"><Shield size={11} />SaaS Interno</span>
-            <span className="w-1 h-1 rounded-full" style={{ background: '#333' }} />
-            <span className="flex items-center gap-1.5"><Activity size={11} />24/7 Monitoring</span>
-            <span className="w-1 h-1 rounded-full" style={{ background: '#333' }} />
-            <span className="flex items-center gap-1.5"><Zap size={11} />Realtime Sync</span>
-          </div>
+            </div>
+          )}
+
+          <AnimatePresence mode="wait">
+            {mode === 'login' && (
+              <motion.div key="login" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.25 }}>
+                {/* Formulário de e-mail e senha */}
+                <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* E-mail */}
+                  <div style={{ position: 'relative' }}>
+                    <Icon name="Mail" size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      type="email"
+                      placeholder="Seu e-mail"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={inputStyle}
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  {/* Senha */}
+                  <div style={{ position: 'relative' }}>
+                    <Icon name="Lock" size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      ref={passwordRef}
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Sua senha"
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={{ ...inputStyle, paddingRight: 42 }}
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(p => !p)}
+                      style={{
+                        position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', color: '#596773', cursor: 'pointer', padding: 4,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'color 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#9fadbc' }}
+                      onMouseLeave={e => { e.currentTarget.style.color = '#596773' }}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <Icon name="EyeOff" size={16} /> : <Icon name="Eye" size={16} />}
+                    </button>
+                  </div>
+
+                  {/* Botão Entrar */}
+                  <button
+                    type="submit"
+                    disabled={loadingEmail || (recaptchaEnabled && !captchaToken)}
+                    onMouseEnter={e => { if (!loadingEmail) e.currentTarget.style.background = '#1BAD53' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
+                      fontFamily: "'Space Grotesk', sans-serif", cursor: loadingEmail ? 'not-allowed' : 'pointer',
+                      background: '#25D066', border: 'none', color: '#fff',
+                      opacity: loadingEmail ? 0.6 : 1, transition: 'background 0.15s, opacity 0.15s',
+                      boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
+                      marginTop: 4,
+                    }}
+                  >
+                    {loadingEmail ? (
+                      <Icon name="Loader2" size={17} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Icon name="ArrowRight" size={17} />
+                    )}
+                    {loadingEmail ? 'Entrando...' : 'Entrar'}
+                  </button>
+                </form>
+
+                {/* Esqueci minha senha */}
+                <div style={{ textAlign: 'right', marginTop: 2 }}>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('forgot')}
+                    style={{
+                      background: 'none', border: 'none', color: '#596773', cursor: 'pointer',
+                      fontSize: 12, fontFamily: "'Space Grotesk', sans-serif",
+                      padding: 0, textDecoration: 'none',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#25D066'; e.currentTarget.style.textDecoration = 'underline' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#596773'; e.currentTarget.style.textDecoration = 'none' }}
+                  >
+                    Esqueci minha senha
+                  </button>
+                </div>
+
+
+              </motion.div>
+            )}
+
+            {mode === 'forgot' && (
+              <motion.div key="forgot" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
+                <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* E-mail */}
+                  <div style={{ position: 'relative' }}>
+                    <Icon name="Mail" size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#596773', pointerEvents: 'none' }} />
+                    <input
+                      type="email"
+                      placeholder="Seu e-mail cadastrado"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      onFocus={e => inputFocusStyle(e.currentTarget)}
+                      onBlur={e => inputBlurStyle(e.currentTarget)}
+                      style={inputStyle}
+                      autoComplete="email"
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Botão Enviar link */}
+                  <button
+                    type="submit"
+                    disabled={loadingReset || !email.trim()}
+                    onMouseEnter={e => { if (!loadingReset) e.currentTarget.style.background = '#1BAD53' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#25D066' }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
+                      fontFamily: "'Space Grotesk', sans-serif", cursor: loadingReset ? 'not-allowed' : 'pointer',
+                      background: '#25D066', border: 'none', color: '#fff',
+                      opacity: (loadingReset || !email.trim()) ? 0.5 : 1,
+                      transition: 'background 0.15s, opacity 0.15s',
+                      boxShadow: '0 4px 16px rgba(37,208,102,0.25)',
+                      marginTop: 4,
+                    }}
+                  >
+                    {loadingReset ? (
+                      <Icon name="Loader2" size={17} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Icon name="Mail" size={17} />
+                    )}
+                    {loadingReset ? 'Enviando...' : 'Enviar link de redefinição'}
+                  </button>
+                </form>
+
+                {/* Voltar para login */}
+                <p style={{
+                  textAlign: 'center', marginTop: 20, marginBottom: 0, fontSize: 13, color: '#6B7685',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}>
+                  Lembrou a senha?{' '}
+                  <button
+                    onClick={() => switchMode('login')}
+                    style={{
+                      background: 'none', border: 'none', color: '#25D066', cursor: 'pointer',
+                      fontWeight: 600, fontSize: 13, fontFamily: "'Space Grotesk', sans-serif",
+                      textDecoration: 'none', padding: 0,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
+                    onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
+                  >
+                    Voltar ao login
+                  </button>
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* reCAPTCHA — fora da alternância para manter o widget montado */}
+          {recaptchaEnabled && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+              <div ref={captchaRef} />
+            </div>
+          )}
+
+          <p style={{
+            textAlign: 'center', marginTop: 18, marginBottom: 0, fontSize: 11, color: '#4B5563',
+            fontFamily: "'Space Grotesk', sans-serif", lineHeight: 1.5,
+          }}>
+            Somente contas autorizadas pelo administrador podem acessar a plataforma.
+          </p>
         </motion.div>
+
+        {/* Rodapé */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          style={{
+            textAlign: 'center', marginTop: 28, fontSize: 11, color: '#3B4754',
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}
+        >
+          © {new Date().getFullYear()} chatPro
+        </motion.p>
       </div>
     </div>
   )
